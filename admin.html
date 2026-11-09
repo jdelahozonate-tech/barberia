@@ -24,7 +24,7 @@ button{font:inherit;cursor:pointer}
 .btn.sec{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
 .btn.block{width:100%;margin-top:18px}
 .mute{color:var(--mute)}
-.head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .kp{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:12px 0}
 .kp div,.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px}
 .kp small{display:block;color:var(--mute)}.kp strong{font-size:1.15rem}
@@ -61,17 +61,42 @@ async function lista(){
  const{data,error}=await sb.rpc('admin_negocios');
  if(error){app.innerHTML=`<h1>Sin acceso</h1><p class="mute">Esta cuenta no es de propietario.</p><button class="btn sec" id="out">Salir</button>`;$('#out').onclick=salir;return}
  const vig=data.filter(n=>n.estado==='ACTIVO'&&n.dias!==null&&n.dias>=0).length,tot=data.reduce((t,n)=>t+Number(n.pagado),0);
- app.innerHTML=`<div class="head"><h1>Barberías</h1><button class="btn sec" id="out">Salir</button></div>
+ app.innerHTML=`<div class="head"><h1>Barberías</h1><span><button class="btn" id="nb">Nueva barbería</button> <button class="btn sec" id="out">Salir</button></span></div>
  <div class="kp"><div><small>Barberías</small><strong>${data.length}</strong></div><div><small>Con plan vigente</small><strong>${vig}</strong></div><div><small>Total cobrado</small><strong>${dinero(tot)}</strong></div></div>
  ${data.map(n=>{const susp=n.estado!=='ACTIVO',v=n.dias===null?'Sin plan':n.dias<0?`Vencida hace ${-n.dias} día${n.dias<-1?'s':''}`:n.dias===0?'Vence hoy':`Vence en ${n.dias} día${n.dias>1?'s':''}`,cl=susp||n.dias===null||n.dias<0?'mal':n.dias<=5?'ojo':'bien';
   return `<div class="card"><strong>${esc(n.nombre)}</strong><span class="chip ${cl}">${susp?'Suspendida':v}</span><br><small class="mute">${esc(n.slug)}, plan ${esc(n.plan||'ninguno')}, vence ${n.vence_en||'sin fecha'}, ${n.usuarios} usuario${n.usuarios==1?'':'s'}, pagado ${dinero(n.pagado)}</small>
-  <div class="ac"><button class="btn" data-r="${n.id}" data-n="${esc(n.nombre)}">Registrar pago y renovar</button><button class="btn sec" data-s="${n.id}" data-e="${n.estado}">${susp?'Reactivar':'Suspender'}</button></div></div>`}).join('')||'<p class="mute">Aún no hay barberías.</p>'}`;
+  <div class="ac"><button class="btn" data-r="${n.id}" data-n="${esc(n.nombre)}">Registrar pago y renovar</button><button class="btn sec" data-c="${n.id}" data-n="${esc(n.nombre)}">Código de acceso</button><button class="btn sec" data-s="${n.id}" data-e="${n.estado}">${susp?'Reactivar':'Suspender'}</button></div></div>`}).join('')||'<p class="mute">Aún no hay barberías.</p>'}`;
  $('#out').onclick=salir;
+ $('#nb').onclick=nueva;
  document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>renovar(b.dataset.r,b.dataset.n));
+ document.querySelectorAll('[data-c]').forEach(b=>b.onclick=async()=>{
+  const{data:cod,error:er}=await sb.rpc('admin_codigo_admin',{p_negocio:b.dataset.c});
+  if(er)return toast(er.message);entrega(b.dataset.n,cod)});
  document.querySelectorAll('[data-s]').forEach(b=>b.onclick=async()=>{
   if(b.dataset.e==='ACTIVO'&&!confirm('¿Suspender esta barbería? Nadie podrá entrar hasta que la reactives.'))return;
   const{error}=await sb.rpc('admin_suspender',{p_negocio:b.dataset.s,p_suspender:b.dataset.e==='ACTIVO'});
   if(error)return toast(error.message);toast('Listo');lista()});
+}
+function nueva(){
+ dlg.innerHTML=`<form id="df"><h2>Nueva barbería</h2>
+ <label for="n1">Nombre de la barbería</label><input id="n1" required>
+ <label for="n2">Enlace de reservas</label><input id="n2" pattern="[a-z0-9-]{3,40}" title="3 a 40 letras minúsculas, números o guiones" required>
+ <div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Crear</button></div></form>`;
+ dlg.showModal();$('#cx').onclick=()=>dlg.close();
+ $('#n1').oninput=e=>{if(!$('#n2').dataset.m)$('#n2').value=e.target.value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)};
+ $('#n2').oninput=e=>{e.target.dataset.m=1};
+ $('#df').onsubmit=async e=>{e.preventDefault();const nombre=$('#n1').value;
+  const{data,error}=await sb.rpc('admin_crear_negocio',{p_nombre:nombre,p_slug:$('#n2').value});
+  if(error)return toast(error.message.includes('duplicate')?'Ese enlace ya está en uso, prueba otro.':error.message);
+  entrega(nombre,data);lista()};
+}
+function entrega(nombre,codigo){
+ const url=location.origin+location.pathname.replace(/[^/]*$/,''),
+  msg=`Te invitaron a ${nombre}. 1) Entra a ${url} 2) Toca “Soy nuevo, crear cuenta” 3) Cuando te lo pida, escribe este código: ${codigo} (vence en 7 días)`;
+ dlg.innerHTML=`<h2>${esc(nombre)}</h2><p>Código: <strong>${esc(codigo)}</strong></p><p class="mute">Vence en 7 días y sirve una sola vez.</p>
+ <a class="btn block" style="display:block;text-align:center;text-decoration:none;background:#1F7A4D" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">Enviar por WhatsApp</a>
+ <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div>`;
+ dlg.showModal();$('#cx').onclick=()=>dlg.close();
 }
 function renovar(id,nombre){
  dlg.innerHTML=`<form id="df"><h2>Renovar ${esc(nombre)}</h2><p class="mute">El plan se extiende desde la fecha de vencimiento (o desde hoy si ya venció).</p>

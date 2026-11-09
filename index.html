@@ -100,7 +100,7 @@ let tt;function toast(m,err){const t=$('#toast');t.textContent=m;t.className='sh
 function pantallaAuth(modo='login',msg=''){
  const reg=modo==='registro';
  app.innerHTML=`<div class="pole"></div><div class="auth"><h1>${reg?'Crea tu cuenta':'Entra a tu barbería'}</h1>
- <p class="mute">${reg?'Registra tu correo para empezar. Después configuras tu barbería.':'Agenda, clientes y equipo en un solo lugar.'}</p>
+ <p class="mute">${reg?'Registra tu correo para empezar. Después escribes el código de invitación que te enviaron.':'Agenda, clientes y equipo en un solo lugar.'}</p>
  ${msg?`<p class="info">${esc(msg)}</p>`:''}
  <form id="f"><label for="em">Correo</label><input id="em" type="email" autocomplete="email" required>
  <label for="pw">Contraseña</label><input id="pw" type="password" minlength="6" autocomplete="${reg?'new-password':'current-password'}" required>
@@ -115,22 +115,12 @@ function pantallaAuth(modo='login',msg=''){
   if(data.session)cargar();else pantallaAuth('login','Te enviamos un correo para confirmar tu cuenta. Confírmalo y luego entra.')};
 }
 function onboarding(){
- app.innerHTML=`<div class="pole"></div><div class="auth"><h1>Configura tu barbería</h1><p class="mute">Con estos datos creamos tu espacio y tu enlace de reservas.</p>
- <form id="f"><label for="nb">Nombre de la barbería</label><input id="nb" required>
- <label for="sl">Enlace de reservas</label><input id="sl" pattern="[a-z0-9-]{3,40}" title="Entre 3 y 40 letras minúsculas, números o guiones" required>
- <label for="na">Tu nombre</label><input id="na" required>
- <button class="btn block">Crear mi barbería</button></form>
- <hr style="margin:28px 0;border:0;border-top:1px solid var(--line)"><h2>¿Te invitaron a una barbería?</h2>
+ app.innerHTML=`<div class="pole"></div><div class="auth"><h1>Entra con tu código</h1><p class="mute">Escribe el código de invitación que te envió quien te presta el servicio.</p>
  <form id="jf"><label for="jc">Código de invitación</label><input id="jc" autocomplete="off" required><label for="jn">Tu nombre</label><input id="jn" required><button class="btn block">Unirme con el código</button></form>
  <p style="text-align:center;margin-top:20px"><button class="link" id="out">Salir</button></p></div>`;
- $('#nb').oninput=e=>{if(!$('#sl').dataset.m)$('#sl').value=slug(e.target.value)};
- $('#sl').oninput=e=>{e.target.dataset.m=1};
- $('#jf').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('.btn');b.disabled=true;
-  const{error}=await sb.rpc('unirse_con_codigo',{p_codigo:$('#jc').value,p_nombre:$('#jn').value.trim()});
-  b.disabled=false;if(error)return toast(error.message,true);cargar()};
  $('#out').onclick=()=>sb.auth.signOut();
- $('#f').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('.btn');b.disabled=true;
-  const{error}=await sb.rpc('crear_negocio',{p_nombre:$('#nb').value.trim(),p_slug:$('#sl').value,p_nombre_admin:$('#na').value.trim()});
+ $('#jf').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('.btn');b.disabled=true;
+  const{error}=await sb.rpc('unirse_con_codigo',{p_codigo:$('#jc').value.trim(),p_nombre:$('#jn').value.trim()});
   b.disabled=false;if(error)return toast(traducir(error.message),true);cargar()};
 }
 async function cargar(){
