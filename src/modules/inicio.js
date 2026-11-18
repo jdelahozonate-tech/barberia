@@ -161,7 +161,7 @@ async function informe(){
  <div class="dash-kpi"><small>Gastos operativos</small><strong>${dinero(gast)}</strong><em>${neto? (gast/neto*100).toFixed(1):'0.0'}% de ingresos</em></div>
  </div>
  <div class="dash-grid">
- <section class="dash-card"><h3>Comportamiento del negocio</h3><p class="sub">Ventas por día y gastos por día · últimos 14 días del periodo</p>${graficaComparativa(serie)}</section>
+ <section class="dash-card"><h3>Comportamiento del negocio</h3><p class="sub">Ventas por día y Gastos por día · últimos 14 días del periodo</p>${graficaComparativa(serie)}</section>
  <section class="dash-card"><h3>Rentabilidad del periodo</h3><p class="sub">Composición de ingresos y costos</p>
  <div class="dash-breakdown">
  ${[['Ventas brutas',bruto],['Descuentos',-desc],['Costo de productos',-costo],['Comisiones',-com],['Gastos operativos',-gast],['Utilidad estimada',util]].map(([n,v])=>'<div class="dash-break-row"><span>'+n+'</span><strong>'+dinero(v)+'</strong></div>').join('')}
