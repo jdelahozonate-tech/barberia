@@ -56,6 +56,69 @@ async function nuevaVenta(pre){
   if(r.error){const rollback=await sb.from('ventas').delete().eq('negocio_id',nid).eq('id',v.id);guardando=false;if(boton)boton.disabled=false;return toast(rollback.error?'No se completó la venta y tampoco pudo revertirse automáticamente: '+r.error.message+' / '+rollback.error.message:'No se completó la venta; se revirtió el registro inicial. '+r.error.message,true)}
   dlg.close();toast('Venta registrada');ventas()};
 }
+async function editarVenta(v, actuales){
+ if(!ADM.includes(S.perfil.rol))return toast('Solo administración puede editar ventas.',true);
+ if(v.estado_venta==='ANULADA')return toast('No se puede editar una venta anulada.',true);
+ const respuestas=await Promise.all([
+  sb.from('clientes').select('id,nombre').eq('negocio_id',S.perfil.negocio_id).order('nombre'),
+  sb.from('barberos').select('id,nombre,modelo_pago,porcentaje_comision').eq('negocio_id',S.perfil.negocio_id).order('nombre'),
+  sb.from('servicios').select('id,nombre,precio').eq('negocio_id',S.perfil.negocio_id).order('nombre'),
+  sb.from('productos').select('id,nombre,precio_venta,costo_unitario').eq('negocio_id',S.perfil.negocio_id).order('nombre')
+ ]);
+ const fallo=respuestas.find(r=>r.error);if(fallo)return toast(traducir(fallo.error.message),true);
+ const[cl,ba,se,pr]=respuestas.map(r=>r.data||[]);
+ const items=[...se.map(x=>({k:'s:'+x.id,n:x.nombre,p:Number(x.precio)})),...pr.map(x=>({k:'p:'+x.id,n:x.nombre,p:Number(x.precio_venta)}))];
+ (actuales||[]).forEach(x=>{
+  const k=x.tipo_item==='SERVICIO'?'s:'+x.servicio_id:'p:'+x.producto_id;
+  if(!items.some(i=>i.k===k))items.push({k,n:x.descripcion||'Ítem anterior',p:Number(x.precio_unitario)||0});
+ });
+ if(!items.length)return toast('No hay servicios ni productos disponibles para editar.',true);
+ const op=(a,id)=>a.map(o=>'<option value="'+o.id+'"'+(o.id===id?' selected':'')+'>'+esc(o.nombre)+'</option>').join('');
+ const lin=x=>{
+  const k=x?(x.tipo_item==='SERVICIO'?'s:'+x.servicio_id:'p:'+x.producto_id):items[0].k;
+  const item=items.find(i=>i.k===k)||items[0];
+  return '<div class="ln edit-ln" style="grid-template-columns:minmax(0,1fr) 68px 100px 34px;align-items:center">'+
+   '<select aria-label="Servicio o producto">'+items.map(i=>'<option value="'+esc(i.k)+'"'+(i.k===item.k?' selected':'')+'>'+esc(i.n)+'</option>').join('')+'</select>'+
+   '<input type="number" min="0.01" step="0.01" value="'+(x?x.cantidad:1)+'" aria-label="Cantidad">'+
+   '<input type="number" min="0" step="0.01" value="'+(x?x.precio_unitario:item.p)+'" aria-label="Precio unitario">'+
+   '<button type="button" class="btn sec rm" aria-label="Quitar ítem">×</button></div>';
+ };
+ dlg.innerHTML='<form id="df"><h2>Editar venta</h2>'+
+  '<label for="ev1">Cliente</label><select id="ev1"><option value="">Cliente de paso</option>'+op(cl,v.cliente_id)+'</select>'+
+  '<label for="ev2">Barbero</label><select id="ev2"><option value="">Sin barbero</option>'+op(ba,v.barbero_id)+'</select>'+
+  '<label>Servicios y productos</label><div id="evln">'+(actuales||[]).map(lin).join('')+'</div>'+
+  '<button type="button" class="link" id="evadd">Agregar otro ítem</button>'+
+  '<label for="evds">Descuento</label><input id="evds" type="number" min="0" step="0.01" value="'+Number(v.descuento||0)+'">'+
+  '<p class="tot" id="evtotal"></p><p class="mute">Pagos ya recibidos: '+dinero(v.total_pagado)+' (se conservarán).</p><p class="mute" id="evsaldo"></p>'+
+  '<div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Guardar cambios</button></div></form>';
+ dlg.showModal();$('#cx').onclick=()=>dlg.close();
+ const leer=()=>[...document.querySelectorAll('#evln .edit-ln')].map(l=>{
+  const i=items.find(x=>x.k===l.querySelector('select').value);
+  return{i,q:Number(l.querySelectorAll('input')[0].value),p:Number(l.querySelectorAll('input')[1].value)};
+ });
+ const calc=()=>{const L=leer(),br=L.reduce((s,x)=>s+(x.i?x.q*x.p:NaN),0),ds=Number($('#evds').value);return{L,br,ds,total:br-ds}};
+ const ref=()=>{const c=calc();$('#evtotal').textContent='Nuevo total: '+dinero(c.total);$('#evsaldo').textContent='Saldo después de los cambios: '+dinero(c.total-Number(v.total_pagado||0))};
+ $('#evln').onclick=e=>{if(e.target.classList.contains('rm')){e.target.closest('.edit-ln').remove();ref()}};
+ $('#evln').onchange=e=>{if(e.target.tagName==='SELECT'){const i=items.find(x=>x.k===e.target.value);if(i)e.target.closest('.edit-ln').querySelectorAll('input')[1].value=i.p;ref()}};
+ $('#evln').oninput=ref;$('#evds').oninput=ref;
+ $('#evadd').onclick=()=>{$('#evln').insertAdjacentHTML('beforeend',lin(null));ref()};
+ let guardando=false;
+ $('#df').onsubmit=async e=>{
+  e.preventDefault();if(guardando)return;
+  const c=calc(),b=e.target.querySelector('button[type="submit"],button:not([type])');
+  if(!c.L.length||c.L.some(x=>!x.i||!Number.isFinite(x.q)||x.q<=0||!Number.isFinite(x.p)||x.p<0)||!Number.isFinite(c.br)||!Number.isFinite(c.ds)||c.ds<0||c.ds>c.br){
+   return toast('Revisa los ítems, cantidades, precios y descuento. Todos deben ser válidos y no negativos.',true);
+  }
+  if(c.total<Number(v.total_pagado||0))return toast('El nuevo total no puede ser inferior a los pagos ya recibidos.',true);
+  const detalles=c.L.map(x=>({tipo_item:x.i.k.startsWith('s:')?'SERVICIO':'PRODUCTO',servicio_id:x.i.k.startsWith('s:')?x.i.k.slice(2):null,producto_id:x.i.k.startsWith('p:')?x.i.k.slice(2):null,cantidad:x.q,precio_unitario:x.p}));
+  guardando=true;if(b)b.disabled=true;
+  const{error}=await sb.rpc('editar_venta',{p_venta_id:v.id,p_cliente_id:$('#ev1').value||null,p_barbero_id:$('#ev2').value||null,p_descuento:c.ds,p_detalles:detalles});
+  if(error){guardando=false;if(b)b.disabled=false;return toast(traducir(error.message),true)}
+  dlg.close();toast('Venta actualizada');ventas();
+ };
+ ref();
+}
+
 async function detalleVenta(v){
  const[rd,rp]=await Promise.all([sb.from('detalle_ventas').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id),sb.from('pagos').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id).order('fecha_hora')]);
  if(rd.error)return toast(traducir(rd.error.message),true);if(rp.error)return toast(traducir(rp.error.message),true);
@@ -67,7 +130,7 @@ async function detalleVenta(v){
  ${fila('Total',dinero(v.total_venta),'tot')}${fila('Pagado',dinero(v.total_pagado))}${fila('Saldo',dinero(v.saldo_pendiente))}
  ${p.length?'<label>Pagos</label>'+p.map(x=>fila(bonito(x.metodo_pago)+', '+hora(x.fecha_hora),dinero(x.valor_pago))).join(''):''}
  ${abierta?`<label for="pg">Registrar otro pago</label><div class="ln"><input id="pg" type="number" min="1" inputmode="decimal" value="${v.saldo_pendiente}"><select id="mp" aria-label="Método">${METODOS}</select></div><button type="button" class="btn block" id="rp">Registrar pago</button>`:''}
- ${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn sec block" id="an">Anular venta</button>':''}
+ ${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button><button type="button" class="btn sec block" id="an">Anular venta</button>':''}
  <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  if(abierta)$('#rp').onclick=async()=>{const b=$('#rp');if(b.disabled)return;const n=Number($('#pg').value);
@@ -75,11 +138,12 @@ async function detalleVenta(v){
   b.disabled=true;
   const{error}=await sb.from('pagos').insert({negocio_id:S.perfil.negocio_id,venta_id:v.id,valor_pago:n,metodo_pago:$('#mp').value,recibido_por:S.perfil.id});
   if(error){b.disabled=false;return toast(error.message,true)}dlg.close();toast('Pago registrado');ventas()};
+ const ed=$('#ed');if(ed)ed.onclick=()=>{dlg.close();editarVenta(v,d)};
  const an=$('#an');if(an)an.onclick=async()=>{const b=$('#an');if(b.disabled)return;if(!confirm('¿Anular esta venta? No se puede deshacer.'))return;b.disabled=true;
-  const{error}=await sb.from('ventas').update({estado_venta:'ANULADA'}).eq('negocio_id',S.perfil.negocio_id).eq('id',v.id);
-  if(error){b.disabled=false;return toast(error.message,true)}dlg.close();toast('Venta anulada');ventas()};
+  const{error}=await sb.rpc('anular_venta',{p_venta_id:v.id});
+  if(error){b.disabled=false;return toast(traducir(error.message),true)}dlg.close();toast('Venta anulada');ventas()};
 }
 
 
- return { ventas, nuevaVenta };
+ return { ventas, nuevaVenta, editarVenta };
 }
