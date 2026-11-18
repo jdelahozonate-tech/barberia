@@ -48,18 +48,18 @@ async function nuevaCita(){
   dlg.close();toast('Cita agendada');S.dia=fecha(i);agenda()};
 }
 function editarCita(c){
+ const admin=['ADMINISTRADOR','SUPERVISOR'].includes(S.perfil.rol);
  const E=['PENDIENTE','CONFIRMADA','ATENDIDA','CANCELADA','NO_ASISTIO'];
  dlg.innerHTML=`<form id="df"><h2>${esc(c.clientes?.nombre)}</h2><p class="mute">${hora(c.inicio)} a ${hora(c.fin)}, ${esc(c.servicios?.nombre)} con ${esc(c.barberos?.nombre)}. Para cambiar la hora, cancela esta cita y agenda otra.</p>
- <label for="e1">Estado</label><select id="e1" name="estado">${E.map(o=>`<option value="${o}"${o===c.estado?' selected':''}>${bonito(o)}</option>`).join('')}</select>
- <label for="e2">Observaciones</label><textarea id="e2" name="observaciones" rows="3">${esc(c.observaciones||'')}</textarea>
- ${wa(c,c.estado==='PENDIENTE')}<div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button><button class="btn">Guardar</button></div></form>`;
+ ${admin?`<label for="e1">Estado</label><select id="e1" name="estado">${E.map(o=>`<option value="${o}"${o===c.estado?' selected':''}>${bonito(o)}</option>`).join('')}</select>
+ <label for="e2">Observaciones</label><textarea id="e2" name="observaciones" rows="3">${esc(c.observaciones||'')}</textarea>${wa(c,c.estado==='PENDIENTE')}`:`<p class="info">Vista de solo lectura. Solo un administrador o supervisor puede modificar esta cita.</p>`}<div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button>${admin?'<button class="btn">Guardar</button>':''}</div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  let guardando=false;
- $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
+ if(admin)$('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
   const{error}=await sb.from('citas').update({estado:f.estado,observaciones:f.observaciones||null}).eq('negocio_id',S.perfil.negocio_id).eq('id',c.id);
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}dlg.close();toast('Cita actualizada');ir();
   if(f.estado==='ATENDIDA'&&c.estado!=='ATENDIDA')cobrarCita(c)};
- const cf=$('#cf');if(cf)cf.onclick=async()=>{if(guardando)return;guardando=true;cf.style.pointerEvents='none';const{error}=await sb.from('citas').update({estado:'CONFIRMADA'}).eq('negocio_id',S.perfil.negocio_id).eq('id',c.id);if(error){guardando=false;cf.style.pointerEvents='';return toast(traducir(error.message),true)}dlg.close();toast('Cita confirmada');ir()};
+ const cf=$('#cf');if(admin&&cf)cf.onclick=async()=>{if(guardando)return;guardando=true;cf.style.pointerEvents='none';const{error}=await sb.from('citas').update({estado:'CONFIRMADA'}).eq('negocio_id',S.perfil.negocio_id).eq('id',c.id);if(error){guardando=false;cf.style.pointerEvents='';return toast(traducir(error.message),true)}dlg.close();toast('Cita confirmada');ir()};
 }
 
 /* ---------- Cobro de la cita y citas por confirmar ---------- */

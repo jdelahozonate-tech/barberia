@@ -271,3 +271,24 @@ test('las reservas públicas toleran catálogos incompletos y filtran horarios i
   assert.match(cita, /tk\.length>512/);
   assert.match(cita, /data-t="\$\{esc\(x\.inicio\)\}"/);
 });
+
+
+test('la interfaz reserva edición administrativa de catálogos, citas, ventas y equipo', () => {
+  const cfg = readFileSync(resolve(root, 'src/config/catalogos.js'), 'utf8');
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
+  const equipo = readFileSync(resolve(root, 'src/modules/equipo.js'), 'utf8');
+  const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  assert.ok(cfg.includes("clientes:{t:'Clientes',uno:'cliente',w:ADM"));
+  assert.ok(ventas.includes("abierta=v.estado_venta==='PENDIENTE'&&admin"));
+  assert.ok(ventas.includes("admin&&v.estado_venta!=='ANULADA'"));
+  assert.ok(agenda.includes("const admin=['ADMINISTRADOR','SUPERVISOR'].includes(S.perfil.rol);"));
+  assert.ok(agenda.includes('Vista de solo lectura'));
+  assert.ok(agenda.includes("if(admin)$('#df').onsubmit=async e=>"));
+  assert.ok(equipo.includes('Solo administración puede gestionar el equipo.'));
+  assert.ok(equipo.includes('Solo administración puede invitar usuarios.'));
+  assert.ok(inicio.includes('Exportar CSV'));
+  assert.ok(inicio.includes('informe-barberia-'));
+  assert.ok(index.includes('m[2]===2?ADM.includes(S.perfil.rol)'));
+});
