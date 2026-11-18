@@ -65,3 +65,6 @@ No se ejecutaron cambios SQL ni se alteraron tablas, RPC, RLS, triggers o reglas
 **Límite pendiente:** el guardado de horarios sigue ejecutando borrado e inserción en dos operaciones. Se evita el doble envío y se limita el borrado al negocio, pero un fallo de inserción aún puede dejar el horario sin filas. La solución completa exige una RPC/transacción backend; no se altera Supabase desde esta revisión.
 
 - Informes: las consultas de ventas, detalle, pagos, gastos, citas y existencias del panel gerencial ahora filtran explícitamente por negocio activo; también se limita al negocio la actualización del servicio de reserva desde Ajustes.
+
+- Cierre de caja: si falla la actualización, se libera el bloqueo y se reactiva el botón para permitir reintento sin cerrar el diálogo.
+- Ajustes del negocio: se bloquean envíos simultáneos; ante error al guardar el negocio o al sincronizar el servicio de reserva se permite reintentar. Se informa cuando la primera escritura ya quedó guardada y la segunda falló.
