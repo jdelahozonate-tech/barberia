@@ -11,7 +11,7 @@ async function caja(){
   <label for="si">Efectivo inicial en caja</label><input id="si" type="number" min="0" value="0" inputmode="decimal"><button class="btn block" id="ab">Abrir caja</button>
   ${u?.length?'<label>Últimos cierres</label>'+u.map(c=>fila2(fm(c.fecha_cierre)+', contó '+dinero(c.efectivo_contado),(c.diferencia>=0?'+':'')+dinero(c.diferencia))).join(''):''}`;
   $('#gs').onclick=()=>gasto(null);
-  $('#ab').onclick=async()=>{const b=$('#ab');if(b.disabled)return;b.disabled=true;const{error}=await sb.from('cajas').insert({negocio_id:S.perfil.negocio_id,usuario_apertura:S.perfil.id,saldo_inicial:Number($('#si').value)||0});if(error){b.disabled=false;return toast(error.message,true)}caja()};
+  $('#ab').onclick=async()=>{const b=$('#ab');if(b.disabled)return;const inicial=Number($('#si').value);if(!Number.isFinite(inicial)||inicial<0)return toast('El saldo inicial debe ser un valor válido y no negativo.',true);b.disabled=true;const{error}=await sb.from('cajas').insert({negocio_id:S.perfil.negocio_id,usuario_apertura:S.perfil.id,saldo_inicial:inicial});if(error){b.disabled=false;return toast(error.message,true)}caja()};
   return}
  const[rp,rg]=await Promise.all([sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,cuentas(nombre,detalle),ventas(estado_venta,clientes(nombre))').eq('negocio_id',S.perfil.negocio_id).eq('estado_pago','REGISTRADO').gte('fecha_hora',cj.fecha_apertura),sb.from('gastos').select('*').eq('negocio_id',S.perfil.negocio_id).eq('estado_gasto','REGISTRADO').gte('fecha_hora',cj.fecha_apertura).order('fecha_hora',{ascending:false})]);
  if(rp.error)return toast(rp.error.message,true);if(rg.error)return toast(rg.error.message,true);
@@ -29,7 +29,7 @@ async function caja(){
  document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>detallePagos(b.dataset.m,(pg||[]).filter(p=>p.ventas?.estado_venta!=='ANULADA'&&p.metodo_pago===b.dataset.m)));
  $('#ce').onclick=()=>{dlg.innerHTML=`<form id="df"><h2>Cerrar caja</h2><p>Debe haber <strong>${dinero(esp)}</strong> en efectivo.</p><label for="ct">Efectivo contado</label><input id="ct" type="number" min="0" inputmode="decimal" required><label for="co">Observaciones</label><textarea id="co" rows="2"></textarea><div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Cerrar caja</button></div></form>`;
   dlg.showModal();$('#cx').onclick=()=>dlg.close();
-  let cerrando=false;$('#df').onsubmit=async e=>{e.preventDefault();if(cerrando)return;cerrando=true;const boton=e.target.querySelector('button[type=\"submit\"],button:not([type])');if(boton)boton.disabled=true;const n=Number($('#ct').value);
+  let cerrando=false;$('#df').onsubmit=async e=>{e.preventDefault();if(cerrando)return;cerrando=true;const boton=e.target.querySelector('button[type=\"submit\"],button:not([type])');if(boton)boton.disabled=true;const n=Number($('#ct').value);if(!Number.isFinite(n)||n<0){cerrando=false;if(boton)boton.disabled=false;return toast('El efectivo contado debe ser un valor válido y no negativo.',true)}
    const{error}=await sb.from('cajas').update({estado_caja:'CERRADA',fecha_cierre:new Date().toISOString(),usuario_cierre:S.perfil.id,efectivo_esperado:esp,efectivo_contado:n,diferencia:n-esp,observaciones:$('#co').value||null}).eq('id',cj.id).eq('negocio_id',S.perfil.negocio_id);
    if(error){cerrando=false;if(boton)boton.disabled=false;return toast(error.message,true)}dlg.close();toast('Caja cerrada');caja()}};
 }
@@ -40,8 +40,8 @@ function gasto(cj){
  <div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Guardar gasto</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  let guardando=false;
- $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
-  const{error}=await sb.from('gastos').insert({...f,valor:Number(f.valor),proveedor:f.proveedor||null,negocio_id:S.perfil.negocio_id,usuario_registro:S.perfil.id,caja_id:cj?.id||null});
+ $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target)),valor=Number(f.valor);if(!Number.isFinite(valor)||valor<=0){guardando=false;if(boton)boton.disabled=false;return toast('El valor del gasto debe ser un número válido mayor que cero.',true)}
+  const{error}=await sb.from('gastos').insert({...f,valor,proveedor:f.proveedor||null,negocio_id:S.perfil.negocio_id,usuario_registro:S.perfil.id,caja_id:cj?.id||null});
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(error.message,true)}dlg.close();toast('Gasto guardado');caja()};
 }
 async function comisiones(){
