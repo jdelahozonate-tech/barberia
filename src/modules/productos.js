@@ -6,7 +6,7 @@ export function crearModuloProductos(deps) {
  const metodos=['EFECTIVO','TRANSFERENCIA','TARJETA','NEQUI','DAVIPLATA'];
  let vista='productos',productos=[],proveedores=[],stock=[];
  const hoy=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
- const fecha=x=>{if(!x)return '—';const d=typeof x==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(x)?new Date(x+'T12:00:00'):new Date(x);return d.toLocaleDateString('es-CO',{year:'numeric',month:'short',day:'numeric'})};
+ const fecha=x=>{if(!x)return '—';const d=typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)?new Date(x+'T12:00:00'):new Date(x);return d.toLocaleDateString('es-CO',{year:'numeric',month:'short',day:'numeric'})};
  const error=e=>toast(traducir(e?.message||String(e)),true);
  const cargarBase=async()=>{
   const rs=await Promise.all([
