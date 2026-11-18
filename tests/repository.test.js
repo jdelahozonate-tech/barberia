@@ -211,3 +211,11 @@ test('equipo, agenda y cierres limitan operaciones al negocio y bloquean escritu
   assert.match(agenda, /update\(\{estado:f\.estado[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
   assert.match(finanzas, /let cerrando=false/);
 });
+
+
+test('los informes gerenciales limitan cada fuente al negocio activo', () => {
+  const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
+  for (const tabla of ['ventas', 'detalle_ventas', 'pagos', 'gastos', 'citas', 'stock_actual']) {
+    assert.match(inicio, new RegExp("from\\('" + tabla + "'\\)[^\\n]*eq\\('negocio_id',S\\.perfil\\.negocio_id\\)"));
+  }
+});
