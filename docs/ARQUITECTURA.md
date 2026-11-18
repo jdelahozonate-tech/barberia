@@ -115,3 +115,5 @@ Estas extracciones no modifican el esquema ni las RPC de Supabase. La validació
 
 - `src/modules/inicio.js`: inicio, indicadores e informe gerencial.
 - `src/modules/ajustes.js`: configuración del negocio, enlace público de reservas y gestión del equipo desde ajustes.
+
+- `src/modules/acceso.js`: autenticación, onboarding por invitación, carga de perfil y validación del acceso/suscripción.
