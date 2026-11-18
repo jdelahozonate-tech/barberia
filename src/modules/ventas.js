@@ -10,7 +10,9 @@ async function ventas(){
  document.querySelectorAll('.row').forEach(b=>b.onclick=()=>detalleVenta(data.find(v=>v.id===b.dataset.id)));
 }
 async function nuevaVenta(pre){
- const[cl,ba,se,pr,cu]=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre,modelo_pago,porcentaje_comision'],['servicios','id,nombre,precio'],['productos','id,nombre,precio_venta,costo_unitario'],['cuentas','id,nombre,detalle']].map(([t,s])=>sb.from(t).select(s).eq('estado','ACTIVO').order('nombre').then(r=>r.data||[])));
+ const respuestas=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre,modelo_pago,porcentaje_comision'],['servicios','id,nombre,precio'],['productos','id,nombre,precio_venta,costo_unitario'],['cuentas','id,nombre,detalle']].map(([t,campos])=>sb.from(t).select(campos).eq('estado','ACTIVO').order('nombre')));
+ const fallo=respuestas.find(r=>r.error);if(fallo)return toast(traducir(fallo.error.message),true);
+ const[cl,ba,se,pr,cu]=respuestas.map(r=>r.data||[]);
  if(!se.length&&!pr.length)return toast('Primero crea un servicio o un producto.',true);
  const items=[...se.map(x=>({k:'s:'+x.id,n:x.nombre,p:Number(x.precio)})),...pr.map(x=>({k:'p:'+x.id,n:x.nombre,p:Number(x.precio_venta)}))];
  const op=a=>a.map(o=>`<option value="${o.id}">${esc(o.nombre)}</option>`).join('');
@@ -36,24 +38,27 @@ async function nuevaVenta(pre){
  $('#ad').onclick=()=>{$('#lns').insertAdjacentHTML('beforeend',lin());ref()};
  $('#ap').onclick=()=>{const rec=pagos().reduce((s,x)=>s+x.v,0);$('#pgs').insertAdjacentHTML('beforeend',pl());$('#pgs .ln:last-child input').value=Math.max(0,calc().t-rec)||'';ref()};ref();
  if(pre){$('#v1').value=pre.cliente_id||'';$('#v2').value=pre.barbero_id||'';const ls=()=>document.querySelectorAll('#lns .ln select');ls()[0].value='s:'+pre.servicio_id;if(pre.fee){$('#ad').click();ls()[1].value='s:'+pre.fee}ref()}
- $('#df').onsubmit=async e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target)),c=calc(),PG=pagos(),pago=PG.reduce((s,x)=>s+x.v,0);
-  if(c.t<0)return toast('El descuento no puede superar el total.',true);
-  if(pago>c.t)return toast('El pago no puede superar el total.',true);
-  if(pago<c.t&&!S.negocio.permitir_saldos)return toast('Esta barbería no permite saldos pendientes. Recibe el pago completo.',true);
-  if(cu.length&&PG.some(x=>x.m!=='EFECTIVO'&&!x.c))return toast('Elige la cuenta donde entró cada pago que no es en efectivo.',true);
+ let guardando=false;
+ $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;guardando=true;const f=Object.fromEntries(new FormData(e.target)),c=calc(),PG=pagos(),pago=PG.reduce((s,x)=>s+x.v,0);
+  if(c.ds<0||c.ds>c.L.reduce((s,l)=>s+l.i.p*l.q,0)){guardando=false;if(boton)boton.disabled=false;return toast('El descuento debe estar entre cero y el subtotal.',true)}
+  if(pago>c.t){guardando=false;if(boton)boton.disabled=false;return toast('El pago no puede superar el total.',true)}
+  if(pago<c.t&&!S.negocio.permitir_saldos){guardando=false;if(boton)boton.disabled=false;return toast('Esta barbería no permite saldos pendientes. Recibe el pago completo.',true)}
+  if(cu.length&&PG.some(x=>x.m!=='EFECTIVO'&&!x.c)){guardando=false;if(boton)boton.disabled=false;return toast('Elige la cuenta donde entró cada pago que no es en efectivo.',true)}
   const bar=ba.find(x=>x.id===f.barbero_id),nid=S.perfil.negocio_id;
   const{data:v,error}=await sb.from('ventas').insert({negocio_id:nid,cliente_id:f.cliente_id||null,barbero_id:f.barbero_id||null,descuento:c.ds,metodo_pago_principal:(PG.slice().sort((a,b)=>b.v-a.v)[0]?.m)||'EFECTIVO',creado_por:S.perfil.id,cita_id:pre?.cita_id||null}).select('id').single();
-  if(error)return toast(traducir(error.message),true);
+  if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
   const det=c.L.map(l=>{const s=l.i.k[0]==='s',id=l.i.k.slice(2),sv=s&&se.find(x=>x.id===id),pd=!s&&pr.find(x=>x.id===id);
    const com=sv&&bar&&bar.modelo_pago!=='ALQUILER'?sv.precio*l.q*Number(bar.porcentaje_comision)/100:0;
    return{negocio_id:nid,venta_id:v.id,tipo_item:s?'SERVICIO':'PRODUCTO',servicio_id:s?id:null,producto_id:s?null:id,descripcion:l.i.n,cantidad:l.q,precio_unitario:l.i.p,costo_unitario:pd?pd.costo_unitario:0,comision_generada:com}});
   let r=await sb.from('detalle_ventas').insert(det);
   if(!r.error&&PG.length)r=await sb.from('pagos').insert(PG.map(x=>({negocio_id:nid,venta_id:v.id,valor_pago:x.v,metodo_pago:x.m,cuenta_id:x.c,recibido_por:S.perfil.id})));
-  if(r.error){await sb.from('ventas').delete().eq('id',v.id);return toast(r.error.message,true)}
+  if(r.error){const rollback=await sb.from('ventas').delete().eq('id',v.id);guardando=false;if(boton)boton.disabled=false;return toast(rollback.error?'No se completó la venta y tampoco pudo revertirse automáticamente: '+r.error.message+' / '+rollback.error.message:'No se completó la venta; se revirtió el registro inicial. '+r.error.message,true)}
   dlg.close();toast('Venta registrada');ventas()};
 }
 async function detalleVenta(v){
- const[{data:d},{data:p}]=await Promise.all([sb.from('detalle_ventas').select('*').eq('venta_id',v.id),sb.from('pagos').select('*').eq('venta_id',v.id).order('fecha_hora')]);
+ const[rd,rp]=await Promise.all([sb.from('detalle_ventas').select('*').eq('venta_id',v.id),sb.from('pagos').select('*').eq('venta_id',v.id).order('fecha_hora')]);
+ if(rd.error)return toast(traducir(rd.error.message),true);if(rp.error)return toast(traducir(rp.error.message),true);
+ const d=rd.data||[],p=rp.data||[];
  const abierta=v.estado_venta==='PENDIENTE',fila=(a,b,c='')=>`<div class="ln2 ${c}"><span>${a}</span><span>${b}</span></div>`;
  dlg.innerHTML=`<form id="df"><h2>${esc(v.clientes?.nombre||'Cliente de paso')}</h2><p class="mute">${new Date(v.fecha_hora).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})}${v.barberos?', '+esc(v.barberos.nombre):''}</p>
  ${d.map(x=>fila(x.cantidad+' × '+esc(x.descripcion),dinero(x.subtotal))).join('')}
