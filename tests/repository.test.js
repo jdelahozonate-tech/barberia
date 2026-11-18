@@ -235,3 +235,18 @@ test('cambio de estado de catálogos impide doble envío y filtra por negocio', 
   assert.match(catalogos, /const b=\$\('#tg'\);if\(b\.disabled\)return;b\.disabled=true/);
   assert.match(catalogos, /\.update\(\{estado:r\.estado==='ACTIVO'\?'INACTIVO':'ACTIVO'\}\)\.eq\('negocio_id',S\.perfil\.negocio_id\)\.eq\('id',r\.id\)/);
 });
+
+
+test('ventas rechaza cantidades, precios y pagos no finitos o inválidos', () => {
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  assert.match(ventas, /Number\.isFinite\(l\.q\)/);
+  assert.match(ventas, /l\.q<=0/);
+  assert.match(ventas, /Number\.isFinite\(l\.i\.p\)/);
+  assert.match(ventas, /valoresPago\.some\(x=>!Number\.isFinite\(x\)\|\|x<0\)/);
+  assert.match(ventas, /Number\.isFinite\(c\.t\)/);
+});
+
+test('entrada de inventario rechaza cantidades no finitas y no positivas', () => {
+  const catalogos = readFileSync(resolve(root, 'src/modules/catalogos.js'), 'utf8');
+  assert.match(catalogos, /!Number\.isFinite\(n\)\|\|n<=0/);
+});
