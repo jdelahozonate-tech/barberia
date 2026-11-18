@@ -1,6 +1,6 @@
 // Módulo de ventas, detalle y registro de pagos.
 export function crearModuloVentas(deps) {
- const { $, dlg, sb, S, esc, dinero, hora, bonito, traducir, toast, ADM, METODOS } = deps;
+ const { $, dlg, sb, S, esc, dinero, hora, bonito, traducir, toast, ADM, METODOS, mio } = deps;
 async function ventas(){
  const{data,error}=await mio(sb.from('ventas').select('*,clientes(nombre),barberos(nombre)')).order('fecha_hora',{ascending:false}).limit(40);
  if(error)return toast(error.message,true);
