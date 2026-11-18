@@ -47,6 +47,28 @@ La matriz ampliada y los riesgos que requieren validación manual están en `doc
 
 No se deben probar escrituras destructivas sobre datos reales. Usar un negocio y registros de prueba.
 
+## Cambios de ventas: edición y anulación
+
+Antes de habilitar estas opciones en producción, aplicar el SQL de
+`supabase/migrations/20261118000000_editar_anular_ventas.sql` desde el
+SQL Editor del proyecto Supabase. La migración crea dos RPC protegidas por
+rol y negocio; no modifica ventas existentes al instalarse.
+
+Validar con ventas de prueba y productos con control de stock:
+
+1. Editar cliente, barbero, servicios, productos, cantidades, precios y descuento.
+2. Confirmar que el total bruto, total de venta y saldo se recalculan mediante las columnas generadas y triggers existentes.
+3. Confirmar que todos los pagos anteriores siguen registrados y que no se permite un nuevo total inferior a lo ya pagado.
+4. Editar una venta con productos y comprobar que el inventario refleja únicamente los nuevos detalles, incluso al editar la misma venta más de una vez.
+5. Confirmar que una venta con comisión liquidada no se puede editar y que su historial permanece intacto.
+6. Confirmar que una venta anulada no se puede editar ni anular por segunda vez.
+7. Anular una venta con productos y verificar que el trigger devuelve las existencias una sola vez.
+8. Intentar ejecutar ambas RPC como BARBERO y con una venta de otro negocio; ambas operaciones deben rechazarse.
+9. Confirmar que la edición y anulación no eliminan pagos ni registros históricos.
+10. Repetir los flujos con ADMINISTRADOR y SUPERVISOR.
+
+No ejecutar estas pruebas destructivas sobre ventas reales. Usar registros de prueba.
+
 ## Criterio de salida
 
 La rama solo debe integrarse cuando:
