@@ -1,6 +1,16 @@
 // Módulo de agenda, creación y gestión de citas.
 export function crearModuloAgenda(deps) {
- const { $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, wa, nuevaVenta, mio, ir } = deps;
+ const { $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, nuevaVenta, mio, ir } = deps;
+ function wa(c,conf){
+ const tel=String(c.clientes?.telefono||'').replace(/\D/g,'');
+ if(tel.length<7)return '<p class="mute">Este cliente no tiene teléfono guardado, no se puede enviar el recordatorio.</p>';
+ const num=tel.length===10?'57'+tel:tel,url=location.origin+location.pathname.replace(/[^/]*$/,'')+'cita.html?t='+c.token;
+ const cuando=new Date(c.inicio).toLocaleString('es-CO',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
+ const msg=conf?`Hola ${c.clientes.nombre}, tu cita en ${S.negocio.nombre} quedó confirmada: ${cuando}, ${c.servicios?.nombre} con ${c.barberos?.nombre}.\nSi necesitas cambiar la hora o cancelarla, hazlo aquí: ${url}`:`Hola ${c.clientes.nombre}, te recordamos tu cita en ${S.negocio.nombre}: ${cuando}, ${c.servicios?.nombre} con ${c.barberos?.nombre}.\nConfirma, cancela o cambia la hora aquí: ${url}`;
+ return `<a class="btn block" style="display:block;text-align:center;text-decoration:none;background:#1F7A4D" target="_blank" rel="noopener" id="${conf?'cf':'rw'}" href="https://wa.me/${num}?text=${encodeURIComponent(msg)}">${conf?'Confirmar y avisar por WhatsApp':'Recordar por WhatsApp'}</a>`;
+}
+
+
 async function agenda(){
  const main=$('#main'),d0=new Date(S.dia+'T00:00:00'),d1=new Date(d0);d1.setDate(d1.getDate()+1);
  const{data,error}=await mio(sb.from('citas').select('*,clientes(nombre,telefono),barberos(nombre),servicios(nombre)').gte('inicio',d0.toISOString()).lt('inicio',d1.toISOString())).order('inicio');
