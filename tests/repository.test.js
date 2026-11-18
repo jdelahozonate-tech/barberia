@@ -22,7 +22,7 @@ const sourceFiles = [
 test('todos los módulos JavaScript tienen sintaxis válida', () => {
   for (const file of sourceFiles) {
     const code = readFileSync(resolve(root, file), 'utf8')
-      .replace(/^export\\s+/gm, '');
+      .replace(/^export\s+/gm, '');
     assert.doesNotThrow(() => new vm.Script(code, { filename: file }), file);
   }
 });
@@ -30,9 +30,9 @@ test('todos los módulos JavaScript tienen sintaxis válida', () => {
 test('las cuatro páginas HTML tienen scripts de módulo válidos', () => {
   for (const file of ['index.html', 'admin.html', 'reservar.html', 'cita.html']) {
     const html = readFileSync(resolve(root, file), 'utf8');
-    const match = html.match(/<script type="module">([\\s\\S]*?)<\\/script>/);
+    const match = html.match(/<script type="module">([\s\S]*?)<\/script>/);
     assert.ok(match, file + ': falta script type=module');
-    const code = match[1].replace(/^import .*;\\s*$/gm, '');
+    const code = match[1].replace(/^import .*;\s*$/gm, '');
     assert.doesNotThrow(() => new vm.Script(code, { filename: file }), file);
   }
 });
@@ -40,7 +40,7 @@ test('las cuatro páginas HTML tienen scripts de módulo válidos', () => {
 test('todas las importaciones locales de las páginas existen', () => {
   for (const file of ['index.html', 'admin.html', 'reservar.html', 'cita.html']) {
     const html = readFileSync(resolve(root, file), 'utf8');
-    for (const match of html.matchAll(/from\\s+["'](\\.\\/[^"']+)["']/g)) {
+    for (const match of html.matchAll(/from\s+["'](\.\/[^"']+)["']/g)) {
       assert.ok(existsSync(resolve(root, dirname(file), match[1])), file + ': ' + match[1]);
     }
   }
@@ -49,7 +49,7 @@ test('todas las importaciones locales de las páginas existen', () => {
 test('el service worker precarga todos los módulos importados por index', () => {
   const html = readFileSync(resolve(root, 'index.html'), 'utf8');
   const sw = readFileSync(resolve(root, 'sw.js'), 'utf8');
-  for (const match of html.matchAll(/from\\s+["'](\\.\\/[^"']+)["']/g)) {
-    assert.ok(sw.includes(match[1].replace(/^\\.\\//, '')), 'No está en caché: ' + match[1]);
+  for (const match of html.matchAll(/from\s+["'](\.\/[^"']+)["']/g)) {
+    assert.ok(sw.includes(match[1].replace(/^\.\//, '')), 'No está en caché: ' + match[1]);
   }
 });
