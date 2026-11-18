@@ -36,7 +36,7 @@ async function formulario(k,r,despues){
  if(r&&k==='productos')$('#st').onclick=async()=>{const n=Number(prompt('¿Cuántas unidades entraron?'));if(!(n>0))return;const b=$('#st');if(b.disabled)return;b.disabled=true;
   const{error}=await sb.from('movimientos_inventario').insert({negocio_id:S.perfil.negocio_id,producto_id:r.id,tipo_movimiento:'ENTRADA',cantidad:n,costo_unitario:r.costo_unitario,motivo:'Compra',usuario_responsable:S.perfil.id});
   if(error){b.disabled=false;return toast(traducir(error.message),true)}dlg.close();toast('Stock actualizado');despues()};
- if(r)$('#tg').onclick=async()=>{const{error}=await sb.from(k).update({estado:r.estado==='ACTIVO'?'INACTIVO':'ACTIVO'}).eq('negocio_id',S.perfil.negocio_id).eq('id',r.id);if(error)return toast(error.message,true);dlg.close();despues()};
+ if(r)$('#tg').onclick=async()=>{const b=$('#tg');if(b.disabled)return;b.disabled=true;const{error}=await sb.from(k).update({estado:r.estado==='ACTIVO'?'INACTIVO':'ACTIVO'}).eq('negocio_id',S.perfil.negocio_id).eq('id',r.id);if(error){b.disabled=false;return toast(traducir(error.message),true)}dlg.close();despues()};
 }
 
 
