@@ -377,6 +377,7 @@ BEGIN
  UPDATE public.productos p
  SET costo_unitario = CASE
   WHEN COALESCE(st.existencias,0) > r.cantidad
+       AND COALESCE(st.existencias,0) * COALESCE(p.costo_unitario,0) > r.costo_total
    THEN round((COALESCE(st.existencias,0) * COALESCE(p.costo_unitario,0) - r.costo_total)
               / NULLIF(COALESCE(st.existencias,0) - r.cantidad,0),2)
   ELSE p.costo_unitario
