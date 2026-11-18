@@ -31,7 +31,7 @@ async function caja(){
   dlg.showModal();$('#cx').onclick=()=>dlg.close();
   let cerrando=false;$('#df').onsubmit=async e=>{e.preventDefault();if(cerrando)return;cerrando=true;const boton=e.target.querySelector('button[type=\"submit\"],button:not([type])');if(boton)boton.disabled=true;const n=Number($('#ct').value);
    const{error}=await sb.from('cajas').update({estado_caja:'CERRADA',fecha_cierre:new Date().toISOString(),usuario_cierre:S.perfil.id,efectivo_esperado:esp,efectivo_contado:n,diferencia:n-esp,observaciones:$('#co').value||null}).eq('id',cj.id).eq('negocio_id',S.perfil.negocio_id);
-   if(error)return toast(error.message,true);dlg.close();toast('Caja cerrada');caja()}};
+   if(error){cerrando=false;if(boton)boton.disabled=false;return toast(error.message,true)}dlg.close();toast('Caja cerrada');caja()}};
 }
 function gasto(cj){
  dlg.innerHTML=`<form id="df"><h2>Registrar gasto</h2><label for="g1">Categoría</label><select id="g1" name="categoria_gasto">${['OPERATIVO','PRODUCTOS','COMISIONES','SERVICIOS_PUBLICOS','ARRIENDO','NOMINA','OTRO'].map(o=>`<option value="${o}">${bonito(o)}</option>`).join('')}</select>
