@@ -199,6 +199,7 @@ test('ventas y catálogos filtran lecturas y escrituras por negocio activo', () 
 test('equipo, agenda y cierres limitan operaciones al negocio y bloquean escrituras repetidas', () => {
   const equipo = readFileSync(resolve(root, 'src/modules/equipo.js'), 'utf8');
   const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
+  const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
   const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
   const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
   assert.match(equipo, /from\('perfiles'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
@@ -284,8 +285,11 @@ test('la interfaz reserva edición administrativa de catálogos, citas, ventas y
   assert.match(ventas, /abierta=v\\.estado_venta==='PENDIENTE'&&admin/);
   assert.match(ventas, /admin&&v\\.estado_venta!=='ANULADA'/);
   assert.match(agenda, /const admin=\\['ADMINISTRADOR','SUPERVISOR'\\]\\.includes/);
-  assert.match(agenda, /Vista de solo lectura/);\n  assert.match(agenda, /if\\(admin\\)\\$\\('#df'\\)\\.onsubmit/);
+  assert.match(agenda, /Vista de solo lectura/);
+  assert.match(agenda, /if\\(admin\\)\\$\\('#df'\\)\\.onsubmit/);
   assert.match(equipo, /Solo administración puede gestionar el equipo/);
-  assert.match(equipo, /Solo administración puede invitar usuarios/);\n  assert.match(inicio, /Exportar CSV/);\n  assert.match(inicio, /informe-barberia-/);
+  assert.match(equipo, /Solo administración puede invitar usuarios/);
+  assert.match(inicio, /Exportar CSV/);
+  assert.match(inicio, /informe-barberia-/);
   assert.match(index, /m\\[2\\]===2\\?ADM\\.includes\\(S\\.perfil\\.rol\\)/);
 });
