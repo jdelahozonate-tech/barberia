@@ -83,8 +83,8 @@ dialog::backdrop{background:rgba(16,34,63,.55)}
 <body>
 <div id="app"></div><dialog id="dlg"></dialog><div id="toast" role="status"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script>
-const sb=supabase.createClient("https://gjqobyjebalbscgozvpa.supabase.co","sb_publishable_lEZmkS6mVv7WdiM3u4upeA_m64a4zM6");
+<script type="module">
+import { sb } from "./src/lib/supabase.js";
 const $=s=>document.querySelector(s),app=$('#app'),dlg=$('#dlg');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fecha=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
