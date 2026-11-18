@@ -112,3 +112,6 @@ Estas extracciones no modifican el esquema ni las RPC de Supabase. La validació
 
 - `src/modules/ventas.js`: registro de ventas, detalle, pagos adicionales y anulación.
 - `src/modules/finanzas.js`: apertura y cierre de caja, gastos y liquidación de comisiones.
+
+- `src/modules/inicio.js`: inicio, indicadores e informe gerencial.
+- `src/modules/ajustes.js`: configuración del negocio, enlace público de reservas y gestión del equipo desde ajustes.
