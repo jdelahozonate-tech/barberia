@@ -18,6 +18,9 @@
 
 - Las consultas de caja, pagos, gastos y comisiones ahora incluyen el identificador del negocio activo, además de las políticas RLS; esto reduce el riesgo de mezclar registros si el usuario pertenece a más de un negocio.
 
+- Ventas ahora limita las lecturas de catálogos, detalle y pagos al negocio activo; los pagos adicionales y la anulación evitan doble clic y llevan filtro de negocio.
+- Catálogos, referencias y existencias se consultan por negocio; las actualizaciones y cambios de estado también incluyen el negocio activo.
+
 ## Riesgos y límites pendientes
 
 1. **Liquidación de comisiones y gasto asociado:** el flujo inserta primero las liquidaciones y después el gasto. Si la segunda escritura falla, la comisión puede quedar liquidada sin el gasto correspondiente. Se informa el resultado parcial, pero la atomicidad requiere una transacción o RPC backend; no se modifica desde el frontend.
