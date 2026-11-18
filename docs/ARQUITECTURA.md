@@ -100,3 +100,5 @@ No se debe mover todo el código de una sola vez. Cada etapa debe dejar la aplic
 - `sw.js` precarga los módulos compartidos y de catálogos en la versión `barberia-v5` para mejorar el arranque sin conexión.
 
 Estas extracciones no modifican el esquema ni las RPC de Supabase. La validación realizada hasta ahora es sintáctica; falta comprobar flujos en navegador real.
+
+- `src/modules/catalogos.js`: operaciones CRUD y formularios de catálogos extraídos de `index.html`; las dependencias se inyectan desde la pantalla y las reglas de negocio permanecen iguales.
