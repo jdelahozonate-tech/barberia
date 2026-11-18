@@ -67,7 +67,8 @@ async function cobrarCita(c){
  nuevaVenta({cliente_id:c.cliente_id,barbero_id:c.barbero_id,servicio_id:c.servicio_id,cita_id:c.id,fee});
 }
 async function porConfirmar(){
- const{data}=await sb.from('citas').select('*,clientes(nombre,telefono),barberos(nombre),servicios(nombre)').eq('estado','PENDIENTE').gte('inicio',new Date().toISOString()).order('inicio').limit(10);
+ const{data,error}=await mio(sb.from('citas').select('*,clientes(nombre,telefono),barberos(nombre),servicios(nombre)').eq('estado','PENDIENTE').gte('inicio',new Date().toISOString())).order('inicio').limit(10);
+ if(error)return toast(traducir(error.message),true);
  if(!data||!data.length||!$('#pc'))return;
  $('#pc').innerHTML=`<label>Citas por confirmar (${data.length})</label>`+data.map(c=>`<button class="row" data-c="${c.id}"><span><strong>${new Date(c.inicio).toLocaleDateString('es-CO',{weekday:'short',day:'numeric',month:'short'})}, ${hora(c.inicio)}</strong><br>${esc(c.clientes?.nombre)}<br><small>${esc(c.servicios?.nombre)} con ${esc(c.barberos?.nombre)}</small></span><span class="chip">Pendiente</span></button>`).join('');
  document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>editarCita(data.find(c=>c.id===b.dataset.c)));
