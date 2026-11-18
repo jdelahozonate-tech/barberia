@@ -382,6 +382,7 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261119000000_compras_proveedores_inventario.sql'), 'utf8');
   const index = readFileSync(resolve(root, 'index.html'), 'utf8');
   const sw = readFileSync(resolve(root, 'sw.js'), 'utf8');
+  const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
   for (const table of ['proveedores_inventario', 'compras_inventario', 'detalle_compras_inventario', 'pagos_compras_inventario']) {
     assert.ok(sql.includes('public.' + table), 'Falta tabla ' + table);
   }
