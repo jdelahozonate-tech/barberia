@@ -56,13 +56,14 @@ async function informe(){
   const r=await todos(q,nombre);
   if(ejecucion===informeEjecucion){
    pendientes=pendientes.filter(x=>x!==nombre);
-   $('#inf').innerHTML=r.error
+   const panel=$('#inf');
+   if(panel)panel.innerHTML=r.error
     ?'<p class="empty">No fue posible cargar '+esc(nombre)+': '+esc(r.error.message)+'</p>'
     :pendientes.length?'<p class="empty">Datos recibidos. Falta consultar: '+esc(pendientes.join(', '))+'…</p>':'<p class="empty">Preparando resultados…</p>';
   }
   return r;
  }));
- if(ejecucion!==informeEjecucion)return;
+ if(ejecucion!==informeEjecucion||!$('#inf'))return;
  const fallo=respuestas.find(r=>r.error);if(fallo){$('#inf').innerHTML='<p class="empty">No fue posible cargar el informe: '+esc(fallo.error.message)+'</p>';return}
  const[V,D,P,G,C]=respuestas.map(r=>r.data||[]);
  const sum=(a,f)=>a.reduce((t,x)=>t+Number(f(x)||0),0),cl=x=>Number(x.costo_unitario)*Number(x.cantidad)+Number(x.comision_generada);
