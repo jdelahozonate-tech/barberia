@@ -59,6 +59,7 @@ async function informe(){
  const citasGraf='<label>Estado de las citas</label>'+estados.map(x=>'<div class="estado-graf"><span>'+bonito(x.k)+'</span><div><i style="width:'+100*x.n/maxEstado+'%"></i></div><b>'+x.n+'</b></div>').join('');
  $('#inf').innerHTML=`<div class="kp"><div><small>Ventas netas</small><strong>${dinero(neto)}</strong></div><div><small>Utilidad estimada</small><strong>${dinero(util)}</strong></div><div><small>Recaudado</small><strong>${dinero(cobrado)}</strong></div><div><small>Ventas</small><strong>${V.length}</strong></div><div><small>Ticket promedio</small><strong>${dinero(ticket)}</strong></div><div><small>Citas atendidas</small><strong>${C.filter(x=>x.estado==='ATENDIDA').length}</strong></div></div>
  ${fila2('Ventas brutas',dinero(bruto))}${fila2('Descuentos','-'+dinero(desc))}${fila2('Costo de productos vendidos','-'+dinero(costo))}${fila2('Comisiones de barberos','-'+dinero(com))}${fila2('Gastos operativos','-'+dinero(gast))}${fila2('Utilidad estimada',dinero(util),'tot')}
+ ${grafica('Ventas por día',serie,'ventas',maxDia,'#237a57')}${grafica('Gastos por día',serie,'gastos',maxDia,'#bd7a35')}${citasGraf}
  <p class="mute">No se restan aparte las compras de mercancía ni las liquidaciones de comisión: su costo ya está en las líneas de arriba.</p>
  ${sec('Margen por barbero',mg(D,x=>x.ventas.barberos?.nombre||'Sin barbero','servicios y productos'))}
  ${sec('Margen por producto',mg(D,x=>x.descripcion,'vendidos',x=>x.tipo_item==='PRODUCTO'))}
