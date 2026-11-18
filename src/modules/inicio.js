@@ -26,9 +26,9 @@ function grafica(titulo,serie,campo,maximo,color){
  return '<label>'+titulo+'</label><div class="panel-graf">'+serie.map(([k,v])=>'<div class="graf-col"><small>'+esc(k.slice(5))+'</small><div class="graf-track"><i style="height:'+Math.max(3,100*v[campo]/maximo)+'%;background:'+color+'"></i></div><b>'+dinero(v[campo])+'</b></div>').join('')+'</div>';
 }
 async function informe(){
- const css=document.createElement('style');
+ if(!document.getElementById('dashboard-chart-style')){const css=document.createElement('style');css.id='dashboard-chart-style';
  css.textContent='.panel-graf{display:flex;gap:8px;align-items:stretch;overflow-x:auto;padding:8px 2px 14px}.graf-col{min-width:54px;display:flex;flex-direction:column;align-items:center;gap:5px;flex:1}.graf-col small{font-size:11px}.graf-track{height:112px;width:22px;background:var(--borde,#e5e7eb);border-radius:8px;display:flex;align-items:end;overflow:hidden}.graf-track i{display:block;width:100%;border-radius:8px}.graf-col b{font-size:10px;white-space:nowrap}.estado-graf{display:grid;grid-template-columns:105px 1fr 28px;gap:8px;align-items:center;margin:8px 0;font-size:13px}.estado-graf div{height:9px;background:var(--borde,#e5e7eb);border-radius:8px;overflow:hidden}.estado-graf i{display:block;height:100%;background:#497caa;border-radius:8px}';
- document.head.appendChild(css);
+ document.head.appendChild(css);}
  const[s,e]=rango(S.rg||'hoy',S.ra,S.rb),A=s.toISOString(),B=e.toISOString(),rg=S.rg||'hoy';
  $('#main').innerHTML=`<div class="head"><h2>Panel gerencial</h2><button class="btn sec" id="ex" disabled>Exportar CSV</button></div><div id="pc"></div><select id="rg" aria-label="Periodo">${RG.map(([k,l])=>`<option value="${k}"${k===rg?' selected':''}>${l}</option>`).join('')}</select>
  ${rg==='custom'?`<div class="dia" style="margin-top:8px"><input type="date" id="ra" value="${S.ra||fecha(new Date())}" aria-label="Desde"><input type="date" id="rb" value="${S.rb||fecha(new Date())}" aria-label="Hasta"></div>`:''}<div id="inf"><p class="empty">Calculando…</p></div>`;
