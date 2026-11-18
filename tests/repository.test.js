@@ -326,3 +326,15 @@ test('el informe gerencial informa el progreso, corta consultas colgadas y evita
   assert.match(inicio, /Consultando:/);
   assert.match(inicio, /if\(ejecucion!==informeEjecucion\|\|!\$\('#inf'\)\)return/);
 });
+
+
+test('el panel de inicio muestra etapas y errores reales del cálculo del informe', () => {
+  const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
+  assert.match(inicio, /Consultas completas\. Validando datos/);
+  assert.match(inicio, /Calculando ventas, costos y gastos/);
+  assert.match(inicio, /Preparando gráficas y agrupaciones/);
+  assert.match(inicio, /Mostrando resultados/);
+  assert.match(inicio, /catch\(error\)/);
+  assert.match(inicio, /No se pudo preparar el informe al/);
+  assert.match(inicio, /x\.ventas\?\.barberos\?\.nombre/);
+});
