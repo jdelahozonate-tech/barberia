@@ -96,9 +96,12 @@ No se debe mover todo el código de una sola vez. Cada etapa debe dejar la aplic
 - `src/lib/supabase.js`: cliente compartido de Supabase.
 - `src/shared/utils.js`: escape HTML, fechas, horas, etiquetas, slug, traducción de errores y normalización de WhatsApp.
 - `src/config/catalogos.js`: configuración de campos, permisos de interfaz y presentación para clientes, barberos, servicios, productos y cuentas de recaudo. Se construye mediante `crearConfigCatalogos(ADM, dinero)` para conservar las dependencias actuales.
-- `index.html` importa las utilidades y la configuración de catálogos; la lógica CRUD permanece temporalmente en la pantalla principal.
+- `index.html` importa utilidades, configuración y operaciones CRUD de catálogos; la pantalla principal monta el módulo con dependencias explícitas.
 - `sw.js` precarga los módulos compartidos y de catálogos en la versión `barberia-v5` para mejorar el arranque sin conexión.
 
 Estas extracciones no modifican el esquema ni las RPC de Supabase. La validación realizada hasta ahora es sintáctica; falta comprobar flujos en navegador real.
 
 - `src/modules/catalogos.js`: operaciones CRUD y formularios de catálogos extraídos de `index.html`; las dependencias se inyectan desde la pantalla y las reglas de negocio permanecen iguales.
+- `src/README.md`: guía de carpetas, responsabilidades y criterios para nuevas extracciones.
+- `docs/ESTRUCTURA_REPOSITORIO.md`: explica por qué las entradas HTML y los archivos PWA permanecen en la raíz.
+- `.gitignore`: excluye dependencias, artefactos locales, archivos de entorno y logs.
