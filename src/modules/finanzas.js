@@ -29,7 +29,7 @@ async function caja(){
  document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>detallePagos(b.dataset.m,(pg||[]).filter(p=>p.ventas?.estado_venta!=='ANULADA'&&p.metodo_pago===b.dataset.m)));
  $('#ce').onclick=()=>{dlg.innerHTML=`<form id="df"><h2>Cerrar caja</h2><p>Debe haber <strong>${dinero(esp)}</strong> en efectivo.</p><label for="ct">Efectivo contado</label><input id="ct" type="number" min="0" inputmode="decimal" required><label for="co">Observaciones</label><textarea id="co" rows="2"></textarea><div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Cerrar caja</button></div></form>`;
   dlg.showModal();$('#cx').onclick=()=>dlg.close();
-  $('#df').onsubmit=async e=>{e.preventDefault();const n=Number($('#ct').value);
+  let cerrando=false;$('#df').onsubmit=async e=>{e.preventDefault();if(cerrando)return;cerrando=true;const boton=e.target.querySelector('button[type=\"submit\"],button:not([type])');if(boton)boton.disabled=true;const n=Number($('#ct').value);
    const{error}=await sb.from('cajas').update({estado_caja:'CERRADA',fecha_cierre:new Date().toISOString(),usuario_cierre:S.perfil.id,efectivo_esperado:esp,efectivo_contado:n,diferencia:n-esp,observaciones:$('#co').value||null}).eq('id',cj.id).eq('negocio_id',S.perfil.negocio_id);
    if(error)return toast(error.message,true);dlg.close();toast('Caja cerrada');caja()}};
 }
