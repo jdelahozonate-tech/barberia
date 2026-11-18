@@ -306,3 +306,11 @@ test('los informes gerenciales paginan todas las fuentes y muestran gráficos ge
   assert.match(inicio, /Estado de las citas/);
   assert.match(inicio, /Ticket promedio/);
 });
+
+
+test('el panel gerencial recibe el formateador de estados y métodos de pago', () => {
+  const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
+  assert.match(inicio, /const \{[^}]*\bbonito\b[^}]*\} = deps/);
+  assert.match(inicio, /bonito\(x\.metodo_pago\)/);
+  assert.match(inicio, /bonito\(x\.k\)/);
+});
