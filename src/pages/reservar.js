@@ -12,6 +12,7 @@ let C,T=null,consultaHoras=0;
  if(error)return app.innerHTML='<h1>No pudimos cargar las reservas</h1><p class="mute">'+esc(error.message)+'</p>';
  if(!data||!data.negocio)return app.innerHTML='<h1>Reservas no disponibles</h1><p class="mute">Este enlace no es válido o la barbería no recibe reservas en línea.</p>';
  C=data;
+ C.servicios=Array.isArray(C.servicios)?C.servicios:[];C.barberos=Array.isArray(C.barberos)?C.barberos:[];
  if(!C.servicios.length||!C.barberos.length)return app.innerHTML=`<h1>${esc(C.negocio.nombre)}</h1><p class="mute">Todavía no hay servicios u horarios disponibles. Intenta más tarde.</p>`;
  const hoy=f2(new Date());
  app.innerHTML=`${C.negocio.logo_url?`<div style="background:#10223F;border-radius:12px;padding:14px;text-align:center"><img src="${esc(C.negocio.logo_url)}" alt="${esc(C.negocio.nombre)}" style="max-width:100%;height:84px"></div>`:''}<h1>${esc(C.negocio.nombre)}</h1><p class="mute">Reserva tu cita en un minuto.${C.negocio.direccion?' '+esc(C.negocio.direccion):''}</p>${C.negocio.valor_cita>0?`<p class="mute">La cita tiene un valor de ${dinero(C.negocio.valor_cita)}.</p>`:''}
@@ -31,8 +32,8 @@ async function horas(){
  const{data,error}=await sb.rpc('horas_libres_publicas',{p_slug:slug,p_dia:$('#dia').value,p_barbero:$('#br').value,p_servicio:$('#sv').value});
  if(consulta!==consultaHoras)return;
  if(error)return $('#hs').innerHTML=`<span class="mute">${esc(error.message)}</span>`;
- const disponibles=Array.isArray(data)?data:[];
- $('#hs').innerHTML=disponibles.length?disponibles.map(x=>`<button type="button" class="h" data-t="${x.inicio}">${hh(x.inicio)}</button>`).join(''):'<span class="mute">No hay horas libres ese día. Prueba otra fecha u otro barbero.</span>';
+ const disponibles=Array.isArray(data)?data.filter(x=>x&&typeof x.inicio==='string'&&Number.isFinite(Date.parse(x.inicio))):[];
+ $('#hs').innerHTML=disponibles.length?disponibles.map(x=>`<button type="button" class="h" data-t="${esc(x.inicio)}">${hh(x.inicio)}</button>`).join(''):'<span class="mute">No hay horas libres ese día. Prueba otra fecha u otro barbero.</span>';
  document.querySelectorAll('.h').forEach(b=>b.onclick=()=>{T=b.dataset.t;document.querySelectorAll('.h').forEach(x=>x.classList.toggle('on',x===b));$('#f').hidden=false});
 }
 async function reservar(e){
