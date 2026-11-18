@@ -89,3 +89,14 @@ No se ejecutaron cambios SQL ni se alteraron tablas, RPC, RLS, triggers o reglas
 - Se añadió una prueba de regresión que comprueba estas tres barreras.
 
 La liquidación de comisiones continúa siendo una operación de dos escrituras (comisión y gasto). No se reordenó para evitar crear gastos huérfanos si falla la liquidación; la solución correcta requiere una operación transaccional en backend, fuera del alcance autorizado para esta rama.
+
+
+## Dashboard gerencial e informes paginados (18 nov 2026)
+
+- El informe administrativo presenta indicadores de ventas netas, utilidad estimada, recaudación, cantidad de ventas, ticket promedio y citas atendidas.
+- Se incorporan gráficos diarios de ventas y gastos, más distribución de estados de citas.
+- Las consultas de ventas, detalle, pagos, gastos y citas se procesan en páginas de 1.000 filas ordenadas por identificador, evitando depender de un único límite de 5.000 filas.
+- La exportación CSV utiliza los mismos conjuntos paginados del informe.
+- Se añadieron pruebas estáticas para la paginación y los indicadores/gráficos.
+
+**Pendiente de validación real:** verificar con Supabase y datos de prueba que el orden por identificador funciona para todas las tablas y que la exportación completa se abre correctamente en Excel/LibreOffice. Los gráficos y cálculos son del lado del navegador y no sustituyen conciliación contable. No se ejecutó SQL ni se modificó Supabase.
