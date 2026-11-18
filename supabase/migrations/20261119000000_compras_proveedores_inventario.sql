@@ -67,11 +67,15 @@ CREATE TABLE IF NOT EXISTS public.pagos_compras_inventario (
  referencia text,
  observaciones text,
  recibido_por uuid,
+ caja_id uuid REFERENCES public.cajas(id) ON DELETE SET NULL,
  creado_en timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.pagos_compras_inventario ADD COLUMN IF NOT EXISTS caja_id uuid REFERENCES public.cajas(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_pagos_compras_compra
  ON public.pagos_compras_inventario(negocio_id, compra_id, fecha_pago);
+CREATE INDEX IF NOT EXISTS idx_pagos_compras_caja
+ ON public.pagos_compras_inventario(negocio_id, caja_id, fecha_pago) WHERE caja_id IS NOT NULL;
 
 -- Enlaza el movimiento de inventario con la compra que lo originó.
 ALTER TABLE public.movimientos_inventario
@@ -117,7 +121,8 @@ CREATE OR REPLACE FUNCTION public.registrar_compra_inventario(
  p_valor_pagado numeric,
  p_metodo_pago text,
  p_referencia text DEFAULT NULL,
- p_observaciones text DEFAULT NULL
+ p_observaciones text DEFAULT NULL,
+ p_caja_id uuid DEFAULT NULL
 ) RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -238,10 +243,10 @@ BEGIN
 
  IF p_valor_pagado > 0 THEN
   INSERT INTO public.pagos_compras_inventario(
-   negocio_id, compra_id, valor_pago, metodo_pago, referencia, observaciones, recibido_por
+   negocio_id, compra_id, valor_pago, metodo_pago, referencia, observaciones, recibido_por, caja_id
   ) VALUES (
    v_negocio, v_compra, p_valor_pagado, p_metodo_pago,
-   NULLIF(btrim(p_referencia),''), NULLIF(btrim(p_observaciones),''), v_usuario
+   NULLIF(btrim(p_referencia),''), NULLIF(btrim(p_observaciones),''), v_usuario, p_caja_id
   );
  END IF;
 
@@ -263,7 +268,8 @@ CREATE OR REPLACE FUNCTION public.registrar_pago_compra_inventario(
  p_valor_pago numeric,
  p_metodo_pago text,
  p_referencia text DEFAULT NULL,
- p_observaciones text DEFAULT NULL
+ p_observaciones text DEFAULT NULL,
+ p_caja_id uuid DEFAULT NULL
 ) RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -295,10 +301,10 @@ BEGIN
   RAISE EXCEPTION 'El abono supera el saldo pendiente.';
  END IF;
  INSERT INTO public.pagos_compras_inventario(
-  negocio_id, compra_id, valor_pago, metodo_pago, referencia, observaciones, recibido_por
+  negocio_id, compra_id, valor_pago, metodo_pago, referencia, observaciones, recibido_por, caja_id
  ) VALUES (
   v_negocio, p_compra_id, p_valor_pago, p_metodo_pago,
-  NULLIF(btrim(p_referencia),''), NULLIF(btrim(p_observaciones),''), v_usuario
+  NULLIF(btrim(p_referencia),''), NULLIF(btrim(p_observaciones),''), v_usuario, p_caja_id
  );
  v_nuevo_pagado := v_compra.total_pagado + p_valor_pago;
  v_saldo := v_compra.total_compra - v_nuevo_pagado;
@@ -378,9 +384,9 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.registrar_compra_inventario(uuid,date,jsonb,numeric,text,text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.registrar_pago_compra_inventario(uuid,numeric,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.registrar_compra_inventario(uuid,date,jsonb,numeric,text,text,text,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.registrar_pago_compra_inventario(uuid,numeric,text,text,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.anular_compra_inventario(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.registrar_compra_inventario(uuid,date,jsonb,numeric,text,text,text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.registrar_pago_compra_inventario(uuid,numeric,text,text,text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.registrar_compra_inventario(uuid,date,jsonb,numeric,text,text,text,uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.registrar_pago_compra_inventario(uuid,numeric,text,text,text,uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.anular_compra_inventario(uuid) TO authenticated;
