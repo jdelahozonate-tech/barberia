@@ -1,7 +1,7 @@
 // Service worker mínimo: la app siempre pide lo más nuevo a internet.
 // Solo guarda una copia de respaldo de la pantalla principal y los íconos.
-const V = 'barberia-v8';
-const BASE = ['./', 'index.html', 'src/lib/supabase.js', 'src/shared/utils.js', 'src/config/catalogos.js', 'src/modules/catalogos.js', 'src/modules/agenda.js', 'src/modules/equipo.js', 'src/modules/ventas.js', 'src/modules/finanzas.js', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest'];
+const V = 'barberia-v9';
+const BASE = ['./', 'index.html', 'src/lib/supabase.js', 'src/shared/utils.js', 'src/config/catalogos.js', 'src/modules/catalogos.js', 'src/modules/agenda.js', 'src/modules/equipo.js', 'src/modules/ventas.js', 'src/modules/finanzas.js', 'src/modules/inicio.js', 'src/modules/ajustes.js', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(V).then(c => c.addAll(BASE).catch(() => {})));
