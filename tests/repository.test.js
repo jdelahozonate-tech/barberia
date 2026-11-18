@@ -213,6 +213,25 @@ test('equipo, agenda y cierres limitan operaciones al negocio y bloquean escritu
 });
 
 
+test('la edición y anulación de ventas usan RPC transaccional y no borrado físico', () => {
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261118000000_editar_anular_ventas.sql'), 'utf8');
+  assert.match(ventas, /sb\.rpc\('editar_venta'/);
+  assert.match(ventas, /sb\.rpc\('anular_venta'/);
+  assert.match(ventas, /ADM\.includes\(S\.perfil\.rol\)/);
+  assert.match(sql, /SECURITY DEFINER/);
+  assert.match(sql, /mi_negocio\(\)/);
+  assert.match(sql, /mi_rol\(\)/);
+  assert.match(sql, /FOR UPDATE/);
+  assert.match(sql, /estado_pago = 'REGISTRADO'/);
+  assert.match(sql, /comisiones c/);
+  assert.match(sql, /Ajuste por edición de venta/);
+  assert.match(sql, /trg_devolver_inventario/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.editar_venta/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.anular_venta/);
+  assert.doesNotMatch(ventas, /from\('ventas'\)\.delete\(/);
+});
+
 test('los informes gerenciales limitan cada fuente al negocio activo', () => {
   const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
   for (const tabla of ['ventas', 'detalle_ventas', 'pagos', 'gastos', 'citas', 'stock_actual']) {
