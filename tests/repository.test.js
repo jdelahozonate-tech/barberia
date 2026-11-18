@@ -4,6 +4,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import vm from 'node:vm';
 import { crearModuloVentas } from '../src/modules/ventas.js';
+import { crearModuloAcceso } from '../src/modules/acceso.js';
 
 const root = process.cwd();
 const pageFiles = ['index.html', 'admin.html', 'reservar.html', 'cita.html'];
@@ -140,4 +141,36 @@ test('el formulario de venta no continúa si falla la lectura de catálogos', as
   });
   await modulo.nuevaVenta();
   assert.match(mensaje, /permiso denegado/);
+});
+
+
+test('el acceso no habilita la aplicación si falla la verificación de suscripción', async () => {
+  let mensaje = '';
+  let abrioApp = false;
+  const perfilQuery = {
+    select() { return this; },
+    eq() { return this; },
+    maybeSingle: async () => ({ data: { id: 'u1', negocios: { id: 'n1' } }, error: null })
+  };
+  const modulo = crearModuloAcceso({
+    $: () => ({ innerHTML: '' }),
+    app: { innerHTML: '' },
+    sb: {
+      auth: { getUser: async () => ({ data: { user: { id: 'u1' } }, error: null }) },
+      from: tabla => { assert.equal(tabla, 'perfiles'); return perfilQuery; },
+      rpc: async nombre => {
+        assert.equal(nombre, 'mi_suscripcion');
+        return { data: null, error: { message: 'fallo de conexión' } };
+      }
+    },
+    S: {},
+    esc: String,
+    traducir: String,
+    toast: value => { mensaje = value; },
+    waNum: () => '',
+    shell: () => { abrioApp = true; }
+  });
+  await modulo.cargar();
+  assert.match(mensaje, /fallo de conexión/);
+  assert.equal(abrioApp, false);
 });
