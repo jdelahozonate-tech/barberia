@@ -174,3 +174,13 @@ test('el acceso no habilita la aplicación si falla la verificación de suscripc
   assert.match(mensaje, /fallo de conexión/);
   assert.equal(abrioApp, false);
 });
+
+
+test('las consultas financieras quedan limitadas al negocio activo', () => {
+  const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
+  assert.match(finanzas, /from\('cajas'\)[\s\S]*?eq\('negocio_id', S\.perfil\.negocio_id\)/);
+  assert.match(finanzas, /from\('pagos'\)[\s\S]*?eq\('negocio_id', S\.perfil\.negocio_id\)/);
+  assert.match(finanzas, /from\('gastos'\)[\s\S]*?eq\('negocio_id', S\.perfil\.negocio_id\)/);
+  assert.match(finanzas, /from\('detalle_ventas'\)[\s\S]*?eq\('negocio_id', S\.perfil\.negocio_id\)/);
+  assert.match(finanzas, /from\('comisiones'\)[\s\S]*?eq\('negocio_id', S\.perfil\.negocio_id\)/);
+});
