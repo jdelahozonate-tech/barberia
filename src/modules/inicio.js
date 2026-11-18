@@ -12,13 +12,13 @@ function rango(v,a,b){const d=new Date();d.setHours(0,0,0,0);const s=new Date(d)
 function inicio(){return ADM.includes(S.perfil.rol)?informe():inicioSimple()}
 async function informe(){
  const[s,e]=rango(S.rg||'hoy',S.ra,S.rb),A=s.toISOString(),B=e.toISOString(),rg=S.rg||'hoy';
- $('#main').innerHTML=`<div class="head"><h2>Panel gerencial</h2></div><div id="pc"></div><select id="rg" aria-label="Periodo">${RG.map(([k,l])=>`<option value="${k}"${k===rg?' selected':''}>${l}</option>`).join('')}</select>
+ $('#main').innerHTML=`<div class="head"><h2>Panel gerencial</h2><button class="btn sec" id="ex" disabled>Exportar CSV</button></div><div id="pc"></div><select id="rg" aria-label="Periodo">${RG.map(([k,l])=>`<option value="${k}"${k===rg?' selected':''}>${l}</option>`).join('')}</select>
  ${rg==='custom'?`<div class="dia" style="margin-top:8px"><input type="date" id="ra" value="${S.ra||fecha(new Date())}" aria-label="Desde"><input type="date" id="rb" value="${S.rb||fecha(new Date())}" aria-label="Hasta"></div>`:''}<div id="inf"><p class="empty">Calculando…</p></div>`;
  $('#rg').onchange=x=>{S.rg=x.target.value;informe()};
  porConfirmar();
  if(rg==='custom')['ra','rb'].forEach(i=>$('#'+i).onchange=x=>{S[i]=x.target.value;informe()});
  const respuestas=await Promise.all([
-  sb.from('ventas').select('descuento').eq('negocio_id',S.perfil.negocio_id).neq('estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
+  sb.from('ventas').select('id,descuento,fecha_hora').eq('negocio_id',S.perfil.negocio_id).neq('estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
   sb.from('detalle_ventas').select('tipo_item,descripcion,cantidad,subtotal,costo_unitario,comision_generada,ventas!inner(estado_venta,fecha_hora,barberos(nombre))').eq('negocio_id',S.perfil.negocio_id).neq('ventas.estado_venta','ANULADA').gte('ventas.fecha_hora',A).lt('ventas.fecha_hora',B).limit(5000),
   sb.from('pagos').select('valor_pago,metodo_pago,cuentas(nombre),ventas!inner(estado_venta)').eq('negocio_id',S.perfil.negocio_id).eq('estado_pago','REGISTRADO').neq('ventas.estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
   sb.from('gastos').select('categoria_gasto,valor').eq('negocio_id',S.perfil.negocio_id).eq('estado_gasto','REGISTRADO').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
@@ -40,6 +40,19 @@ async function informe(){
  ${sec('Margen por producto',mg(D,x=>x.descripcion,'vendidos',x=>x.tipo_item==='PRODUCTO'))}
  ${sec('Margen por servicio',mg(D,x=>x.descripcion,'servicios',x=>x.tipo_item==='SERVICIO'))}
  ${sec('Cobrado por método de pago',pm)}${sec('Cobrado por cuenta',pc)}`;
+ const csvCell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+ const lineas=[['Tipo','Fecha','Concepto','Barbero','Método','Estado','Cantidad','Ingreso','Costo','Descuento']];
+ V.forEach(x=>lineas.push(['VENTA',x.fecha_hora,'Venta '+x.id,'','','',1,0,0,Number(x.descuento||0)]));
+ D.forEach(x=>lineas.push(['DETALLE',x.ventas?.fecha_hora||'',x.descripcion,x.ventas?.barberos?.nombre||'','',x.ventas?.estado_venta||'',x.cantidad,Number(x.subtotal||0),Number(x.costo_unitario||0)*Number(x.cantidad||0),0]));
+ P.forEach(x=>lineas.push(['PAGO',x.fecha_hora,'Recaudo','',x.metodo_pago,'REGISTRADO',1,Number(x.valor_pago||0),0,0]));
+ G.forEach(x=>lineas.push(['GASTO',x.fecha_hora,x.descripcion||x.categoria_gasto,'',x.metodo_pago,x.estado_gasto,1,-Number(x.valor||0),Number(x.valor||0),0]));
+ C.forEach(x=>lineas.push(['CITA',x.inicio,'Cita','','',x.estado,1,0,0,0]));
+ const contenido='\uFEFF'+lineas.map(f=>f.map(csvCell).join(';')).join('\r\n');
+ const blob=new Blob([contenido],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download='informe-barberia-'+fecha(s)+'-'+fecha(new Date(e.getTime()-86400000))+'.csv';
+ document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);toast('Informe CSV generado');
+ };
+ $('#ex').disabled=false;
 }
 
 /* ---------- Resumen y ajustes ---------- */
