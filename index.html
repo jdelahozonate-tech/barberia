@@ -126,7 +126,7 @@ const { crud } = crearModuloCatalogos({ $, app, dlg, sb, S, CFG, esc, bonito, tr
 const { ventas, nuevaVenta } = crearModuloVentas({ $, dlg, sb, S, esc, dinero, hora, bonito, traducir, toast, ADM, METODOS, mio });
 const { caja, comisiones, misComisiones } = crearModuloFinanzas({ $, dlg, sb, S, esc, dinero, hora, bonito, toast, METODOS, fila2, fm });
 const { agenda, porConfirmar } = crearModuloAgenda({ $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, nuevaVenta, mio, ir });
-const { inicio } = crearModuloInicio({ $, sb, S, esc, dinero, hora, fecha, toast, ADM, mio, fila2, porConfirmar });
+const { inicio } = crearModuloInicio({ $, sb, S, esc, dinero, hora, fecha, bonito, toast, ADM, mio, fila2, porConfirmar });
 /* ---------- Agenda ---------- */
 
 /* ---------- Horarios ---------- */
