@@ -59,7 +59,8 @@ async function informe(){
  .dash-actions select,.dash-actions input{min-width:145px;width:auto;padding:10px 12px;font-size:13px}
  .dash-actions .btn{padding:10px 14px;font-size:13px}
  .dash-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}
- .dash-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;min-width:0;box-shadow:0 3px 12px #10223f08;cursor:pointer;text-align:left;width:100%;font:inherit;transition:border-color .18s,box-shadow .18s,transform .18s}\n .dash-kpi:hover{border-color:#9aabc0;transform:translateY(-2px)}\n .dash-kpi:focus-visible{outline:3px solid #8bb8dc;outline-offset:2px}\n .dash-kpi.primary{box-shadow:0 0 0 2px #102b4920,0 5px 16px #10223f12}\n .dash-kpi.primary small{color:#c2d1e2}\n .dash-kpi.primary em{color:#b6c8da}
+ .dash-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;min-width:0;box-shadow:0 3px 12px #10223f08;cursor:pointer;text-align:left;width:100%;font:inherit;transition:border-color .18s,box-shadow .18s,transform .18s}
+ .dash-kpi:hover{border-color:#9aabc0;transform:translateY(-2px)}\n .dash-kpi:focus-visible{outline:3px solid #8bb8dc;outline-offset:2px}\n .dash-kpi.primary{box-shadow:0 0 0 2px #102b4920,0 5px 16px #10223f12}\n .dash-kpi.primary small{color:#c2d1e2}\n .dash-kpi.primary em{color:#b6c8da}
  .dash-kpi.primary{background:#102b49;color:#fff;border-color:#102b49}
  .dash-kpi small{display:block;font-size:12px;color:#718096;font-weight:600}
  .dash-kpi.primary small{color:#c2d1e2}
