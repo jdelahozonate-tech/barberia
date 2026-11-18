@@ -19,6 +19,7 @@ La suite cubre:
 - Sintaxis de los scripts de las cuatro páginas.
 - Existencia de importaciones locales.
 - Inclusión de los módulos de la aplicación privada en la precarga del Service Worker.
+- Aplicación efectiva del filtro de datos del barbero en el módulo de ventas.
 
 GitHub Actions ejecuta estas pruebas al enviar cambios a `main` o a `refactor/arquitectura-modular`, y en pull requests dirigidos a `main`.
 
