@@ -34,6 +34,14 @@ function graficaComparativa(serie){
  return '<div class="dash-chart">'+serie.map(([k,v])=>'<div class="dash-day"><span class="date">'+esc(k.slice(5))+'</span><div class="dash-bars"><div class="dash-bar rev"><i style="width:'+100*v.ventas/max+'%"></i></div><div class="dash-bar exp"><i style="width:'+100*v.gastos/max+'%"></i></div></div><span class="amount">'+dinero(v.ventas)+'</span></div>').join('')+'</div><div class="dash-legend"><span>Ventas</span><span>Gastos</span></div>';
 }
 function grafica(titulo,serie,campo,maximo,color){ return graficaComparativa(serie); }
+function graficaIndicador(serie,campo,esMoneda=true){
+ if(!serie.length||!serie.some(([,v])=>Number(v[campo]||0)!==0))return '<p class="mute">No hay movimientos en el periodo seleccionado.</p>';
+ const max=Math.max(1,...serie.map(([,v])=>Math.abs(Number(v[campo]||0))));
+ return '<div class="dash-chart">'+serie.map(([k,v])=>{
+  const n=Number(v[campo]||0),ancho=100*Math.abs(n)/max;
+  return '<div class="dash-day"><span class="date">'+esc(k.slice(5))+'</span><div class="dash-bars"><div class="dash-bar '+(n<0?'exp':'rev')+'"><i style="width:'+ancho+'%"></i></div></div><span class="amount">'+(esMoneda?dinero(n):String(Math.round(n)))+'</span></div>';
+ }).join('')+'</div>';
+}
 function barras(titulo,datos,total){
  if(!datos.length)return '';
  const max=Math.max(1,...datos.map(x=>x.valor));
@@ -51,7 +59,12 @@ async function informe(){
  .dash-actions select,.dash-actions input{min-width:145px;width:auto;padding:10px 12px;font-size:13px}
  .dash-actions .btn{padding:10px 14px;font-size:13px}
  .dash-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}
- .dash-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;min-width:0;box-shadow:0 3px 12px #10223f08}
+ .dash-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;min-width:0;box-shadow:0 3px 12px #10223f08;cursor:pointer;text-align:left;width:100%;font:inherit;transition:border-color .18s,box-shadow .18s,transform .18s}
+ .dash-kpi:hover{border-color:#9aabc0;transform:translateY(-2px)}
+ .dash-kpi:focus-visible{outline:3px solid #8bb8dc;outline-offset:2px}
+ .dash-kpi.primary{box-shadow:0 0 0 2px #102b4920,0 5px 16px #10223f12}
+ .dash-kpi.primary small{color:#c2d1e2}
+ .dash-kpi.primary em{color:#b6c8da}
  .dash-kpi.primary{background:#102b49;color:#fff;border-color:#102b49}
  .dash-kpi small{display:block;font-size:12px;color:#718096;font-weight:600}
  .dash-kpi.primary small{color:#c2d1e2}
@@ -141,9 +154,14 @@ async function informe(){
  const sec=(t,r)=>r.length?(t?'<label>'+t+'</label>':'')+r.join(''):'';
  const pm=grp(P,x=>bonito(x.metodo_pago),(g,x)=>{g.i+=Number(x.valor_pago)}).map(g=>fila2(esc(g.n),dinero(g.i))),pc=grp(P.filter(x=>x.cuentas),x=>x.cuentas.nombre,(g,x)=>{g.i+=Number(x.valor_pago)}).map(g=>fila2(esc(g.n),dinero(g.i)));
  etapa='construyendo gráficas y agrupaciones';panelEtapa('Preparando gráficas y agrupaciones…');await new Promise(resolve=>setTimeout(resolve,0));
- const dias={};V.forEach(x=>{const k=fecha(new Date(x.fecha_hora));dias[k]=dias[k]||{ventas:0,gastos:0,citas:0};dias[k].ventas+=Number(x.total_venta||0)});
- G.forEach(x=>{const k=fecha(new Date(x.fecha_hora));dias[k]=dias[k]||{ventas:0,gastos:0,citas:0};dias[k].gastos+=Number(x.valor||0)});
- C.forEach(x=>{const k=fecha(new Date(x.inicio));dias[k]=dias[k]||{ventas:0,gastos:0,citas:0};dias[k].citas++});
+ const dias={};
+ const dia=k=>dias[k]||(dias[k]={ventas:0,gastos:0,citas:0,recaudo:0,operaciones:0,costos:0,utilidad:0});
+ V.forEach(x=>{const d=dia(fecha(new Date(x.fecha_hora)));d.ventas+=Number(x.total_venta||0);d.operaciones++});
+ D.forEach(x=>{const k=x.ventas?.fecha_hora;if(!k)return;dia(fecha(new Date(k))).costos+=cl(x)});
+ P.forEach(x=>{dia(fecha(new Date(x.fecha_hora))).recaudo+=Number(x.valor_pago||0)});
+ G.filter(x=>!['COMISIONES','PRODUCTOS'].includes(x.categoria_gasto)).forEach(x=>{const d=dia(fecha(new Date(x.fecha_hora)));d.gastos+=Number(x.valor||0)});
+ C.forEach(x=>{const d=dia(fecha(new Date(x.inicio)));d.citas++;if(x.estado==='ATENDIDA')d.atendidas=(d.atendidas||0)+1});
+ Object.values(dias).forEach(d=>{d.utilidad=d.ventas-d.costos-d.gastos});
  const serie=Object.entries(dias).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14),cobrado=sum(P,x=>x.valor_pago),ticket=V.length?neto/V.length:0;
  etapa='dibujando el informe';panelEtapa('Mostrando resultados…');await new Promise(resolve=>setTimeout(resolve,0));
  const margen=neto?util/neto*100:0,ratioCobro=neto?cobrado/neto*100:0,atendidas=C.filter(x=>x.estado==='ATENDIDA').length,pendientesC=C.filter(x=>['PENDIENTE','CONFIRMADA'].includes(x.estado)).length;
@@ -153,15 +171,15 @@ async function informe(){
  const estados=['PENDIENTE','CONFIRMADA','ATENDIDA','CANCELADA','NO_ASISTIO'].map(k=>({k,n:C.filter(x=>x.estado===k).length})),maxEstado=Math.max(1,...estados.map(x=>x.n));
  const citasGraf=estados.map(x=>'<div class="dash-state"><span>'+bonito(x.k)+'</span><div class="track"><i style="width:'+100*x.n/maxEstado+'%"></i></div><b>'+x.n+'</b></div>').join('');
  $('#inf').innerHTML=`<div class="dash-kpis">
- <div class="dash-kpi primary"><small>Ingresos por ventas</small><strong>${dinero(neto)}</strong><em>Ventas netas del periodo</em></div>
- <div class="dash-kpi"><small>Utilidad estimada</small><strong>${dinero(util)}</strong><em>Margen: ${margen.toFixed(1)}%</em></div>
- <div class="dash-kpi"><small>Recaudo registrado</small><strong>${dinero(cobrado)}</strong><em>${ratioCobro.toFixed(1)}% de ventas netas</em></div>
- <div class="dash-kpi"><small>Operaciones de venta</small><strong>${V.length}</strong><em>Ticket promedio: ${dinero(ticket)}</em></div>
- <div class="dash-kpi"><small>Citas atendidas</small><strong>${atendidas}</strong><em>${pendientesC} pendientes o confirmadas</em></div>
- <div class="dash-kpi"><small>Gastos operativos</small><strong>${dinero(gast)}</strong><em>${neto? (gast/neto*100).toFixed(1):'0.0'}% de ingresos</em></div>
+ <button type="button" class="dash-kpi primary" data-metric="ingresos" aria-pressed="true"><small>Ingresos por ventas</small><strong>${dinero(neto)}</strong><em>Ventas netas del periodo</em></button>
+ <button type="button" class="dash-kpi" data-metric="utilidad" aria-pressed="false"><small>Utilidad estimada</small><strong>${dinero(util)}</strong><em>Margen: ${margen.toFixed(1)}%</em></button>
+ <button type="button" class="dash-kpi" data-metric="recaudo" aria-pressed="false"><small>Recaudo registrado</small><strong>${dinero(cobrado)}</strong><em>${ratioCobro.toFixed(1)}% de ventas netas</em></button>
+ <button type="button" class="dash-kpi" data-metric="operaciones" aria-pressed="false"><small>Operaciones de venta</small><strong>${V.length}</strong><em>Ticket promedio: ${dinero(ticket)}</em></button>
+ <button type="button" class="dash-kpi" data-metric="citas" aria-pressed="false"><small>Citas atendidas</small><strong>${atendidas}</strong><em>${pendientesC} pendientes o confirmadas</em></button>
+ <button type="button" class="dash-kpi" data-metric="gastos" aria-pressed="false"><small>Gastos operativos</small><strong>${dinero(gast)}</strong><em>${neto? (gast/neto*100).toFixed(1):'0.0'}% de ingresos</em></button>
  </div>
  <div class="dash-grid">
- <section class="dash-card"><h3>Comportamiento del negocio</h3><p class="sub">Ventas por día y Gastos por día · últimos 14 días del periodo</p>${graficaComparativa(serie)}</section>
+ <section class="dash-card" id="dash-dynamic-graph" aria-live="polite"></section>
  <section class="dash-card"><h3>Rentabilidad del periodo</h3><p class="sub">Composición de ingresos y costos</p>
  <div class="dash-breakdown">
  ${[['Ventas brutas',bruto],['Descuentos',-desc],['Costo de productos',-costo],['Comisiones',-com],['Gastos operativos',-gast],['Utilidad estimada',util]].map(([n,v])=>'<div class="dash-break-row"><span>'+n+'</span><strong>'+dinero(v)+'</strong></div>').join('')}
@@ -175,6 +193,29 @@ async function informe(){
  <div class="dash-section"><h3>Detalle de rentabilidad por producto</h3>${sec('',mg(D,x=>x.descripcion,'unidades',x=>x.tipo_item==='PRODUCTO').slice(0,8))}</div>
  <div class="dash-note">Criterio contable: la utilidad mostrada es estimada con ventas netas menos costo de productos vendidos, comisiones y gastos operativos registrados. Las compras de inventario y liquidaciones de comisiones no se descuentan otra vez para evitar duplicidad.</div>
  <div class="dash-section"><h3>Recaudo por cuenta</h3>${sec('',pc)}</div>`;
+ const metricas={
+  ingresos:{titulo:'Comportamiento del negocio',descripcion:'Ventas por día y Gastos por día · últimos 14 días del periodo.',campo:'ventas',moneda:true},
+  utilidad:{titulo:'Evolución de utilidad estimada',descripcion:'Ingresos diarios menos costos, comisiones y gastos operativos.',campo:'utilidad',moneda:true},
+  recaudo:{titulo:'Evolución del recaudo',descripcion:'Pagos registrados por día, según su fecha de registro.',campo:'recaudo',moneda:true},
+  operaciones:{titulo:'Operaciones de venta',descripcion:'Cantidad de ventas registradas por día.',campo:'operaciones',moneda:false},
+  citas:{titulo:'Actividad de citas',descripcion:'Cantidad de citas programadas por día.',campo:'citas',moneda:false},
+  gastos:{titulo:'Evolución de gastos operativos',descripcion:'Gastos registrados por día, excluyendo compras de inventario y liquidaciones de comisiones.',campo:'gastos',moneda:true}
+ };
+ const pintarGrafica=clave=>{
+  const m=metricas[clave]||metricas.ingresos,panel=$('#dash-dynamic-graph');
+  if(!panel)return;
+  panel.innerHTML='<h3>'+m.titulo+'</h3><p class="sub">'+m.descripcion+'</p>'+(clave==='ingresos'?graficaComparativa(serie):graficaIndicador(serie,m.campo,m.moneda));
+ };
+ const tarjetas=Array.from(document.querySelectorAll('#inf .dash-kpi[data-metric]'));
+ tarjetas.forEach(tarjeta=>tarjeta.addEventListener('click',()=>{
+  tarjetas.forEach(otra=>{
+   const activa=otra===tarjeta;
+   otra.classList.toggle('primary',activa);
+   otra.setAttribute('aria-pressed',String(activa));
+  });
+  pintarGrafica(tarjeta.dataset.metric);
+ }));
+ pintarGrafica('ingresos');
  $('#ex').onclick=()=>{
  const csvCell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
  const lineas=[['Tipo','Fecha','Concepto','Barbero','Método','Estado','Cantidad','Ingreso','Costo','Descuento']];
