@@ -88,7 +88,7 @@ Pruebas funcionales con datos de prueba:
 
 1. Crear, editar, desactivar y reactivar un proveedor.
 2. Crear y editar un producto; comprobar costo, precio, control de stock y stock mínimo.
-3. Registrar una compra con varios productos, cantidades y costos distintos.
+3. Registrar una compra con varios productos, cantidades y costos distintos, número de factura y fecha de vencimiento.
 4. Confirmar que se crea una compra, sus detalles y movimientos `ENTRADA` relacionados por `compra_id`.
 5. Confirmar que `stock_actual` aumenta una sola vez y que el costo de referencia se actualiza por promedio ponderado.
 6. Registrar compra pagada, compra a crédito y compra con abono parcial; comprobar total, pagado y saldo.
@@ -97,6 +97,7 @@ Pruebas funcionales con datos de prueba:
 9. Anular una compra sin pagos y verificar el movimiento inverso; comprobar que no se puede anular si ya hay pagos o si el stock disponible no alcanza.
 10. Verificar historial de movimientos, proveedor, referencia, fechas y permisos por negocio.
 11. Intentar llamar las RPC como BARBERO y con IDs de otro negocio; todas deben rechazarse.
-12. Repetir en móvil y escritorio, y probar doble clic en los formularios.
+12. Registrar ajustes de entrada y salida con motivo; comprobar que una salida superior al stock se rechaza.
+13. Repetir en móvil y escritorio, y probar doble clic en los formularios.
 
 Las compras de inventario no se registran como gastos operativos para no duplicar el costo de los productos cuando se venden. Los pagos a proveedores sí se consideran salidas de efectivo de la caja cuando se asocian a una caja abierta. Las compras registradas sin caja abierta quedan en el historial de pagos, pero no se asignan retrospectivamente a un cierre.
