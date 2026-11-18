@@ -5,6 +5,7 @@ import { resolve, dirname } from 'node:path';
 import vm from 'node:vm';
 
 const root = process.cwd();
+const pageFiles = ['index.html', 'admin.html', 'reservar.html', 'cita.html'];
 const sourceFiles = [
   'src/lib/supabase.js',
   'src/shared/utils.js',
@@ -16,40 +17,65 @@ const sourceFiles = [
   'src/modules/equipo.js',
   'src/modules/finanzas.js',
   'src/modules/inicio.js',
-  'src/modules/ventas.js'
+  'src/modules/ventas.js',
+  'src/pages/admin.js',
+  'src/pages/reservar.js',
+  'src/pages/cita.js'
 ];
+
+function checkSyntax(file, code) {
+  code = code.replace(/^import .*;\\s*$/gm, '').replace(/^export\\s+/gm, '');
+  assert.doesNotThrow(() => new vm.Script(code, { filename: file }), file);
+}
 
 test('todos los módulos JavaScript tienen sintaxis válida', () => {
   for (const file of sourceFiles) {
-    const code = readFileSync(resolve(root, file), 'utf8')
-      .replace(/^export\s+/gm, '');
-    assert.doesNotThrow(() => new vm.Script(code, { filename: file }), file);
+    checkSyntax(file, readFileSync(resolve(root, file), 'utf8'));
   }
 });
 
-test('las cuatro páginas HTML tienen scripts de módulo válidos', () => {
-  for (const file of ['index.html', 'admin.html', 'reservar.html', 'cita.html']) {
+test('las cuatro páginas tienen un punto de entrada JavaScript válido', () => {
+  for (const file of pageFiles) {
     const html = readFileSync(resolve(root, file), 'utf8');
-    const match = html.match(/<script type="module">([\s\S]*?)<\/script>/);
-    assert.ok(match, file + ': falta script type=module');
-    const code = match[1].replace(/^import .*;\s*$/gm, '');
-    assert.doesNotThrow(() => new vm.Script(code, { filename: file }), file);
-  }
-});
-
-test('todas las importaciones locales de las páginas existen', () => {
-  for (const file of ['index.html', 'admin.html', 'reservar.html', 'cita.html']) {
-    const html = readFileSync(resolve(root, file), 'utf8');
-    for (const match of html.matchAll(/from\s+["'](\.\/[^"']+)["']/g)) {
-      assert.ok(existsSync(resolve(root, dirname(file), match[1])), file + ': ' + match[1]);
+    const inline = html.match(/<script type="module">([\\s\\S]*?)<\\/script>/);
+    const external = html.match(/<script type="module" src="([^"]+)"><\\/script>/);
+    if (inline) {
+      checkSyntax(file, inline[1]);
+    } else {
+      assert.ok(external, file + ': falta script de módulo');
+      const path = resolve(root, dirname(file), external[1]);
+      assert.ok(existsSync(path), file + ': no existe ' + external[1]);
+      checkSyntax(external[1], readFileSync(path, 'utf8'));
     }
   }
 });
 
-test('el service worker precarga todos los módulos importados por index', () => {
-  const html = readFileSync(resolve(root, 'index.html'), 'utf8');
+test('todas las importaciones locales existen', () => {
+  const entries = [...sourceFiles];
+  for (const file of pageFiles) {
+    const html = readFileSync(resolve(root, file), 'utf8');
+    const inline = html.match(/<script type="module">([\\s\\S]*?)<\\/script>/);
+    if (inline) {
+      for (const match of inline[1].matchAll(/from\\s+["']([^"']+)["']/g)) {
+        if (match[1].startsWith('.')) {
+          assert.ok(existsSync(resolve(root, dirname(file), match[1])), file + ': ' + match[1]);
+        }
+      }
+    }
+  }
+  for (const file of entries) {
+    const code = readFileSync(resolve(root, file), 'utf8');
+    for (const match of code.matchAll(/from\\s+["']([^"']+)["']/g)) {
+      if (match[1].startsWith('.')) {
+        assert.ok(existsSync(resolve(root, dirname(file), match[1])), file + ': ' + match[1]);
+      }
+    }
+  }
+});
+
+test('el service worker precarga módulos privados y páginas públicas', () => {
   const sw = readFileSync(resolve(root, 'sw.js'), 'utf8');
-  for (const match of html.matchAll(/from\s+["'](\.\/[^"']+)["']/g)) {
-    assert.ok(sw.includes(match[1].replace(/^\.\//, '')), 'No está en caché: ' + match[1]);
+  for (const file of [...sourceFiles]) {
+    assert.ok(sw.includes(file), 'No está en caché: ' + file);
   }
 });
