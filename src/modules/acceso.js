@@ -50,5 +50,5 @@ function aviso(){const s=S.sus;if(!s||s.dias>5)return '';const wa=waNum(s.contac
  return `<p class="info" style="margin:0;text-align:center">Tu plan vence ${s.dias===0?'hoy':'en '+s.dias+' día'+(s.dias>1?'s':'')}. ${wa?`<a href="https://wa.me/${wa}?text=${encodeURIComponent('Hola, quiero renovar mi plan de '+s.negocio)}" target="_blank" rel="noopener">Renovar</a>`:''}</p>`}
 
 
- return { pantallaAuth, onboarding, cargar, bloqueada, aviso };
+ return { pantallaAuth, cargar, aviso };
 }
