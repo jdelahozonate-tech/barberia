@@ -2,6 +2,7 @@
 export function crearModuloInicio(deps) {
  const { $, sb, S, esc, dinero, hora, fecha, bonito, toast, ADM, mio, fila2, porConfirmar } = deps;
 const RG=[['hoy','Hoy'],['ayer','Ayer'],['semana','Esta semana'],['mes','Este mes'],['30','Últimos 30 días'],['custom','Personalizado']];
+let informeEjecucion=0;
 function rango(v,a,b){const d=new Date();d.setHours(0,0,0,0);const s=new Date(d);let e=new Date(d);e.setDate(e.getDate()+1);
  if(v==='ayer'){s.setDate(s.getDate()-1);e=new Date(d)}
  else if(v==='semana')s.setDate(s.getDate()-((s.getDay()+6)%7));
@@ -10,14 +11,20 @@ function rango(v,a,b){const d=new Date();d.setHours(0,0,0,0);const s=new Date(d)
  else if(v==='custom'){const x=new Date((a||fecha(d))+'T00:00:00');e=new Date((b||fecha(d))+'T00:00:00');e.setDate(e.getDate()+1);return[x,e]}
  return[s,e]}
 function inicio(){return ADM.includes(S.perfil.rol)?informe():inicioSimple()}
-async function todos(q){
+async function todos(q,nombre){
  const filas=[];let desde=0;
  while(true){
-  const{data,error}=await q.range(desde,desde+999);
-  if(error)return{data:null,error};
-  const bloque=data||[];filas.push(...bloque);
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),20000);
+  let resultado;
+  try{resultado=await q.abortSignal(controller.signal).range(desde,desde+999)}
+  catch(error){resultado={data:null,error}}
+  finally{clearTimeout(timer)}
+  if(resultado.error)return{data:null,error:{message:controller.signal.aborted?'La consulta de '+nombre+' superó los 20 segundos. Revisa la conexión o los permisos de lectura.':nombre+': '+resultado.error.message}};
+  const bloque=resultado.data||[];filas.push(...bloque);
   if(bloque.length<1000)break;
   desde+=1000;
+  if(desde>=50000)return{data:null,error:{message:'La consulta de '+nombre+' superó el límite de seguridad de 50.000 registros para este informe.'}};
  }
  return{data:filas,error:null};
 }
@@ -35,12 +42,27 @@ async function informe(){
  $('#rg').onchange=x=>{S.rg=x.target.value;informe()};
  porConfirmar();
  if(rg==='custom')['ra','rb'].forEach(i=>$('#'+i).onchange=x=>{S[i]=x.target.value;informe()});
- const respuestas=await Promise.all([
-  sb.from('ventas').select('id,descuento,fecha_hora,total_venta').eq('negocio_id',S.perfil.negocio_id).neq('estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).order('id',{ascending:true}),
-  sb.from('detalle_ventas').select('tipo_item,descripcion,cantidad,subtotal,costo_unitario,comision_generada,ventas!inner(estado_venta,fecha_hora,barberos(nombre))').eq('negocio_id',S.perfil.negocio_id).neq('ventas.estado_venta','ANULADA').gte('ventas.fecha_hora',A).lt('ventas.fecha_hora',B).order('id',{ascending:true}),
-  sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,cuentas(nombre),ventas!inner(estado_venta)').eq('negocio_id',S.perfil.negocio_id).eq('estado_pago','REGISTRADO').neq('ventas.estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).order('id',{ascending:true}),
-  sb.from('gastos').select('categoria_gasto,descripcion,valor,metodo_pago,estado_gasto,fecha_hora').eq('negocio_id',S.perfil.negocio_id).eq('estado_gasto','REGISTRADO').gte('fecha_hora',A).lt('fecha_hora',B).order('id',{ascending:true}),
-  sb.from('citas').select('inicio,estado').eq('negocio_id',S.perfil.negocio_id).gte('inicio',A).lt('inicio',B).order('id',{ascending:true})].map(todos));
+ const ejecucion=++informeEjecucion;
+ const fuentes=[
+  ['ventas',sb.from('ventas').select('id,descuento,fecha_hora,total_venta').eq('negocio_id',S.perfil.negocio_id).neq('estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).order('id',{ascending:true})],
+  ['detalles de ventas',sb.from('detalle_ventas').select('tipo_item,descripcion,cantidad,subtotal,costo_unitario,comision_generada,ventas!inner(estado_venta,fecha_hora,barberos(nombre))').eq('negocio_id',S.perfil.negocio_id).neq('ventas.estado_venta','ANULADA').gte('ventas.fecha_hora',A).lt('ventas.fecha_hora',B).order('id',{ascending:true})],
+  ['pagos',sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,cuentas(nombre),ventas!inner(estado_venta)').eq('negocio_id',S.perfil.negocio_id).eq('estado_pago','REGISTRADO').neq('ventas.estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).order('id',{ascending:true})],
+  ['gastos',sb.from('gastos').select('categoria_gasto,descripcion,valor,metodo_pago,estado_gasto,fecha_hora').eq('negocio_id',S.perfil.negocio_id).eq('estado_gasto','REGISTRADO').gte('fecha_hora',A).lt('fecha_hora',B).order('id',{ascending:true})],
+  ['citas',sb.from('citas').select('inicio,estado').eq('negocio_id',S.perfil.negocio_id).gte('inicio',A).lt('inicio',B).order('id',{ascending:true})]
+ ];
+ let pendientes=fuentes.map(x=>x[0]);
+ $('#inf').innerHTML='<p class="empty">Consultando: '+pendientes.join(', ')+'…</p>';
+ const respuestas=await Promise.all(fuentes.map(async([nombre,q])=>{
+  const r=await todos(q,nombre);
+  if(ejecucion===informeEjecucion){
+   pendientes=pendientes.filter(x=>x!==nombre);
+   $('#inf').innerHTML=r.error
+    ?'<p class="empty">No fue posible cargar '+esc(nombre)+': '+esc(r.error.message)+'</p>'
+    :pendientes.length?'<p class="empty">Datos recibidos. Falta consultar: '+esc(pendientes.join(', '))+'…</p>':'<p class="empty">Preparando resultados…</p>';
+  }
+  return r;
+ }));
+ if(ejecucion!==informeEjecucion)return;
  const fallo=respuestas.find(r=>r.error);if(fallo){$('#inf').innerHTML='<p class="empty">No fue posible cargar el informe: '+esc(fallo.error.message)+'</p>';return}
  const[V,D,P,G,C]=respuestas.map(r=>r.data||[]);
  const sum=(a,f)=>a.reduce((t,x)=>t+Number(f(x)||0),0),cl=x=>Number(x.costo_unitario)*Number(x.cantidad)+Number(x.comision_generada);
