@@ -165,6 +165,9 @@ BEGIN
  IF p_metodo_pago NOT IN ('EFECTIVO','TRANSFERENCIA','TARJETA','NEQUI','DAVIPLATA') THEN
   RAISE EXCEPTION 'El método de pago no es válido.';
  END IF;
+ IF p_caja_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.cajas WHERE id = p_caja_id AND negocio_id = v_negocio AND estado_caja = 'ABIERTA') THEN
+  RAISE EXCEPTION 'La caja indicada no existe o no está abierta en este negocio.';
+ END IF;
  IF NOT EXISTS (
   SELECT 1 FROM public.proveedores_inventario
   WHERE id = p_proveedor_id AND negocio_id = v_negocio AND estado = 'ACTIVO'
@@ -301,6 +304,9 @@ BEGIN
  END IF;
  IF p_metodo_pago NOT IN ('EFECTIVO','TRANSFERENCIA','TARJETA','NEQUI','DAVIPLATA') THEN
   RAISE EXCEPTION 'El método de pago no es válido.';
+ END IF;
+ IF p_caja_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.cajas WHERE id = p_caja_id AND negocio_id = v_negocio AND estado_caja = 'ABIERTA') THEN
+  RAISE EXCEPTION 'La caja indicada no existe o no está abierta en este negocio.';
  END IF;
  SELECT * INTO v_compra FROM public.compras_inventario
  WHERE id = p_compra_id AND negocio_id = v_negocio FOR UPDATE;
