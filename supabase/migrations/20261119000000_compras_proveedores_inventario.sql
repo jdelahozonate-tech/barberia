@@ -475,7 +475,7 @@ BEGIN
   'cantidad',p_cantidad,'existencias_anteriores',v_stock,
   'existencias_nuevas',CASE WHEN p_tipo='ENTRADA' THEN v_stock+p_cantidad ELSE v_stock-p_cantidad END);
 END;
-$;
+$$;
 
 REVOKE ALL ON FUNCTION public.ajustar_inventario_producto(uuid,text,numeric,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.ajustar_inventario_producto(uuid,text,numeric,text) TO authenticated;
