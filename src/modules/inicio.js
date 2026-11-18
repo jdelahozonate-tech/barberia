@@ -189,7 +189,7 @@ async function informe(){
  <div class="dash-note">Criterio contable: la utilidad mostrada es estimada con ventas netas menos costo de productos vendidos, comisiones y gastos operativos registrados. Las compras de inventario y liquidaciones de comisiones no se descuentan otra vez para evitar duplicidad.</div>
  <div class="dash-section"><h3>Recaudo por cuenta</h3>${sec('',pc)}</div>`;
  const metricas={
-  ingresos:{titulo:'Evolución de ingresos por ventas',descripcion:'Ventas registradas por día en el periodo seleccionado.',campo:'ventas',moneda:true},
+  ingresos:{titulo:'Comportamiento del negocio',descripcion:'Ventas por día y Gastos por día · últimos 14 días del periodo.',campo:'ventas',moneda:true},
   utilidad:{titulo:'Evolución de utilidad estimada',descripcion:'Ingresos diarios menos costos, comisiones y gastos operativos.',campo:'utilidad',moneda:true},
   recaudo:{titulo:'Evolución del recaudo',descripcion:'Pagos registrados por día, según su fecha de registro.',campo:'recaudo',moneda:true},
   operaciones:{titulo:'Operaciones de venta',descripcion:'Cantidad de ventas registradas por día.',campo:'operaciones',moneda:false},
@@ -199,7 +199,7 @@ async function informe(){
  const pintarGrafica=clave=>{
   const m=metricas[clave]||metricas.ingresos,panel=$('#dash-dynamic-graph');
   if(!panel)return;
-  panel.innerHTML='<h3>'+m.titulo+'</h3><p class="sub">'+m.descripcion+' · últimos 14 días del periodo</p>'+graficaIndicador(serie,m.campo,m.moneda);
+  panel.innerHTML='<h3>'+m.titulo+'</h3><p class="sub">'+m.descripcion+'</p>'+(clave==='ingresos'?graficaComparativa(serie):graficaIndicador(serie,m.campo,m.moneda));
  };
  const tarjetas=Array.from(document.querySelectorAll('#inf .dash-kpi[data-metric]'));
  tarjetas.forEach(tarjeta=>tarjeta.addEventListener('click',()=>{
