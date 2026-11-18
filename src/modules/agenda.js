@@ -40,10 +40,11 @@ async function nuevaCita(){
  <label for="a5">Observaciones</label><textarea id="a5" name="observaciones" rows="2"></textarea>
  <div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Agendar cita</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
- $('#df').onsubmit=async e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));
+ let guardando=false;
+ $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
   const i=new Date(f.inicio),dur=se.find(s=>s.id===f.servicio_id).duracion_minutos;
   const{error}=await sb.from('citas').insert({cliente_id:f.cliente_id,servicio_id:f.servicio_id,barbero_id:f.barbero_id,observaciones:f.observaciones||null,inicio:i.toISOString(),fin:new Date(i.getTime()+dur*6e4).toISOString(),negocio_id:S.perfil.negocio_id,creado_por:S.perfil.id,origen:'APP'});
-  if(error)return toast(traducir(error.message),true);
+  if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
   dlg.close();toast('Cita agendada');S.dia=fecha(i);agenda()};
 }
 function editarCita(c){
@@ -53,11 +54,12 @@ function editarCita(c){
  <label for="e2">Observaciones</label><textarea id="e2" name="observaciones" rows="3">${esc(c.observaciones||'')}</textarea>
  ${wa(c,c.estado==='PENDIENTE')}<div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button><button class="btn">Guardar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
- $('#df').onsubmit=async e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));
+ let guardando=false;
+ $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
   const{error}=await sb.from('citas').update({estado:f.estado,observaciones:f.observaciones||null}).eq('id',c.id);
-  if(error)return toast(traducir(error.message),true);dlg.close();toast('Cita actualizada');ir();
+  if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}dlg.close();toast('Cita actualizada');ir();
   if(f.estado==='ATENDIDA'&&c.estado!=='ATENDIDA')cobrarCita(c)};
- const cf=$('#cf');if(cf)cf.onclick=async()=>{const{error}=await sb.from('citas').update({estado:'CONFIRMADA'}).eq('id',c.id);if(error)return toast(traducir(error.message),true);dlg.close();toast('Cita confirmada');ir()};
+ const cf=$('#cf');if(cf)cf.onclick=async()=>{if(guardando)return;guardando=true;cf.style.pointerEvents='none';const{error}=await sb.from('citas').update({estado:'CONFIRMADA'}).eq('id',c.id);if(error){guardando=false;cf.style.pointerEvents='';return toast(traducir(error.message),true)}dlg.close();toast('Cita confirmada');ir()};
 }
 
 /* ---------- Cobro de la cita y citas por confirmar ---------- */
