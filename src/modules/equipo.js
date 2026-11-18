@@ -2,7 +2,8 @@
 export function crearModuloEquipo(deps) {
  const { $, dlg, sb, S, esc, bonito, toast } = deps;
 async function horarios(b){
- const{data}=await sb.from('horarios_barbero').select('*').eq('barbero_id',b.id).order('hora_inicio');
+ const{data,error}=await sb.from('horarios_barbero').select('*').eq('barbero_id',b.id).order('hora_inicio');
+ if(error)return toast(error.message,true);
  const D=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'],O=[1,2,3,4,5,6,0],hm=t=>String(t).slice(0,5),nuevo=!(data||[]).length;
  const T=(n,v,l)=>`<input type="time" name="${n}" value="${v}" aria-label="${l}">`;
  const dia=d=>{const R=(data||[]).filter(y=>y.dia_semana===d),m=R[0],t=R[1],on=R.length>0||(nuevo&&d>=1&&d<=6),
@@ -21,13 +22,15 @@ async function horarios(b){
 
 
 async function equipo(){
- const{data}=await sb.from('perfiles').select('id,nombre,rol,estado').order('creado_en');
+ const{data,error}=await sb.from('perfiles').select('id,nombre,rol,estado').order('creado_en');
+ if(error)return toast(error.message,true);
  $('#eq').innerHTML=(data||[]).map(p=>`<div class="row"><span><strong>${esc(p.nombre)}</strong><br><small>${bonito(p.rol)}${p.id===S.perfil.id?', tú':''}${p.estado==='ACTIVO'?'':', inactivo'}</small></span>${p.id===S.perfil.id?'':`<button type="button" class="btn sec" data-p="${p.id}" data-e="${p.estado}">${p.estado==='ACTIVO'?'Desactivar':'Reactivar'}</button>`}</div>`).join('');
  document.querySelectorAll('[data-p]').forEach(b=>b.onclick=async()=>{const{error}=await sb.from('perfiles').update({estado:b.dataset.e==='ACTIVO'?'INACTIVO':'ACTIVO'}).eq('id',b.dataset.p);if(error)return toast(error.message,true);equipo()});
  $('#iv').onclick=invitar;
 }
 async function invitar(){
- const{data:ba}=await sb.from('barberos').select('id,nombre').eq('estado','ACTIVO').order('nombre');
+ const{data:ba,error:errorBarberos}=await sb.from('barberos').select('id,nombre').eq('estado','ACTIVO').order('nombre');
+ if(errorBarberos)return toast(errorBarberos.message,true);
  dlg.innerHTML=`<form id="df"><h2>Invitar a alguien</h2><label for="i1">Rol</label><select id="i1"><option value="BARBERO">Barbero</option><option value="SUPERVISOR">Supervisor</option><option value="ADMINISTRADOR">Administrador</option></select>
  <label for="i2">Corresponde al barbero</label><select id="i2"><option value="">Ninguno</option>${(ba||[]).map(b=>`<option value="${b.id}">${esc(b.nombre)}</option>`).join('')}</select>
  <div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Crear invitación</button></div></form>`;
