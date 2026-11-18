@@ -28,11 +28,15 @@ function onboarding(){
   b.disabled=false;if(error)return toast(traducir(error.message),true);cargar()};
 }
 async function cargar(){
- const{data:{user}}=await sb.auth.getUser();
- const{data:p,error}=await sb.from('perfiles').select('*,negocios(*)').eq('id',user.id).maybeSingle();
+ const{data:auth,error:errorAuth}=await sb.auth.getUser();
+ if(errorAuth)return toast(traducir(errorAuth.message),true);
+ if(!auth?.user)return pantallaAuth();
+ const{data:p,error}=await sb.from('perfiles').select('*,negocios(*)').eq('id',auth.user.id).maybeSingle();
  if(error)return toast(error.message,true);
  if(!p)return onboarding();
- const{data:su}=await sb.rpc('mi_suscripcion');S.sus=su;
+ const{data:su,error:errorSus}=await sb.rpc('mi_suscripcion');
+ if(errorSus)return toast('No fue posible verificar el estado de la suscripción: '+traducir(errorSus.message),true);
+ S.sus=su;
  if(!su||su.dias<0||su.estado!=='ACTIVA'||!p.negocios)return bloqueada(su);
  S.perfil=p;S.negocio=p.negocios;shell();
 }
