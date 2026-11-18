@@ -83,6 +83,14 @@ export function crearModuloProductos(deps) {
    if(e1){busy=false;if(b)b.disabled=false;return error(e1)}dlg.close();toast('Compra registrada e inventario actualizado');render();
   };
  }
+ async function ajusteForm(){
+  if(!await cargarBase())return;
+  const lista=productos.filter(p=>p.estado==='ACTIVO'&&p.control_stock!==false);
+  if(!lista.length)return toast('No hay productos activos con control de inventario.',true);
+  dlg.innerHTML='<form id="af"><h2>Ajuste de inventario</h2><p class="mute">Usa este movimiento para corregir diferencias de conteo, mermas o entradas no asociadas a una compra.</p><label>Producto</label><select name="producto_id">'+lista.map(p=>'<option value="'+p.id+'">'+esc(p.nombre)+' · Stock '+existencia(p.id)+'</option>').join('')+'</select><label>Tipo de ajuste</label><select name="tipo"><option value="ENTRADA">Entrada / sobrante</option><option value="SALIDA">Salida / faltante o merma</option></select><label>Cantidad</label><input name="cantidad" type="number" min="0.001" step="0.001" required><label>Motivo del ajuste</label><textarea name="motivo" minlength="3" maxlength="250" required placeholder="Ej. Conteo físico, producto dañado, vencimiento"></textarea><div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Registrar ajuste</button></div></form>';
+  dlg.showModal();$('#cx').onclick=()=>dlg.close();let busy=false;
+  $('#af').onsubmit=async e=>{e.preventDefault();if(busy)return;const f=Object.fromEntries(new FormData(e.target)),n=Number(f.cantidad);if(!Number.isFinite(n)||n<=0||f.motivo.trim().length<3)return toast('Indica una cantidad y un motivo válido.',true);busy=true;const b=e.target.querySelector('button[type="submit"],button:not([type])');if(b)b.disabled=true;const{error:e1}=await sb.rpc('ajustar_inventario_producto',{p_producto_id:f.producto_id,p_tipo:f.tipo,p_cantidad:n,p_motivo:f.motivo.trim()});if(e1){busy=false;if(b)b.disabled=false;return error(e1)}dlg.close();toast('Ajuste de inventario registrado');vista='productos';render()};
+ }
  async function comprasVista(){
   const{data,error:e1}=await sb.from('compras_inventario').select('*,proveedores_inventario(nombre)').eq('negocio_id',nid()).order('fecha_compra',{ascending:false}).limit(100);
   if(e1)return error(e1);
