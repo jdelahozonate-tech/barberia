@@ -3,7 +3,7 @@ export function crearModuloProductos(deps) {
  const { $, dlg, sb, S, esc, dinero, traducir, toast } = deps;
  const rol=()=>['ADMINISTRADOR','SUPERVISOR'].includes(S.perfil.rol);
  const nid=()=>S.perfil.negocio_id;
- const metodos=['EFECTIVO','TRANSFERENCIA','NEQUI','DAVIPLATA'];
+ const metodos=['EFECTIVO','TRANSFERENCIA','TARJETA','NEQUI','DAVIPLATA'];
  let vista='productos',productos=[],proveedores=[],stock=[];
  const fecha=x=>x?new Date(x).toLocaleDateString('es-CO',{year:'numeric',month:'short',day:'numeric'}):'—';
  const error=e=>toast(traducir(e?.message||String(e)),true);
