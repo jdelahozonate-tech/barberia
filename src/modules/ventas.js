@@ -74,5 +74,5 @@ async function detalleVenta(v){
 }
 
 
- return { ventas, nuevaVenta, detalleVenta };
+ return { ventas, nuevaVenta };
 }
