@@ -40,6 +40,7 @@ Los HTML de entrada y los archivos PWA permanecen en la raíz intencionalmente: 
 │   ├── lib/
 │   │   └── supabase.js        # Cliente Supabase compartido
 │   ├── modules/
+│   │   ├── agenda.js          # Agenda y gestión de citas
 │   │   └── catalogos.js       # CRUD y formularios de catálogos
 │   └── shared/
 │       └── utils.js           # Utilidades puras compartidas
