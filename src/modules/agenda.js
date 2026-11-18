@@ -41,7 +41,7 @@ async function nuevaCita(){
  <div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Agendar cita</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  let guardando=false;
- if(admin)$('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
+ $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
   const i=new Date(f.inicio),dur=se.find(s=>s.id===f.servicio_id).duracion_minutos;
   const{error}=await sb.from('citas').insert({cliente_id:f.cliente_id,servicio_id:f.servicio_id,barbero_id:f.barbero_id,observaciones:f.observaciones||null,inicio:i.toISOString(),fin:new Date(i.getTime()+dur*6e4).toISOString(),negocio_id:S.perfil.negocio_id,creado_por:S.perfil.id,origen:'APP'});
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
@@ -55,7 +55,7 @@ function editarCita(c){
  <label for="e2">Observaciones</label><textarea id="e2" name="observaciones" rows="3">${esc(c.observaciones||'')}</textarea>${wa(c,c.estado==='PENDIENTE')}`:`<p class="info">Vista de solo lectura. Solo un administrador o supervisor puede modificar esta cita.</p>`}<div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button>${admin?'<button class="btn">Guardar</button>':''}</div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  let guardando=false;
- $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
+ if(admin)$('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
   const{error}=await sb.from('citas').update({estado:f.estado,observaciones:f.observaciones||null}).eq('negocio_id',S.perfil.negocio_id).eq('id',c.id);
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}dlg.close();toast('Cita actualizada');ir();
   if(f.estado==='ATENDIDA'&&c.estado!=='ATENDIDA')cobrarCita(c)};
