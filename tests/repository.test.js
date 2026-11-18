@@ -24,7 +24,7 @@ const sourceFiles = [
 ];
 
 function checkSyntax(file, code) {
-  code = code.replace(/^import .*;\\s*$/gm, '').replace(/^export\\s+/gm, '');
+  code = code.replace(/^import .*;\s*$/gm, '').replace(/^export\s+/gm, '');
   assert.doesNotThrow(() => new vm.Script(code, { filename: file }), file);
 }
 
@@ -37,8 +37,8 @@ test('todos los módulos JavaScript tienen sintaxis válida', () => {
 test('las cuatro páginas tienen un punto de entrada JavaScript válido', () => {
   for (const file of pageFiles) {
     const html = readFileSync(resolve(root, file), 'utf8');
-    const inline = html.match(/<script type="module">([\\s\\S]*?)<\\/script>/);
-    const external = html.match(/<script type="module" src="([^"]+)"><\\/script>/);
+    const inline = html.match(/<script type="module">([\s\S]*?)<\/script>/);
+    const external = html.match(/<script type="module" src="([^"]+)"><\/script>/);
     if (inline) {
       checkSyntax(file, inline[1]);
     } else {
@@ -54,9 +54,9 @@ test('todas las importaciones locales existen', () => {
   const entries = [...sourceFiles];
   for (const file of pageFiles) {
     const html = readFileSync(resolve(root, file), 'utf8');
-    const inline = html.match(/<script type="module">([\\s\\S]*?)<\\/script>/);
+    const inline = html.match(/<script type="module">([\s\S]*?)<\/script>/);
     if (inline) {
-      for (const match of inline[1].matchAll(/from\\s+["']([^"']+)["']/g)) {
+      for (const match of inline[1].matchAll(/from\s+["']([^"']+)["']/g)) {
         if (match[1].startsWith('.')) {
           assert.ok(existsSync(resolve(root, dirname(file), match[1])), file + ': ' + match[1]);
         }
@@ -65,7 +65,7 @@ test('todas las importaciones locales existen', () => {
   }
   for (const file of entries) {
     const code = readFileSync(resolve(root, file), 'utf8');
-    for (const match of code.matchAll(/from\\s+["']([^"']+)["']/g)) {
+    for (const match of code.matchAll(/from\s+["']([^"']+)["']/g)) {
       if (match[1].startsWith('.')) {
         assert.ok(existsSync(resolve(root, dirname(file), match[1])), file + ': ' + match[1]);
       }
