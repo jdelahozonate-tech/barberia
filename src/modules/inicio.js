@@ -18,10 +18,10 @@ async function informe(){
  porConfirmar();
  if(rg==='custom')['ra','rb'].forEach(i=>$('#'+i).onchange=x=>{S[i]=x.target.value;informe()});
  const respuestas=await Promise.all([
-  sb.from('ventas').select('id,descuento,fecha_hora').eq('negocio_id',S.perfil.negocio_id).neq('estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
+  sb.from('ventas').select('id,descuento,fecha_hora,total_venta').eq('negocio_id',S.perfil.negocio_id).neq('estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
   sb.from('detalle_ventas').select('tipo_item,descripcion,cantidad,subtotal,costo_unitario,comision_generada,ventas!inner(estado_venta,fecha_hora,barberos(nombre))').eq('negocio_id',S.perfil.negocio_id).neq('ventas.estado_venta','ANULADA').gte('ventas.fecha_hora',A).lt('ventas.fecha_hora',B).limit(5000),
-  sb.from('pagos').select('valor_pago,metodo_pago,cuentas(nombre),ventas!inner(estado_venta)').eq('negocio_id',S.perfil.negocio_id).eq('estado_pago','REGISTRADO').neq('ventas.estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
-  sb.from('gastos').select('categoria_gasto,valor').eq('negocio_id',S.perfil.negocio_id).eq('estado_gasto','REGISTRADO').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
+  sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,cuentas(nombre),ventas!inner(estado_venta)').eq('negocio_id',S.perfil.negocio_id).eq('estado_pago','REGISTRADO').neq('ventas.estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
+  sb.from('gastos').select('categoria_gasto,descripcion,valor,metodo_pago,estado_gasto,fecha_hora').eq('negocio_id',S.perfil.negocio_id).eq('estado_gasto','REGISTRADO').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
   sb.from('citas').select('inicio,estado').eq('negocio_id',S.perfil.negocio_id).gte('inicio',A).lt('inicio',B).limit(5000)]);
  const fallo=respuestas.find(r=>r.error);if(fallo){$('#inf').innerHTML='<p class="empty">No fue posible cargar el informe: '+esc(fallo.error.message)+'</p>';return}
  const[V,D,P,G,C]=respuestas.map(r=>r.data||[]);
@@ -43,7 +43,7 @@ async function informe(){
  $('#ex').onclick=()=>{
  const csvCell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
  const lineas=[['Tipo','Fecha','Concepto','Barbero','Método','Estado','Cantidad','Ingreso','Costo','Descuento']];
- V.forEach(x=>lineas.push(['VENTA',x.fecha_hora,'Venta '+x.id,'','','',1,0,0,Number(x.descuento||0)]));
+ V.forEach(x=>lineas.push(['VENTA',x.fecha_hora,'Venta '+x.id,'','','',1,Number(x.total_venta||0),0,Number(x.descuento||0)]));
  D.forEach(x=>lineas.push(['DETALLE',x.ventas?.fecha_hora||'',x.descripcion,x.ventas?.barberos?.nombre||'','',x.ventas?.estado_venta||'',x.cantidad,Number(x.subtotal||0),Number(x.costo_unitario||0)*Number(x.cantidad||0),0]));
  P.forEach(x=>lineas.push(['PAGO',x.fecha_hora,'Recaudo','',x.metodo_pago,'REGISTRADO',1,Number(x.valor_pago||0),0,0]));
  G.forEach(x=>lineas.push(['GASTO',x.fecha_hora,x.descripcion||x.categoria_gasto,'',x.metodo_pago,x.estado_gasto,1,-Number(x.valor||0),Number(x.valor||0),0]));
