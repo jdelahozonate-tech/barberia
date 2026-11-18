@@ -60,14 +60,14 @@ async function detalleVenta(v){
  const[rd,rp]=await Promise.all([sb.from('detalle_ventas').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id),sb.from('pagos').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id).order('fecha_hora')]);
  if(rd.error)return toast(traducir(rd.error.message),true);if(rp.error)return toast(traducir(rp.error.message),true);
  const d=rd.data||[],p=rp.data||[];
- const abierta=v.estado_venta==='PENDIENTE',fila=(a,b,c='')=>`<div class="ln2 ${c}"><span>${a}</span><span>${b}</span></div>`;
+ const admin=ADM.includes(S.perfil.rol),abierta=v.estado_venta==='PENDIENTE'&&admin,fila=(a,b,c='')=>`<div class="ln2 ${c}"><span>${a}</span><span>${b}</span></div>`;
  dlg.innerHTML=`<form id="df"><h2>${esc(v.clientes?.nombre||'Cliente de paso')}</h2><p class="mute">${new Date(v.fecha_hora).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})}${v.barberos?', '+esc(v.barberos.nombre):''}</p>
  ${d.map(x=>fila(x.cantidad+' × '+esc(x.descripcion),dinero(x.subtotal))).join('')}
  ${v.descuento>0?fila('Descuento','-'+dinero(v.descuento)):''}
  ${fila('Total',dinero(v.total_venta),'tot')}${fila('Pagado',dinero(v.total_pagado))}${fila('Saldo',dinero(v.saldo_pendiente))}
  ${p.length?'<label>Pagos</label>'+p.map(x=>fila(bonito(x.metodo_pago)+', '+hora(x.fecha_hora),dinero(x.valor_pago))).join(''):''}
  ${abierta?`<label for="pg">Registrar otro pago</label><div class="ln"><input id="pg" type="number" min="1" inputmode="decimal" value="${v.saldo_pendiente}"><select id="mp" aria-label="Método">${METODOS}</select></div><button type="button" class="btn block" id="rp">Registrar pago</button>`:''}
- ${ADM.includes(S.perfil.rol)&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn sec block" id="an">Anular venta</button>':''}
+ ${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn sec block" id="an">Anular venta</button>':''}
  <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  if(abierta)$('#rp').onclick=async()=>{const b=$('#rp');if(b.disabled)return;const n=Number($('#pg').value);
