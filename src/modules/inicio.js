@@ -28,17 +28,75 @@ async function todos(q,nombre){
  }
  return{data:filas,error:null};
 }
-function grafica(titulo,serie,campo,maximo,color){
- if(!serie.length)return '';
- return '<label>'+titulo+'</label><div class="panel-graf">'+serie.map(([k,v])=>'<div class="graf-col"><small>'+esc(k.slice(5))+'</small><div class="graf-track"><i style="height:'+Math.max(3,100*v[campo]/maximo)+'%;background:'+color+'"></i></div><b>'+dinero(v[campo])+'</b></div>').join('')+'</div>';
+function graficaComparativa(serie){
+ if(!serie.length)return '<p class="mute">No hay movimientos en el periodo seleccionado.</p>';
+ const max=Math.max(1,...serie.map(([,v])=>Math.max(v.ventas,v.gastos)));
+ return '<div class="dash-chart">'+serie.map(([k,v])=>'<div class="dash-day"><span class="date">'+esc(k.slice(5))+'</span><div class="dash-bars"><div class="dash-bar rev"><i style="width:'+100*v.ventas/max+'%"></i></div><div class="dash-bar exp"><i style="width:'+100*v.gastos/max+'%"></i></div></div><span class="amount">'+dinero(v.ventas)+'</span></div>').join('')+'</div><div class="dash-legend"><span>Ventas</span><span>Gastos</span></div>';
+}
+function grafica(titulo,serie,campo,maximo,color){ return graficaComparativa(serie); }
+function barras(titulo,datos,total){
+ if(!datos.length)return '';
+ const max=Math.max(1,...datos.map(x=>x.valor));
+ return '<div class="dash-card"><h3>'+titulo+'</h3><p class="sub">Participación sobre el total del periodo</p><div class="dash-breakdown">'+datos.map(x=>'<div class="dash-break-row"><span>'+esc(x.nombre)+'</span><strong>'+dinero(x.valor)+'</strong><div class="dash-break-track"><i style="width:'+100*x.valor/max+'%"></i></div></div>').join('')+'</div></div>';
 }
 async function informe(){
  if(!document.getElementById('dashboard-chart-style')){const css=document.createElement('style');css.id='dashboard-chart-style';
- css.textContent='.panel-graf{display:flex;gap:8px;align-items:stretch;overflow-x:auto;padding:8px 2px 14px}.graf-col{min-width:54px;display:flex;flex-direction:column;align-items:center;gap:5px;flex:1}.graf-col small{font-size:11px}.graf-track{height:112px;width:22px;background:var(--borde,#e5e7eb);border-radius:8px;display:flex;align-items:end;overflow:hidden}.graf-track i{display:block;width:100%;border-radius:8px}.graf-col b{font-size:10px;white-space:nowrap}.estado-graf{display:grid;grid-template-columns:105px 1fr 28px;gap:8px;align-items:center;margin:8px 0;font-size:13px}.estado-graf div{height:9px;background:var(--borde,#e5e7eb);border-radius:8px;overflow:hidden}.estado-graf i{display:block;height:100%;background:#497caa;border-radius:8px}';
+ css.textContent=`
+ #main:has(#inf){max-width:1240px}
+ .dash-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin:10px 0 18px;flex-wrap:wrap}
+ .dash-kicker{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#63738a;font-weight:800}
+ .dash-title{font-size:clamp(25px,4vw,34px);letter-spacing:-.04em;margin:3px 0 4px}
+ .dash-sub{font-size:13px;color:#65748a}
+ .dash-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+ .dash-actions select,.dash-actions input{min-width:145px;width:auto;padding:10px 12px;font-size:13px}
+ .dash-actions .btn{padding:10px 14px;font-size:13px}
+ .dash-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}
+ .dash-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;min-width:0;box-shadow:0 3px 12px #10223f08}
+ .dash-kpi.primary{background:#102b49;color:#fff;border-color:#102b49}
+ .dash-kpi small{display:block;font-size:12px;color:#718096;font-weight:600}
+ .dash-kpi.primary small{color:#c2d1e2}
+ .dash-kpi strong{display:block;font-size:clamp(19px,2.5vw,27px);letter-spacing:-.03em;margin:7px 0 4px;overflow-wrap:anywhere}
+ .dash-kpi em{font-style:normal;font-size:11px;color:#748398}
+ .dash-kpi.primary em{color:#b6c8da}
+ .dash-grid{display:grid;grid-template-columns:1.45fr 1fr;gap:14px;margin:14px 0}
+ .dash-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:17px;min-width:0;box-shadow:0 3px 12px #10223f08}
+ .dash-card h3{font-size:15px;margin:0 0 4px;letter-spacing:-.01em}
+ .dash-card .sub{font-size:12px;color:#718096;margin:0 0 14px}
+ .dash-chart{display:grid;gap:10px}
+ .dash-day{display:grid;grid-template-columns:44px minmax(0,1fr) 90px;gap:10px;align-items:center;font-size:11px}
+ .dash-day .date{color:#758398}
+ .dash-bars{display:grid;gap:4px}
+ .dash-bar{height:8px;background:#edf1f5;border-radius:20px;overflow:hidden}
+ .dash-bar i{display:block;height:100%;border-radius:20px}
+ .dash-bar.rev i{background:#1d8068}.dash-bar.exp i{background:#e2a04b}
+ .dash-day .amount{font-variant-numeric:tabular-nums;text-align:right;color:#46566b;white-space:nowrap}
+ .dash-legend{display:flex;gap:14px;margin-top:13px;font-size:11px;color:#65748a}
+ .dash-legend span:before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#1d8068;margin-right:5px}
+ .dash-legend span+span:before{background:#e2a04b}
+ .dash-breakdown{display:grid;gap:12px}
+ .dash-break-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;font-size:12px}
+ .dash-break-row strong{font-variant-numeric:tabular-nums}
+ .dash-break-track{grid-column:1/-1;height:7px;background:#edf1f5;border-radius:10px;overflow:hidden}
+ .dash-break-track i{display:block;height:100%;background:#467ba8;border-radius:10px}
+ .dash-metric-list{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+ .dash-metric{background:#f5f7fa;border-radius:9px;padding:10px}
+ .dash-metric small{display:block;color:#748398;font-size:10px}
+ .dash-metric b{font-size:14px}
+ .dash-state{display:grid;grid-template-columns:105px 1fr 26px;gap:9px;align-items:center;margin:11px 0;font-size:12px}
+ .dash-state .track{height:8px;background:#edf1f5;border-radius:20px;overflow:hidden}
+ .dash-state i{display:block;height:100%;background:#467ba8;border-radius:20px}
+ .dash-state b{text-align:right;font-variant-numeric:tabular-nums}
+ .dash-section{margin:14px 0}
+ .dash-section h3{font-size:15px;margin:0 0 9px}
+ .dash-section .ln2{padding:10px 2px;font-size:13px}
+ .dash-note{border-left:3px solid #e2a04b;background:#fff9ed;border-radius:0 9px 9px 0;padding:11px 13px;color:#725b36;font-size:12px;margin:12px 0}
+ .dash-loading{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:28px;color:#65748a}
+ @media(max-width:700px){.dash-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.dash-kpi{padding:13px}.dash-grid{grid-template-columns:1fr;gap:10px}.dash-card{padding:14px}.dash-day{grid-template-columns:38px minmax(0,1fr) 82px;gap:7px}.dash-metric-list{grid-template-columns:repeat(3,1fr)}.dash-state{grid-template-columns:90px 1fr 24px}}
+ @media(min-width:1000px){.dash-kpis{grid-template-columns:repeat(6,minmax(0,1fr))}}
+ ` ;
  document.head.appendChild(css);}
  const[s,e]=rango(S.rg||'hoy',S.ra,S.rb),A=s.toISOString(),B=e.toISOString(),rg=S.rg||'hoy';
- $('#main').innerHTML=`<div class="head"><h2>Panel gerencial</h2><button class="btn sec" id="ex" disabled>Exportar CSV</button></div><div id="pc"></div><select id="rg" aria-label="Periodo">${RG.map(([k,l])=>`<option value="${k}"${k===rg?' selected':''}>${l}</option>`).join('')}</select>
- ${rg==='custom'?`<div class="dia" style="margin-top:8px"><input type="date" id="ra" value="${S.ra||fecha(new Date())}" aria-label="Desde"><input type="date" id="rb" value="${S.rb||fecha(new Date())}" aria-label="Hasta"></div>`:''}<div id="inf"><p class="empty">Calculando…</p></div>`;
+ $('#main').innerHTML=`<div class="dash-head"><div><div class="dash-kicker">DH Barber · Inteligencia de negocio</div><h2 class="dash-title">Panel gerencial</h2><div class="dash-sub">Indicadores financieros y operativos · ${RG.find(x=>x[0]===rg)?.[1]||'Periodo personalizado'}</div></div><div class="dash-actions"><select id="rg" aria-label="Periodo">${RG.map(([k,l])=>`<option value="${k}"${k===rg?' selected':''}>${l}</option>`).join('')}</select>${rg==='custom'?`<input type="date" id="ra" value="${S.ra||fecha(new Date())}" aria-label="Desde"><input type="date" id="rb" value="${S.rb||fecha(new Date())}" aria-label="Hasta">`:''}<button class="btn sec" id="ex" disabled>Exportar CSV</button></div></div><div id="inf"><div class="dash-loading">Consultando ventas, pagos, gastos y citas…</div></div>`;
  $('#rg').onchange=x=>{S.rg=x.target.value;informe()};
  porConfirmar();
  if(rg==='custom')['ra','rb'].forEach(i=>$('#'+i).onchange=x=>{S[i]=x.target.value;informe()});
@@ -80,24 +138,43 @@ async function informe(){
  const grp=(a,k,f)=>{const m={};a.forEach(x=>{const n=k(x);m[n]=m[n]||{n,c:0,i:0,k:0};f(m[n],x)});return Object.values(m)};
  const lin=(g,e)=>fila2(esc(g.n)+'<br><small>'+g.c+' '+e+', ingresos '+dinero(g.i)+', costo '+dinero(g.k)+'</small>',dinero(g.i-g.k));
  const mg=(a,k,e,flt)=>grp(a.filter(flt||(()=>true)),k,(g,x)=>{g.c+=Number(x.cantidad||0);g.i+=Number(x.subtotal||0);g.k+=cl(x)}).sort((p,q)=>(q.i-q.k)-(p.i-p.k)).map(g=>lin(g,e));
- const sec=(t,r)=>r.length?'<label>'+t+'</label>'+r.join(''):'';
+ const sec=(t,r)=>r.length?(t?'<label>'+t+'</label>':'')+r.join(''):'';
  const pm=grp(P,x=>bonito(x.metodo_pago),(g,x)=>{g.i+=Number(x.valor_pago)}).map(g=>fila2(esc(g.n),dinero(g.i))),pc=grp(P.filter(x=>x.cuentas),x=>x.cuentas.nombre,(g,x)=>{g.i+=Number(x.valor_pago)}).map(g=>fila2(esc(g.n),dinero(g.i)));
  etapa='construyendo gráficas y agrupaciones';panelEtapa('Preparando gráficas y agrupaciones…');await new Promise(resolve=>setTimeout(resolve,0));
  const dias={};V.forEach(x=>{const k=fecha(new Date(x.fecha_hora));dias[k]=dias[k]||{ventas:0,gastos:0,citas:0};dias[k].ventas+=Number(x.total_venta||0)});
  G.forEach(x=>{const k=fecha(new Date(x.fecha_hora));dias[k]=dias[k]||{ventas:0,gastos:0,citas:0};dias[k].gastos+=Number(x.valor||0)});
  C.forEach(x=>{const k=fecha(new Date(x.inicio));dias[k]=dias[k]||{ventas:0,gastos:0,citas:0};dias[k].citas++});
- const serie=Object.entries(dias).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14),maxDia=Math.max(1,...serie.map(x=>Math.max(x[1].ventas,x[1].gastos))),cobrado=sum(P,x=>x.valor_pago),ticket=V.length?neto/V.length:0;
- const estados=['PENDIENTE','CONFIRMADA','ATENDIDA','CANCELADA','NO_ASISTIO'].map(k=>({k,n:C.filter(x=>x.estado===k).length})),maxEstado=Math.max(1,...estados.map(x=>x.n));
- const citasGraf='<label>Estado de las citas</label>'+estados.map(x=>'<div class="estado-graf"><span>'+bonito(x.k)+'</span><div><i style="width:'+100*x.n/maxEstado+'%"></i></div><b>'+x.n+'</b></div>').join('');
+ const serie=Object.entries(dias).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14),cobrado=sum(P,x=>x.valor_pago),ticket=V.length?neto/V.length:0;
  etapa='dibujando el informe';panelEtapa('Mostrando resultados…');await new Promise(resolve=>setTimeout(resolve,0));
- $('#inf').innerHTML=`<div class="kp"><div><small>Ventas netas</small><strong>${dinero(neto)}</strong></div><div><small>Utilidad estimada</small><strong>${dinero(util)}</strong></div><div><small>Recaudado</small><strong>${dinero(cobrado)}</strong></div><div><small>Ventas</small><strong>${V.length}</strong></div><div><small>Ticket promedio</small><strong>${dinero(ticket)}</strong></div><div><small>Citas atendidas</small><strong>${C.filter(x=>x.estado==='ATENDIDA').length}</strong></div></div>
- ${fila2('Ventas brutas',dinero(bruto))}${fila2('Descuentos','-'+dinero(desc))}${fila2('Costo de productos vendidos','-'+dinero(costo))}${fila2('Comisiones de barberos','-'+dinero(com))}${fila2('Gastos operativos','-'+dinero(gast))}${fila2('Utilidad estimada',dinero(util),'tot')}
- ${grafica('Ventas por día',serie,'ventas',maxDia,'#237a57')}${grafica('Gastos por día',serie,'gastos',maxDia,'#bd7a35')}${citasGraf}
- <p class="mute">No se restan aparte las compras de mercancía ni las liquidaciones de comisión: su costo ya está en las líneas de arriba.</p>
- ${sec('Margen por barbero',mg(D,x=>x.ventas?.barberos?.nombre||'Sin barbero','servicios y productos'))}
- ${sec('Margen por producto',mg(D,x=>x.descripcion,'vendidos',x=>x.tipo_item==='PRODUCTO'))}
- ${sec('Margen por servicio',mg(D,x=>x.descripcion,'servicios',x=>x.tipo_item==='SERVICIO'))}
- ${sec('Cobrado por método de pago',pm)}${sec('Cobrado por cuenta',pc)}`;
+ const margen=neto?util/neto*100:0,ratioCobro=neto?cobrado/neto*100:0,atendidas=C.filter(x=>x.estado==='ATENDIDA').length,pendientesC=C.filter(x=>['PENDIENTE','CONFIRMADA'].includes(x.estado)).length;
+ const pagosMetodo=grp(P,x=>bonito(x.metodo_pago),(g,x)=>{g.i+=Number(x.valor_pago)}).map(g=>({nombre:g.n,valor:g.i})).sort((a,b)=>b.valor-a.valor);
+ const topBarberos=grp(D,x=>x.ventas?.barberos?.nombre||'Sin barbero',(g,x)=>{g.i+=Number(x.subtotal||0);g.k+=cl(x);g.c+=Number(x.cantidad||0)}).map(g=>({nombre:g.n,valor:g.i-g.k})).sort((a,b)=>b.valor-a.valor).slice(0,5);
+ const topServicios=grp(D.filter(x=>x.tipo_item==='SERVICIO'),x=>x.descripcion,(g,x)=>{g.i+=Number(x.subtotal||0);g.k+=cl(x);g.c+=Number(x.cantidad||0)}).map(g=>({nombre:g.n,valor:g.i-g.k})).sort((a,b)=>b.valor-a.valor).slice(0,5);
+ const estados=['PENDIENTE','CONFIRMADA','ATENDIDA','CANCELADA','NO_ASISTIO'].map(k=>({k,n:C.filter(x=>x.estado===k).length})),maxEstado=Math.max(1,...estados.map(x=>x.n));
+ const citasGraf=estados.map(x=>'<div class="dash-state"><span>'+bonito(x.k)+'</span><div class="track"><i style="width:'+100*x.n/maxEstado+'%"></i></div><b>'+x.n+'</b></div>').join('');
+ $('#inf').innerHTML=`<div class="dash-kpis">
+ <div class="dash-kpi primary"><small>Ingresos por ventas</small><strong>${dinero(neto)}</strong><em>Ventas netas del periodo</em></div>
+ <div class="dash-kpi"><small>Utilidad estimada</small><strong>${dinero(util)}</strong><em>Margen: ${margen.toFixed(1)}%</em></div>
+ <div class="dash-kpi"><small>Recaudo registrado</small><strong>${dinero(cobrado)}</strong><em>${ratioCobro.toFixed(1)}% de ventas netas</em></div>
+ <div class="dash-kpi"><small>Operaciones de venta</small><strong>${V.length}</strong><em>Ticket promedio: ${dinero(ticket)}</em></div>
+ <div class="dash-kpi"><small>Citas atendidas</small><strong>${atendidas}</strong><em>${pendientesC} pendientes o confirmadas</em></div>
+ <div class="dash-kpi"><small>Gastos operativos</small><strong>${dinero(gast)}</strong><em>${neto? (gast/neto*100).toFixed(1):'0.0'}% de ingresos</em></div>
+ </div>
+ <div class="dash-grid">
+ <section class="dash-card"><h3>Comportamiento del negocio</h3><p class="sub">Ventas por día y Gastos por día · últimos 14 días del periodo</p>${graficaComparativa(serie)}</section>
+ <section class="dash-card"><h3>Rentabilidad del periodo</h3><p class="sub">Composición de ingresos y costos</p>
+ <div class="dash-breakdown">
+ ${[['Ventas brutas',bruto],['Descuentos',-desc],['Costo de productos',-costo],['Comisiones',-com],['Gastos operativos',-gast],['Utilidad estimada',util]].map(([n,v])=>'<div class="dash-break-row"><span>'+n+'</span><strong>'+dinero(v)+'</strong></div>').join('')}
+ </div><div class="dash-metric-list"><div class="dash-metric"><small>Margen utilidad</small><b>${margen.toFixed(1)}%</b></div><div class="dash-metric"><small>Ticket medio</small><b>${dinero(ticket)}</b></div><div class="dash-metric"><small>Ventas</small><b>${V.length}</b></div></div></section>
+ </div>
+ <div class="dash-grid">
+ <section class="dash-card"><h3>Actividad de citas</h3><p class="sub">Estado de las citas · distribución por estado · ${C.length} citas</p>${citasGraf}</section>
+ <section class="dash-card"><h3>Recaudo por medio de pago</h3><p class="sub">Pagos registrados y no anulados</p>${pagosMetodo.length?'<div class="dash-breakdown">'+pagosMetodo.map(x=>'<div class="dash-break-row"><span>'+esc(x.nombre)+'</span><strong>'+dinero(x.valor)+'</strong><div class="dash-break-track"><i style="width:'+100*x.valor/Math.max(1,...pagosMetodo.map(y=>y.valor))+'%"></i></div></div>').join('')+'</div>':'<p class="mute">Sin pagos registrados en el periodo.</p>'}</section>
+ </div>
+ <div class="dash-grid">${barras('Rentabilidad por barbero',topBarberos)}${barras('Servicios con mayor margen',topServicios)}</div>
+ <div class="dash-section"><h3>Detalle de rentabilidad por producto</h3>${sec('',mg(D,x=>x.descripcion,'unidades',x=>x.tipo_item==='PRODUCTO').slice(0,8))}</div>
+ <div class="dash-note">Criterio contable: la utilidad mostrada es estimada con ventas netas menos costo de productos vendidos, comisiones y gastos operativos registrados. Las compras de inventario y liquidaciones de comisiones no se descuentan otra vez para evitar duplicidad.</div>
+ <div class="dash-section"><h3>Recaudo por cuenta</h3>${sec('',pc)}</div>`;
  $('#ex').onclick=()=>{
  const csvCell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
  const lineas=[['Tipo','Fecha','Concepto','Barbero','Método','Estado','Cantidad','Ingreso','Costo','Descuento']];
