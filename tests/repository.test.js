@@ -397,6 +397,9 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(sql, /stock_actual/);
   assert.match(sql, /No hay existencias suficientes para revertir esta compra/);
   assert.match(sql, /promedio ponderado/);
+  assert.match(sql, /caja_id/);
+  assert.match(finanzas, /pagos_compras_inventario/);
+  assert.match(finanzas, /Compras pagadas en efectivo/);
   assert.match(productos, /eq\('negocio_id',nid\(\)\)/);
   assert.match(productos, /data-tab="movimientos"/);
   assert.match(productos, /data-tab="proveedores"/);
