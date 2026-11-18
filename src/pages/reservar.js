@@ -6,9 +6,10 @@ const TZ='America/Bogota',slug=new URLSearchParams(location.search).get('n')||''
 const f2=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const hh=t=>new Date(t).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:TZ});
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.className='show';clearTimeout(tt);tt=setTimeout(()=>t.className='',4500)}
-let C,T=null;
+let C,T=null,consultaHoras=0;
 (async()=>{
- const{data}=await sb.rpc('catalogo_publico',{p_slug:slug});
+ const{data,error}=await sb.rpc('catalogo_publico',{p_slug:slug});
+ if(error)return app.innerHTML='<h1>No pudimos cargar las reservas</h1><p class="mute">'+esc(error.message)+'</p>';
  if(!data||!data.negocio)return app.innerHTML='<h1>Reservas no disponibles</h1><p class="mute">Este enlace no es válido o la barbería no recibe reservas en línea.</p>';
  C=data;
  if(!C.servicios.length||!C.barberos.length)return app.innerHTML=`<h1>${esc(C.negocio.nombre)}</h1><p class="mute">Todavía no hay servicios u horarios disponibles. Intenta más tarde.</p>`;
@@ -25,16 +26,18 @@ let C,T=null;
  $('#f').onsubmit=reservar;horas();
 })();
 async function horas(){
- T=null;$('#f').hidden=true;$('#hs').innerHTML='<span class="mute">Buscando horas…</span>';
+ T=null;const consulta=++consultaHoras;$('#f').hidden=true;$('#hs').innerHTML='<span class="mute">Buscando horas…</span>';
  if(!$('#dia').value)return;
  const{data,error}=await sb.rpc('horas_libres_publicas',{p_slug:slug,p_dia:$('#dia').value,p_barbero:$('#br').value,p_servicio:$('#sv').value});
+ if(consulta!==consultaHoras)return;
  if(error)return $('#hs').innerHTML=`<span class="mute">${esc(error.message)}</span>`;
- $('#hs').innerHTML=data.length?data.map(x=>`<button type="button" class="h" data-t="${x.inicio}">${hh(x.inicio)}</button>`).join(''):'<span class="mute">No hay horas libres ese día. Prueba otra fecha u otro barbero.</span>';
+ const disponibles=Array.isArray(data)?data:[];
+ $('#hs').innerHTML=disponibles.length?disponibles.map(x=>`<button type="button" class="h" data-t="${x.inicio}">${hh(x.inicio)}</button>`).join(''):'<span class="mute">No hay horas libres ese día. Prueba otra fecha u otro barbero.</span>';
  document.querySelectorAll('.h').forEach(b=>b.onclick=()=>{T=b.dataset.t;document.querySelectorAll('.h').forEach(x=>x.classList.toggle('on',x===b));$('#f').hidden=false});
 }
 async function reservar(e){
  e.preventDefault();if(!T)return toast('Elige una hora.');
- const b=$('#go');b.disabled=true;
+ const b=$('#go');if(b.disabled)return;b.disabled=true;
  const{error}=await sb.rpc('reservar_cita_publica',{p_slug:slug,p_nombre:$('#nm').value,p_telefono:$('#tl').value,p_barbero:$('#br').value,p_servicio:$('#sv').value,p_inicio:T});
  if(error){b.disabled=false;toast(error.message);return horas()}
  const dia=new Date(T).toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',timeZone:TZ});
