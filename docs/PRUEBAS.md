@@ -77,3 +77,26 @@ La rama solo debe integrarse cuando:
 - Los flujos manuales anteriores estén revisados.
 - Las rutas públicas y la PWA se hayan probado.
 - El diff final se haya revisado y no incluya cambios no relacionados.
+
+
+## Productos, proveedores y compras de inventario
+
+Antes de habilitar la nueva pantalla, aplicar en Supabase SQL Editor la migración
+`supabase/migrations/20261119000000_compras_proveedores_inventario.sql`. La migración crea tablas nuevas para proveedores, compras, detalle y pagos; agrega `compra_id` a movimientos de inventario y `caja_id` a pagos de compras. No altera productos, ventas, pagos de clientes ni movimientos existentes.
+
+Pruebas funcionales con datos de prueba:
+
+1. Crear, editar, desactivar y reactivar un proveedor.
+2. Crear y editar un producto; comprobar costo, precio, control de stock y stock mínimo.
+3. Registrar una compra con varios productos, cantidades y costos distintos.
+4. Confirmar que se crea una compra, sus detalles y movimientos `ENTRADA` relacionados por `compra_id`.
+5. Confirmar que `stock_actual` aumenta una sola vez y que el costo de referencia se actualiza por promedio ponderado.
+6. Registrar compra pagada, compra a crédito y compra con abono parcial; comprobar total, pagado y saldo.
+7. Registrar abonos adicionales y comprobar que no se puede superar el saldo.
+8. Pagar una compra en efectivo con caja abierta y verificar que el efectivo esperado disminuye al cerrar caja; pagos por transferencia/tarjeta no deben reducir el efectivo esperado.
+9. Anular una compra sin pagos y verificar el movimiento inverso; comprobar que no se puede anular si ya hay pagos o si el stock disponible no alcanza.
+10. Verificar historial de movimientos, proveedor, referencia, fechas y permisos por negocio.
+11. Intentar llamar las RPC como BARBERO y con IDs de otro negocio; todas deben rechazarse.
+12. Repetir en móvil y escritorio, y probar doble clic en los formularios.
+
+Las compras de inventario no se registran como gastos operativos para no duplicar el costo de los productos cuando se venden. Los pagos a proveedores sí se consideran salidas de efectivo de la caja cuando se asocian a una caja abierta. Las compras registradas sin caja abierta quedan en el historial de pagos, pero no se asignan retrospectivamente a un cierre.
