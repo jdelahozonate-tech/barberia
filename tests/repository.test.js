@@ -226,6 +226,9 @@ test('la edición y anulación de ventas usan RPC transaccional y no borrado fí
   assert.match(sql, /estado_pago = 'REGISTRADO'/);
   assert.match(sql, /comisiones c/);
   assert.match(sql, /Ajuste por edición de venta/);
+  assert.match(sql, /public\.stock_actual/);
+  assert.match(sql, /No hay existencias suficientes/);
+  assert.match(sql, /No se puede anular: esta venta tiene comisiones liquidadas/);
   assert.match(sql, /trg_devolver_inventario/);
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.editar_venta/);
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.anular_venta/);
