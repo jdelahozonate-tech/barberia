@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS public.compras_inventario (
  negocio_id uuid NOT NULL,
  proveedor_id uuid NOT NULL REFERENCES public.proveedores_inventario(id) ON DELETE RESTRICT,
  fecha_compra date NOT NULL DEFAULT CURRENT_DATE,
+ fecha_vencimiento date,
+ numero_factura text,
  total_compra numeric(14,2) NOT NULL CHECK (total_compra >= 0),
  total_pagado numeric(14,2) NOT NULL DEFAULT 0 CHECK (total_pagado >= 0),
  saldo_pendiente numeric(14,2) NOT NULL DEFAULT 0 CHECK (saldo_pendiente >= 0),
@@ -35,6 +37,9 @@ CREATE TABLE IF NOT EXISTS public.compras_inventario (
  actualizado_en timestamptz NOT NULL DEFAULT now(),
  CONSTRAINT compras_inventario_pago_valido CHECK (total_pagado <= total_compra)
 );
+
+ALTER TABLE public.compras_inventario ADD COLUMN IF NOT EXISTS fecha_vencimiento date;
+ALTER TABLE public.compras_inventario ADD COLUMN IF NOT EXISTS numero_factura text;
 
 CREATE INDEX IF NOT EXISTS idx_compras_inventario_negocio_fecha
  ON public.compras_inventario(negocio_id, fecha_compra DESC);
@@ -122,7 +127,9 @@ CREATE OR REPLACE FUNCTION public.registrar_compra_inventario(
  p_metodo_pago text,
  p_referencia text DEFAULT NULL,
  p_observaciones text DEFAULT NULL,
- p_caja_id uuid DEFAULT NULL
+ p_caja_id uuid DEFAULT NULL,
+ p_numero_factura text DEFAULT NULL,
+ p_fecha_vencimiento date DEFAULT NULL
 ) RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -148,6 +155,9 @@ BEGIN
  END IF;
  IF p_fecha_compra IS NULL OR p_fecha_compra > CURRENT_DATE THEN
   RAISE EXCEPTION 'La fecha de compra no es válida.';
+ END IF;
+ IF p_fecha_vencimiento IS NOT NULL AND p_fecha_vencimiento < p_fecha_compra THEN
+  RAISE EXCEPTION 'La fecha de vencimiento no puede ser anterior a la compra.';
  END IF;
  IF p_valor_pagado IS NULL OR p_valor_pagado < 0 OR p_valor_pagado::text IN ('NaN','Infinity','-Infinity') THEN
   RAISE EXCEPTION 'El valor pagado no es válido.';
@@ -197,10 +207,10 @@ BEGIN
  END IF;
 
  INSERT INTO public.compras_inventario(
-  negocio_id, proveedor_id, fecha_compra, total_compra, total_pagado,
+  negocio_id, proveedor_id, fecha_compra, fecha_vencimiento, numero_factura, total_compra, total_pagado,
   saldo_pendiente, estado_compra, referencia, observaciones, creado_por
  ) VALUES (
-  v_negocio, p_proveedor_id, p_fecha_compra, v_total, 0,
+  v_negocio, p_proveedor_id, p_fecha_compra, p_fecha_vencimiento, NULLIF(btrim(p_numero_factura),''), v_total, 0,
   v_total, CASE WHEN v_total = 0 THEN 'PAGADA' ELSE 'PENDIENTE' END,
   NULLIF(btrim(p_referencia),''), NULLIF(btrim(p_observaciones),''), v_usuario
  ) RETURNING id INTO v_compra;
@@ -384,9 +394,67 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.registrar_compra_inventario(uuid,date,jsonb,numeric,text,text,text,uuid) FROM PUBLIC;
+
+CREATE OR REPLACE FUNCTION public.ajustar_inventario_producto(
+ p_producto_id uuid,
+ p_tipo text,
+ p_cantidad numeric,
+ p_motivo text
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $
+DECLARE
+ v_negocio uuid := public.mi_negocio();
+ v_usuario uuid := auth.uid();
+ v_rol text := COALESCE(public.mi_rol(),'');
+ v_producto public.productos%ROWTYPE;
+ v_stock numeric;
+BEGIN
+ IF v_usuario IS NULL OR v_negocio IS NULL OR v_rol NOT IN ('ADMINISTRADOR','SUPERVISOR') THEN
+  RAISE EXCEPTION 'No tienes permisos para ajustar inventario.';
+ END IF;
+ IF p_tipo NOT IN ('ENTRADA','SALIDA') THEN
+  RAISE EXCEPTION 'El tipo de ajuste no es válido.';
+ END IF;
+ IF p_cantidad IS NULL OR p_cantidad <= 0 OR p_cantidad::text IN ('NaN','Infinity','-Infinity') THEN
+  RAISE EXCEPTION 'La cantidad debe ser mayor que cero.';
+ END IF;
+ IF p_motivo IS NULL OR length(btrim(p_motivo)) < 3 THEN
+  RAISE EXCEPTION 'Escribe el motivo del ajuste.';
+ END IF;
+ SELECT * INTO v_producto FROM public.productos
+ WHERE id = p_producto_id AND negocio_id = v_negocio FOR UPDATE;
+ IF NOT FOUND OR v_producto.estado <> 'ACTIVO' OR NOT COALESCE(v_producto.control_stock,false) THEN
+  RAISE EXCEPTION 'El producto no existe, está inactivo o no controla existencias.';
+ END IF;
+ SELECT COALESCE(existencias,0) INTO v_stock
+ FROM public.stock_actual
+ WHERE producto_id = p_producto_id AND negocio_id = v_negocio;
+ v_stock := COALESCE(v_stock,0);
+ IF p_tipo = 'SALIDA' AND p_cantidad > v_stock THEN
+  RAISE EXCEPTION 'El ajuste dejaría el inventario en negativo. Existencias actuales: %.', v_stock;
+ END IF;
+ INSERT INTO public.movimientos_inventario(
+  negocio_id, producto_id, fecha_hora, tipo_movimiento, cantidad,
+  costo_unitario, motivo, usuario_responsable
+ ) VALUES (
+  v_negocio, p_producto_id, now(), p_tipo, p_cantidad,
+  COALESCE(v_producto.costo_unitario,0), 'Ajuste: ' || btrim(p_motivo), v_usuario
+ );
+ RETURN jsonb_build_object('producto_id',p_producto_id,'tipo',p_tipo,
+  'cantidad',p_cantidad,'existencias_anteriores',v_stock,
+  'existencias_nuevas',CASE WHEN p_tipo='ENTRADA' THEN v_stock+p_cantidad ELSE v_stock-p_cantidad END);
+END;
+$;
+
+REVOKE ALL ON FUNCTION public.ajustar_inventario_producto(uuid,text,numeric,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.ajustar_inventario_producto(uuid,text,numeric,text) TO authenticated;
+
+REVOKE ALL ON FUNCTION public.registrar_compra_inventario(uuid,date,jsonb,numeric,text,text,text,uuid,text,date) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.registrar_pago_compra_inventario(uuid,numeric,text,text,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.anular_compra_inventario(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.registrar_compra_inventario(uuid,date,jsonb,numeric,text,text,text,uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.registrar_compra_inventario(uuid,date,jsonb,numeric,text,text,text,uuid,text,date) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.registrar_pago_compra_inventario(uuid,numeric,text,text,text,uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.anular_compra_inventario(uuid) TO authenticated;
