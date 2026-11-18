@@ -18,11 +18,11 @@ async function informe(){
  porConfirmar();
  if(rg==='custom')['ra','rb'].forEach(i=>$('#'+i).onchange=x=>{S[i]=x.target.value;informe()});
  const respuestas=await Promise.all([
-  sb.from('ventas').select('descuento').neq('estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
-  sb.from('detalle_ventas').select('tipo_item,descripcion,cantidad,subtotal,costo_unitario,comision_generada,ventas!inner(estado_venta,fecha_hora,barberos(nombre))').neq('ventas.estado_venta','ANULADA').gte('ventas.fecha_hora',A).lt('ventas.fecha_hora',B).limit(5000),
-  sb.from('pagos').select('valor_pago,metodo_pago,cuentas(nombre),ventas!inner(estado_venta)').eq('estado_pago','REGISTRADO').neq('ventas.estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
-  sb.from('gastos').select('categoria_gasto,valor').eq('estado_gasto','REGISTRADO').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
-  sb.from('citas').select('estado').gte('inicio',A).lt('inicio',B).limit(5000)]);
+  sb.from('ventas').select('descuento').eq('negocio_id',S.perfil.negocio_id).neq('estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
+  sb.from('detalle_ventas').select('tipo_item,descripcion,cantidad,subtotal,costo_unitario,comision_generada,ventas!inner(estado_venta,fecha_hora,barberos(nombre))').eq('negocio_id',S.perfil.negocio_id).neq('ventas.estado_venta','ANULADA').gte('ventas.fecha_hora',A).lt('ventas.fecha_hora',B).limit(5000),
+  sb.from('pagos').select('valor_pago,metodo_pago,cuentas(nombre),ventas!inner(estado_venta)').eq('negocio_id',S.perfil.negocio_id).eq('estado_pago','REGISTRADO').neq('ventas.estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
+  sb.from('gastos').select('categoria_gasto,valor').eq('negocio_id',S.perfil.negocio_id).eq('estado_gasto','REGISTRADO').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
+  sb.from('citas').select('estado').eq('negocio_id',S.perfil.negocio_id).gte('inicio',A).lt('inicio',B).limit(5000)]);
  const fallo=respuestas.find(r=>r.error);if(fallo){$('#inf').innerHTML='<p class="empty">No fue posible cargar el informe: '+esc(fallo.error.message)+'</p>';return}
  const[V,D,P,G,C]=respuestas.map(r=>r.data||[]);
  const sum=(a,f)=>a.reduce((t,x)=>t+Number(f(x)||0),0),cl=x=>Number(x.costo_unitario)*Number(x.cantidad)+Number(x.comision_generada);
@@ -48,7 +48,7 @@ async function inicioSimple(){
  const respuestas=await Promise.all([
   mio(sb.from('ventas').select('total_venta').neq('estado_venta','ANULADA').gte('fecha_hora',h0.toISOString()).lt('fecha_hora',h1.toISOString())),
   mio(sb.from('citas').select('inicio,estado,clientes(nombre),barberos(nombre)').in('estado',['PENDIENTE','CONFIRMADA']).gte('inicio',h0.toISOString()).lt('inicio',h1.toISOString())).order('inicio'),
-  ADM.includes(S.perfil.rol)?sb.from('stock_actual').select('nombre,existencias,stock_minimo'):Promise.resolve({data:[]})]);
+  ADM.includes(S.perfil.rol)?sb.from('stock_actual').select('nombre,existencias,stock_minimo').eq('negocio_id',S.perfil.negocio_id):Promise.resolve({data:[]})]);
  const fallo=respuestas.find(r=>r.error);if(fallo)return toast('No fue posible cargar el resumen: '+fallo.error.message,true);
  const[{data:v},{data:c},{data:s}]=respuestas;
  const tot=(v||[]).reduce((a,x)=>a+Number(x.total_venta),0),bajo=(s||[]).filter(x=>Number(x.existencias)<=Number(x.stock_minimo)),prox=(c||[]).filter(x=>new Date(x.inicio)>=new Date());
