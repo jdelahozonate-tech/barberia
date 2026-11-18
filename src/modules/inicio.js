@@ -33,6 +33,7 @@ function graficaComparativa(serie){
  const max=Math.max(1,...serie.map(([,v])=>Math.max(v.ventas,v.gastos)));
  return '<div class="dash-chart">'+serie.map(([k,v])=>'<div class="dash-day"><span class="date">'+esc(k.slice(5))+'</span><div class="dash-bars"><div class="dash-bar rev"><i style="width:'+100*v.ventas/max+'%"></i></div><div class="dash-bar exp"><i style="width:'+100*v.gastos/max+'%"></i></div></div><span class="amount">'+dinero(v.ventas)+'</span></div>').join('')+'</div><div class="dash-legend"><span>Ventas</span><span>Gastos</span></div>';
 }
+function grafica(titulo,serie,campo,maximo,color){ return graficaComparativa(serie); }
 function barras(titulo,datos,total){
  if(!datos.length)return '';
  const max=Math.max(1,...datos.map(x=>x.valor));
@@ -160,14 +161,14 @@ async function informe(){
  <div class="dash-kpi"><small>Gastos operativos</small><strong>${dinero(gast)}</strong><em>${neto? (gast/neto*100).toFixed(1):'0.0'}% de ingresos</em></div>
  </div>
  <div class="dash-grid">
- <section class="dash-card"><h3>Comportamiento del negocio</h3><p class="sub">Ingresos de ventas frente a gastos registrados · últimos 14 días del periodo</p>${graficaComparativa(serie)}</section>
+ <section class="dash-card"><h3>Comportamiento del negocio</h3><p class="sub">Ventas por día y gastos por día · últimos 14 días del periodo</p>${graficaComparativa(serie)}</section>
  <section class="dash-card"><h3>Rentabilidad del periodo</h3><p class="sub">Composición de ingresos y costos</p>
  <div class="dash-breakdown">
  ${[['Ventas brutas',bruto],['Descuentos',-desc],['Costo de productos',-costo],['Comisiones',-com],['Gastos operativos',-gast],['Utilidad estimada',util]].map(([n,v])=>'<div class="dash-break-row"><span>'+n+'</span><strong>'+dinero(v)+'</strong></div>').join('')}
  </div><div class="dash-metric-list"><div class="dash-metric"><small>Margen utilidad</small><b>${margen.toFixed(1)}%</b></div><div class="dash-metric"><small>Ticket medio</small><b>${dinero(ticket)}</b></div><div class="dash-metric"><small>Ventas</small><b>${V.length}</b></div></div></section>
  </div>
  <div class="dash-grid">
- <section class="dash-card"><h3>Actividad de citas</h3><p class="sub">Distribución por estado · ${C.length} citas</p>${citasGraf}</section>
+ <section class="dash-card"><h3>Actividad de citas</h3><p class="sub">Estado de las citas · distribución por estado · ${C.length} citas</p>${citasGraf}</section>
  <section class="dash-card"><h3>Recaudo por medio de pago</h3><p class="sub">Pagos registrados y no anulados</p>${pagosMetodo.length?'<div class="dash-breakdown">'+pagosMetodo.map(x=>'<div class="dash-break-row"><span>'+esc(x.nombre)+'</span><strong>'+dinero(x.valor)+'</strong><div class="dash-break-track"><i style="width:'+100*x.valor/Math.max(1,...pagosMetodo.map(y=>y.valor))+'%"></i></div></div>').join('')+'</div>':'<p class="mute">Sin pagos registrados en el periodo.</p>'}</section>
  </div>
  <div class="dash-grid">${barras('Rentabilidad por barbero',topBarberos)}${barras('Servicios con mayor margen',topServicios)}</div>
