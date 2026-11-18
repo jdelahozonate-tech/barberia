@@ -73,5 +73,5 @@ async function porConfirmar(){
  document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>editarCita(data.find(c=>c.id===b.dataset.c)));
 }
 
- return { agenda, nuevaCita, editarCita, cobrarCita, porConfirmar };
+ return { agenda, porConfirmar };
 }
