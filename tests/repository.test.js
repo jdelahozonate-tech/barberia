@@ -198,8 +198,6 @@ test('ventas y catálogos filtran lecturas y escrituras por negocio activo', () 
 
 test('equipo, agenda y cierres limitan operaciones al negocio y bloquean escrituras repetidas', () => {
   const equipo = readFileSync(resolve(root, 'src/modules/equipo.js'), 'utf8');
-  const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
-  const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
   const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
   const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
   assert.match(equipo, /from\('perfiles'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
@@ -280,6 +278,7 @@ test('la interfaz reserva edición administrativa de catálogos, citas, ventas y
   const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
   const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
   const equipo = readFileSync(resolve(root, 'src/modules/equipo.js'), 'utf8');
+  const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
   const index = readFileSync(resolve(root, 'index.html'), 'utf8');
   assert.ok(cfg.includes("clientes:{t:'Clientes',uno:'cliente',w:ADM"));
   assert.match(ventas, /abierta=v\\.estado_venta==='PENDIENTE'&&admin/);
