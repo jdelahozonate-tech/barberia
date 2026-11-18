@@ -23,7 +23,7 @@ async function caja(){
  ${fila2('Efectivo inicial',dinero(cj.saldo_inicial))}
  ${Object.entries(por).map(([m,v])=>`<button type="button" class="row" data-m="${m}"><span>Cobrado en ${bonito(m).toLowerCase()}, ver detalle</span><strong>${dinero(v)}</strong></button>`).join('')||'<p class="empty">Aún no hay cobros desde que abriste la caja.</p>'}
  ${fila2('Gastos en efectivo','-'+dinero(gEf))}${fila2('Compras pagadas en efectivo','-'+dinero(cEf))}${fila2('Efectivo que debe haber',dinero(esp),'tot')}
- ${pc.length?'<label>Abonos a proveedores desde esta caja</label>'+pc.map(p=>fila2('Pago de compra '+p.compra_id.slice(0,8)+', '+bonito(p.metodo_pago).toLowerCase(),dinero(p.valor_pago))).join(''):''}${gs?.length?'<label>Gastos del turno</label>'+gs.map(g=>fila2(esc(g.descripcion||bonito(g.categoria_gasto))+', '+bonito(g.metodo_pago).toLowerCase(),dinero(g.valor))).join(''):''}
+ ${pc.length?'<label>Pagos a proveedores asociados a esta caja</label>'+pc.map(p=>fila2('Pago de compra '+p.compra_id.slice(0,8)+', '+bonito(p.metodo_pago).toLowerCase(),dinero(p.valor_pago))).join(''):''}${gs?.length?'<label>Gastos del turno</label>'+gs.map(g=>fila2(esc(g.descripcion||bonito(g.categoria_gasto))+', '+bonito(g.metodo_pago).toLowerCase(),dinero(g.valor))).join(''):''}
  <button class="btn block" id="ce">Cerrar caja</button>`;
  $('#gs').onclick=()=>gasto(cj);
  document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>detallePagos(b.dataset.m,(pg||[]).filter(p=>p.ventas?.estado_venta!=='ANULADA'&&p.metodo_pago===b.dataset.m)));
