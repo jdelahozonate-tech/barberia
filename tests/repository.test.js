@@ -279,7 +279,7 @@ test('la interfaz reserva edición administrativa de catálogos, citas, ventas y
   const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
   const equipo = readFileSync(resolve(root, 'src/modules/equipo.js'), 'utf8');
   const index = readFileSync(resolve(root, 'index.html'), 'utf8');
-  assert.match(cfg, /clientes:\\{t:'Clientes',uno:'cliente',w:ADM/);
+  assert.ok(cfg.includes("clientes:{t:'Clientes',uno:'cliente',w:ADM"));
   assert.match(ventas, /abierta=v\\.estado_venta==='PENDIENTE'&&admin/);
   assert.match(ventas, /admin&&v\\.estado_venta!=='ANULADA'/);
   assert.match(agenda, /const admin=\\['ADMINISTRADOR','SUPERVISOR'\\]\\.includes/);
