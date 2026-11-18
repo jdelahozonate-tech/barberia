@@ -162,7 +162,7 @@ BEGIN
  IF p_valor_pagado IS NULL OR p_valor_pagado < 0 OR p_valor_pagado::text IN ('NaN','Infinity','-Infinity') THEN
   RAISE EXCEPTION 'El valor pagado no es válido.';
  END IF;
- IF p_metodo_pago NOT IN ('EFECTIVO','TRANSFERENCIA','NEQUI','DAVIPLATA') THEN
+ IF p_metodo_pago NOT IN ('EFECTIVO','TRANSFERENCIA','TARJETA','NEQUI','DAVIPLATA') THEN
   RAISE EXCEPTION 'El método de pago no es válido.';
  END IF;
  IF NOT EXISTS (
@@ -299,7 +299,7 @@ BEGIN
  IF p_valor_pago IS NULL OR p_valor_pago <= 0 OR p_valor_pago::text IN ('NaN','Infinity','-Infinity') THEN
   RAISE EXCEPTION 'El abono debe ser mayor que cero.';
  END IF;
- IF p_metodo_pago NOT IN ('EFECTIVO','TRANSFERENCIA','NEQUI','DAVIPLATA') THEN
+ IF p_metodo_pago NOT IN ('EFECTIVO','TRANSFERENCIA','TARJETA','NEQUI','DAVIPLATA') THEN
   RAISE EXCEPTION 'El método de pago no es válido.';
  END IF;
  SELECT * INTO v_compra FROM public.compras_inventario
