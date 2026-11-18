@@ -8,6 +8,9 @@
 - La reserva pública descarta respuestas de disponibilidad obsoletas cuando el usuario cambia fecha, barbero o servicio rápidamente, y evita un segundo envío mientras la reserva está en curso.
 - La gestión pública de citas evita solicitudes simultáneas de confirmación, cancelación o reprogramación y comprueba los errores de las RPC.
 - El módulo de equipo informa errores de lectura de perfiles, horarios y barberos disponibles antes de mostrar formularios incompletos.
+- Ventas valida todas las lecturas de clientes, barberos, servicios, productos y cuentas antes de abrir el formulario; también valida el detalle y los pagos al consultar una venta y evita doble envío.
+- Catálogos e inventario validan las lecturas de existencias y referencias antes de mostrar opciones; se evita duplicar una entrada de inventario por doble clic.
+- El acceso valida la sesión y el resultado de la RPC de suscripción antes de habilitar la aplicación.
 - Inicio e informes comprueban los errores de todas sus consultas antes de calcular indicadores. No se muestran totales parciales como si fueran completos.
 - El cobro de una cita valida la lectura para evitar duplicados y limita la búsqueda del servicio de cargo de cita al negocio activo.
 
@@ -17,7 +20,9 @@
 2. **Guardado de horarios:** se eliminan los horarios actuales y luego se insertan los nuevos en dos operaciones. Un fallo de inserción puede dejar el horario vacío. Requiere solución transaccional backend antes de cambiar el flujo.
 3. **Guardado de ajustes:** negocio y servicio de reserva se guardan en operaciones separadas. El frontend ya informa el estado parcial; la atomicidad queda pendiente de una operación backend.
 4. **Límites de lectura:** informes, comisiones y vistas de mis comisiones usan límites fijos (hasta 5.000, 1.000/5.000 y 500/2.000 filas respectivamente). En negocios con más registros podrían quedar resultados incompletos. Evaluar paginación o agregación backend con datos representativos.
-5. **Reglas de disponibilidad, permisos y unicidad:** dependen de RLS, RPC, restricciones y triggers de Supabase. La revisión estática no confirma concurrencia, aislamiento entre negocios ni integridad de las escrituras.
+5. **Registro de ventas:** la creación de venta, detalle y pagos son escrituras separadas. El frontend intenta borrar la cabecera si falla el detalle o el pago, pero esa compensación también puede fallar o no revertir relaciones si el backend no permite la operación. Se muestra el resultado del intento; la atomicidad requiere una RPC/transacción backend.
+6. **Movimientos de inventario y stock:** el frontend registra entradas mediante `movimientos_inventario` y lee existencias desde `stock_actual`; la consistencia depende de triggers/vistas y RLS. Verificar que una entrada se refleje una sola vez en stock.
+7. **Reglas de disponibilidad, permisos y unicidad:** dependen de RLS, RPC, restricciones y triggers de Supabase. La revisión estática no confirma concurrencia, aislamiento entre negocios ni integridad de las escrituras.
 
 ## Matriz de regresión manual
 
@@ -31,6 +36,9 @@ Ejecutar con un negocio y registros de prueba, no con datos reales:
 - [ ] Consultar perfiles, horarios e invitaciones con permisos de administrador y supervisor; simular error de lectura.
 - [ ] Probar inicio e informe con permisos distintos y con error en cada una de las consultas.
 - [ ] Atender una cita y verificar que la venta asociada no se duplica y que el cargo de cita corresponde al negocio activo.
+- [ ] Simular fallo al insertar detalle o pago después de crear la cabecera de venta; comprobar el resultado del intento de reversión y que no queden registros huérfanos.
+- [ ] Registrar una entrada de inventario y comprobar que `stock_actual` se actualiza una sola vez.
+- [ ] Simular error de sesión y de la RPC `mi_suscripcion`; confirmar que no se habilita la aplicación con estado desconocido.
 - [ ] Simular fallo al insertar gasto después de liquidar comisión y comprobar el aviso de estado parcial.
 - [ ] Simular fallo al insertar horarios después del borrado y comprobar el procedimiento de recuperación.
 - [ ] Ejecutar los 12 flujos de `docs/PRUEBAS.md` en móvil y escritorio.
