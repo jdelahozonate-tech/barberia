@@ -338,3 +338,15 @@ test('el panel de inicio muestra etapas y errores reales del cálculo del inform
   assert.match(inicio, /No se pudo preparar el informe al/);
   assert.match(inicio, /x\.ventas\?\.barberos\?\.nombre/);
 });
+
+test('las tarjetas del dashboard actualizan la gráfica seleccionada sin recargar el informe', () => {
+  const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
+  for (const metrica of ['ingresos', 'utilidad', 'recaudo', 'operaciones', 'citas', 'gastos']) {
+    assert.match(inicio, new RegExp('data-metric="' + metrica + '"'));
+  }
+  assert.match(inicio, /id="dash-dynamic-graph"/);
+  assert.match(inicio, /tarjeta\.addEventListener\('click'/);
+  assert.match(inicio, /aria-pressed="true"/);
+  assert.match(inicio, /graficaIndicador\(serie,m\.campo,m\.moneda\)/);
+  assert.match(inicio, /S\.rg=x\.target\.value/);
+});
