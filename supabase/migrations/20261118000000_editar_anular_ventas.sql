@@ -118,6 +118,43 @@ BEGIN
     RAISE EXCEPTION 'El nuevo total no puede ser inferior a los pagos ya recibidos (%).', v_pagado;
   END IF;
 
+  -- Evita vender más unidades de las disponibles. Se suma la cantidad
+  -- neta de esta venta porque sus salidas ya están descontadas del stock.
+  IF EXISTS (
+    SELECT 1
+      FROM (
+        SELECT x.producto_id, SUM(x.cantidad) AS cantidad_nueva
+          FROM jsonb_to_recordset(p_detalles) AS x(
+            tipo_item text,
+            servicio_id uuid,
+            producto_id uuid,
+            cantidad numeric,
+            precio_unitario numeric
+          )
+         WHERE x.tipo_item = 'PRODUCTO'
+         GROUP BY x.producto_id
+      ) n
+      JOIN public.productos p
+        ON p.id = n.producto_id
+       AND p.negocio_id = v_negocio
+      LEFT JOIN public.stock_actual st
+        ON st.producto_id = n.producto_id
+       AND st.negocio_id = v_negocio
+     WHERE p.control_stock
+       AND COALESCE(st.existencias, 0) +
+           COALESCE((
+             SELECT SUM(CASE WHEN m.tipo_movimiento = 'SALIDA' THEN m.cantidad
+                             WHEN m.tipo_movimiento = 'ENTRADA' THEN -m.cantidad
+                             ELSE 0 END)
+               FROM public.movimientos_inventario m
+              WHERE m.negocio_id = v_negocio
+                AND m.venta_id = p_venta_id
+                AND m.producto_id = n.producto_id
+           ), 0) < n.cantidad_nueva
+  ) THEN
+    RAISE EXCEPTION 'No hay existencias suficientes para uno o más productos de la venta.';
+  END IF;
+
   IF EXISTS (
     SELECT 1
       FROM public.detalle_ventas d
@@ -247,6 +284,13 @@ BEGIN
   END IF;
   IF v_estado = 'ANULADA' THEN
     RAISE EXCEPTION 'La venta ya está anulada.';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.detalle_ventas d
+    JOIN public.comisiones c ON c.detalle_id = d.id AND c.negocio_id = v_negocio
+    WHERE d.venta_id = p_venta_id AND d.negocio_id = v_negocio
+  ) THEN
+    RAISE EXCEPTION 'No se puede anular: esta venta tiene comisiones liquidadas vinculadas a sus detalles.';
   END IF;
 
   UPDATE public.ventas
