@@ -83,7 +83,7 @@ test('el service worker precarga módulos privados y páginas públicas', () => 
 test('el módulo de ventas recibe el filtro de datos del barbero', () => {
   const module = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
   const page = readFileSync(resolve(root, 'index.html'), 'utf8');
-  assert.match(module, /const \\{[^}]*\\bmio\\b[^}]*\\} = deps;/s);
-  assert.match(module, /mio\\(sb\\.from\\('ventas'\\)/);
-  assert.match(page, /crearModuloVentas\\(\\{[^}]*\\bmio\\b[^}]*\\}\\)/s);
+  assert.match(module, /const \{[^}]*\bmio\b[^}]*\} = deps;/s);
+  assert.match(module, /mio\(sb\.from\('ventas'\)/);
+  assert.match(page, /crearModuloVentas\(\{[^}]*\bmio\b[^}]*\}\)/s);
 });
