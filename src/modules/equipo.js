@@ -35,9 +35,10 @@ async function invitar(){
  <label for="i2">Corresponde al barbero</label><select id="i2"><option value="">Ninguno</option>${(ba||[]).map(b=>`<option value="${b.id}">${esc(b.nombre)}</option>`).join('')}</select>
  <div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Crear invitación</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
- $('#df').onsubmit=async e=>{e.preventDefault();
+ let creando=false;
+ $('#df').onsubmit=async e=>{e.preventDefault();if(creando)return;creando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;
   const{data,error}=await sb.from('invitaciones').insert({negocio_id:S.perfil.negocio_id,rol:$('#i1').value,barbero_id:$('#i2').value||null}).select('codigo').single();
-  if(error)return toast(error.message,true);
+  if(error){creando=false;if(boton)boton.disabled=false;return toast(error.message,true)}
   const url=location.origin+location.pathname.replace(/[^/]*$/,''),msg=`Te invitaron a ${S.negocio.nombre}. 1) Entra a ${url} 2) Toca “Soy nuevo, crear cuenta” 3) Cuando te lo pida, escribe este código: ${data.codigo} (vence en 7 días)`;
   dlg.innerHTML=`<h2>Invitación lista</h2><p>Código: <strong>${data.codigo}</strong></p><p class="mute">Vence en 7 días y solo sirve una vez.</p><a class="btn block" style="display:block;text-align:center;text-decoration:none;background:#1F7A4D" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">Enviar por WhatsApp</a><div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div>`;
   $('#cx').onclick=()=>dlg.close()};
