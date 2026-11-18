@@ -292,3 +292,17 @@ test('la interfaz reserva edición administrativa de catálogos, citas, ventas y
   assert.ok(inicio.includes('informe-barberia-'));
   assert.ok(index.includes('m[2]===2?ADM.includes(S.perfil.rol)'));
 });
+
+
+test('los informes gerenciales paginan todas las fuentes y muestran gráficos gerenciales', () => {
+  const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
+  assert.match(inicio, /async function todos\(q\)/);
+  assert.match(inicio, /q\.range\(desde,desde\+999\)/);
+  assert.match(inicio, /if\(bloque\.length<1000\)break/);
+  assert.match(inicio, /\]\.map\(todos\)\)/);
+  assert.match(inicio, /function grafica\(/);
+  assert.match(inicio, /Ventas por día/);
+  assert.match(inicio, /Gastos por día/);
+  assert.match(inicio, /Estado de las citas/);
+  assert.match(inicio, /Ticket promedio/);
+});
