@@ -97,7 +97,7 @@ No se debe mover todo el código de una sola vez. Cada etapa debe dejar la aplic
 - `src/shared/utils.js`: escape HTML, fechas, horas, etiquetas, slug, traducción de errores y normalización de WhatsApp.
 - `src/config/catalogos.js`: configuración de campos, permisos de interfaz y presentación para clientes, barberos, servicios, productos y cuentas de recaudo. Se construye mediante `crearConfigCatalogos(ADM, dinero)` para conservar las dependencias actuales.
 - `index.html` importa utilidades, configuración y operaciones CRUD de catálogos; la pantalla principal monta el módulo con dependencias explícitas.
-- `sw.js` precarga los módulos compartidos y de catálogos en la versión `barberia-v5` para mejorar el arranque sin conexión.
+- `sw.js` precarga los módulos compartidos y de catálogos en la versión vigente del caché PWA para mejorar el arranque sin conexión.
 
 Estas extracciones no modifican el esquema ni las RPC de Supabase. La validación realizada hasta ahora es sintáctica; falta comprobar flujos en navegador real.
 
@@ -117,3 +117,13 @@ Estas extracciones no modifican el esquema ni las RPC de Supabase. La validació
 - `src/modules/ajustes.js`: configuración del negocio, enlace público de reservas y gestión del equipo desde ajustes.
 
 - `src/modules/acceso.js`: autenticación, onboarding por invitación, carga de perfil y validación del acceso/suscripción.
+
+- `src/modules/acceso.js`: autenticación y onboarding.
+- `src/modules/agenda.js`: gestión de citas y recordatorios por WhatsApp.
+- `src/modules/finanzas.js`: caja, gastos, liquidación y vista de comisiones.
+- `src/modules/inicio.js`: indicadores e informe gerencial.
+- `src/modules/ajustes.js`: configuración del negocio.
+- `src/modules/equipo.js`: perfiles, invitaciones y horarios.
+- `src/modules/ventas.js`: registro de ventas y pagos.
+
+La pantalla `index.html` conserva el montaje de la aplicación, navegación y estado compartido; los flujos de dominio anteriores ya se delegan en módulos ES.
