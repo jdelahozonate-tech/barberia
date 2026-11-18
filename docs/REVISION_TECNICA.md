@@ -14,6 +14,10 @@
 - Inicio e informes comprueban los errores de todas sus consultas antes de calcular indicadores. No se muestran totales parciales como si fueran completos.
 - El cobro de una cita valida la lectura para evitar duplicados y limita la búsqueda del servicio de cargo de cita al negocio activo.
 
+## Correcciones adicionales
+
+- Las consultas de caja, pagos, gastos y comisiones ahora incluyen el identificador del negocio activo, además de las políticas RLS; esto reduce el riesgo de mezclar registros si el usuario pertenece a más de un negocio.
+
 ## Riesgos y límites pendientes
 
 1. **Liquidación de comisiones y gasto asociado:** el flujo inserta primero las liquidaciones y después el gasto. Si la segunda escritura falla, la comisión puede quedar liquidada sin el gasto correspondiente. Se informa el resultado parcial, pero la atomicidad requiere una transacción o RPC backend; no se modifica desde el frontend.
