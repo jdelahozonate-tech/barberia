@@ -92,8 +92,14 @@ export function crearModuloProductos(deps) {
   dlg.showModal();$('#cx').onclick=()=>dlg.close();let busy=false;
   $('#af').onsubmit=async e=>{e.preventDefault();if(busy)return;const f=Object.fromEntries(new FormData(e.target)),n=Number(f.cantidad);if(!Number.isFinite(n)||n<=0||f.motivo.trim().length<3)return toast('Indica una cantidad y un motivo válido.',true);busy=true;const b=e.target.querySelector('button[type="submit"],button:not([type])');if(b)b.disabled=true;const{error:e1}=await sb.rpc('ajustar_inventario_producto',{p_producto_id:f.producto_id,p_tipo:f.tipo,p_cantidad:n,p_motivo:f.motivo.trim()});if(e1){busy=false;if(b)b.disabled=false;return error(e1)}dlg.close();toast('Ajuste de inventario registrado');vista='productos';render()};
  }
+ async function listarCompras(){
+  const todas=[];for(let desde=0;;desde+=1000){
+   const{data,error:e1}=await sb.from('compras_inventario').select('*,proveedores_inventario(nombre)').eq('negocio_id',nid()).order('fecha_compra',{ascending:false}).range(desde,desde+999);
+   if(e1)return{data:null,error:e1};todas.push(...(data||[]));if(!data||data.length<1000)break;
+  }return{data:todas,error:null};
+ }
  async function comprasVista(){
-  const{data,error:e1}=await sb.from('compras_inventario').select('*,proveedores_inventario(nombre)').eq('negocio_id',nid()).order('fecha_compra',{ascending:false}).limit(100);
+  const{data,error:e1}=await listarCompras();
   if(e1)return error(e1);
   const compras=data||[],saldo=compras.filter(c=>c.estado_compra!=='ANULADA').reduce((a,c)=>a+Number(c.saldo_pendiente||0),0),vencidas=compras.filter(c=>c.estado_compra==='PENDIENTE'&&c.fecha_vencimiento&&c.fecha_vencimiento<hoy()).length;
   $('#main').innerHTML='<div class="head"><h2>Compras a proveedores</h2><button class="btn" id="nc">Registrar compra</button></div>'+tabs()+'<div class="kp"><div><small>Compras registradas</small><strong>'+compras.length+'</strong></div><div><small>Cuentas por pagar</small><strong>'+dinero(saldo)+'</strong></div><div><small>Vencidas</small><strong>'+vencidas+'</strong></div></div>'+
