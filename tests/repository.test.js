@@ -271,3 +271,20 @@ test('las reservas públicas toleran catálogos incompletos y filtran horarios i
   assert.match(cita, /tk\.length>512/);
   assert.match(cita, /data-t="\$\{esc\(x\.inicio\)\}"/);
 });
+
+
+test('la interfaz reserva edición administrativa de catálogos, citas, ventas y equipo', () => {
+  const cfg = readFileSync(resolve(root, 'src/config/catalogos.js'), 'utf8');
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
+  const equipo = readFileSync(resolve(root, 'src/modules/equipo.js'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  assert.match(cfg, /clientes:\\{t:'Clientes',uno:'cliente',w:ADM/);
+  assert.match(ventas, /abierta=v\\.estado_venta==='PENDIENTE'&&admin/);
+  assert.match(ventas, /admin&&v\\.estado_venta!=='ANULADA'/);
+  assert.match(agenda, /const admin=\\['ADMINISTRADOR','SUPERVISOR'\\]\\.includes/);
+  assert.match(agenda, /Vista de solo lectura/);
+  assert.match(equipo, /Solo administración puede gestionar el equipo/);
+  assert.match(equipo, /Solo administración puede invitar usuarios/);
+  assert.match(index, /m\\[2\\]===2\\?ADM\\.includes\\(S\\.perfil\\.rol\\)/);
+});
