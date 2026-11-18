@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import vm from 'node:vm';
+import { crearModuloVentas } from '../src/modules/ventas.js';
 
 const root = process.cwd();
 const pageFiles = ['index.html', 'admin.html', 'reservar.html', 'cita.html'];
@@ -80,10 +81,35 @@ test('el service worker precarga módulos privados y páginas públicas', () => 
   }
 });
 
-test('el módulo de ventas recibe el filtro de datos del barbero', () => {
-  const module = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
-  const page = readFileSync(resolve(root, 'index.html'), 'utf8');
-  assert.match(module, /const \{[^}]*\bmio\b[^}]*\} = deps;/s);
-  assert.match(module, /mio\(sb\.from\('ventas'\)/);
-  assert.match(page, /crearModuloVentas\(\{[^}]*\bmio\b[^}]*\}\)/s);
+test('el módulo de ventas aplica el filtro de datos del barbero', async () => {
+  let aplicado = 0;
+  const query = {
+    select() { return this; },
+    order() { return this; },
+    limit() { return Promise.resolve({ data: [], error: null }); }
+  };
+  const previo = globalThis.document;
+  globalThis.document = { querySelectorAll: () => [] };
+  try {
+    const modulo = crearModuloVentas({
+      $: () => ({ innerHTML: '' }),
+      dlg: {},
+      sb: { from: tabla => { assert.equal(tabla, 'ventas'); return query; } },
+      S: {},
+      esc: String,
+      dinero: String,
+      hora: String,
+      bonito: String,
+      traducir: String,
+      toast: () => {},
+      ADM: [],
+      METODOS: [],
+      mio: q => { aplicado++; return q; }
+    });
+    await modulo.ventas();
+    assert.equal(aplicado, 1);
+  } finally {
+    if (previo === undefined) delete globalThis.document;
+    else globalThis.document = previo;
+  }
 });
