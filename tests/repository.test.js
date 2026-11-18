@@ -219,3 +219,13 @@ test('los informes gerenciales limitan cada fuente al negocio activo', () => {
     assert.match(inicio, new RegExp("from\\('" + tabla + "'\\)[^\\n]*eq\\('negocio_id',S\\.perfil\\.negocio_id\\)"));
   }
 });
+
+test('cierre de caja y ajustes permiten reintentar después de errores', () => {
+  const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
+  const ajustes = readFileSync(resolve(root, 'src/modules/ajustes.js'), 'utf8');
+  assert.match(finanzas, /cerrando=false;if\(boton\)boton\.disabled=false;return toast\(error\.message,true\)/);
+  assert.match(ajustes, /let guardando=false/);
+  assert.match(ajustes, /guardando=false;if\(boton\)boton\.disabled=false;return toast\(error\.message,true\)/);
+  assert.match(ajustes, /guardando=false;if\(boton\)boton\.disabled=false;return toast\('Los datos del negocio se guardaron, pero no se pudo consultar/);
+  assert.match(ajustes, /guardando=false;if\(boton\)boton\.disabled=false;return toast\('Los datos del negocio se guardaron, pero no se pudo actualizar/);
+});
