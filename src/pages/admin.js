@@ -7,10 +7,37 @@ const salir=async()=>{await sb.auth.signOut();login()};
 function login(){
  app.innerHTML=`<h1>Panel del propietario</h1><p class="mute">Solo para quien administra la plataforma.</p>
  <form id="f"><label for="em">Correo</label><input id="em" type="email" autocomplete="email" required>
- <label for="pw">Contraseña</label><input id="pw" type="password" autocomplete="current-password" required><button class="btn block">Entrar</button></form>`;
+ <label for="pw">Contraseña</label><input id="pw" type="password" autocomplete="current-password" required><button class="btn block">Entrar</button></form>
+ <button class="btn sec block" type="button" id="forgot">Olvidé mi contraseña</button>`;
  $('#f').onsubmit=async e=>{e.preventDefault();const{error}=await sb.auth.signInWithPassword({email:$('#em').value.trim(),password:$('#pw').value});
   if(error)return toast('Correo o contraseña incorrectos.');lista()};
+ $('#forgot').onclick=async()=>{
+  const email=$('#em').value.trim();
+  if(!email||!$('#em').checkValidity())return toast('Escribe primero el correo de tu cuenta.');
+  const redirectTo=location.origin+location.pathname;
+  const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});
+  if(error)return toast('No se pudo enviar el correo: '+error.message);
+  toast('Si el correo está registrado, recibirás un enlace para crear una contraseña nueva.');
+ };
 }
+function recuperarContrasena(){
+ app.innerHTML=`<h1>Crear contraseña nueva</h1><p class="mute">Elige una contraseña definitiva para tu cuenta de propietario.</p>
+ <form id="rp"><label for="np">Nueva contraseña</label><input id="np" type="password" minlength="10" autocomplete="new-password" required>
+ <label for="cp">Confirmar contraseña</label><input id="cp" type="password" minlength="10" autocomplete="new-password" required>
+ <button class="btn block">Guardar contraseña</button></form>`;
+ $('#rp').onsubmit=async e=>{
+  e.preventDefault();const password=$('#np').value;
+  if(password!==$('#cp').value)return toast('Las contraseñas no coinciden.');
+  const{error}=await sb.auth.updateUser({password});
+  if(error)return toast('No se pudo actualizar la contraseña: '+error.message);
+  toast('Contraseña actualizada. Ya puedes entrar.');
+  history.replaceState({},document.title,location.pathname);
+  lista();
+ };
+}
+sb.auth.onAuthStateChange((event)=>{
+ if(event==='PASSWORD_RECOVERY')recuperarContrasena();
+});
 async function lista(){
  const{data,error}=await sb.rpc('admin_negocios');
  if(error){app.innerHTML=`<h1>Sin acceso</h1><p class="mute">Esta cuenta no es de propietario.</p><button class="btn sec" id="out">Salir</button>`;$('#out').onclick=salir;return}
