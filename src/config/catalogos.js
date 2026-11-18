@@ -2,7 +2,7 @@
 // Las dependencias se reciben desde la pantalla para evitar estado global oculto.
 export function crearConfigCatalogos(ADM, dinero) {
   return {
- clientes:{t:'Clientes',uno:'cliente',w:[...ADM,'BARBERO'],
+ clientes:{t:'Clientes',uno:'cliente',w:ADM,
   f:[['nombre','Nombre','text',1],['telefono','Teléfono','tel'],['telefono_alterno','Teléfono alterno','tel'],['fecha_nacimiento','Cumpleaños','date'],['barbero_preferido','Barbero preferido','ref:barberos'],['observaciones','Observaciones','area']],
   l:r=>[r.nombre,r.telefono||'Sin teléfono']},
  barberos:{t:'Barberos',uno:'barbero',w:ADM,
