@@ -113,3 +113,31 @@ test('el módulo de ventas aplica el filtro de datos del barbero', async () => {
     else globalThis.document = previo;
   }
 });
+
+
+test('el formulario de venta no continúa si falla la lectura de catálogos', async () => {
+  let mensaje = '';
+  const query = {
+    select() { return this; },
+    eq() { return this; },
+    order() { return this; },
+    then(resolve) { resolve({ data: null, error: { message: 'permiso denegado' } }); }
+  };
+  const modulo = crearModuloVentas({
+    $: () => ({ innerHTML: '' }),
+    dlg: {},
+    sb: { from: () => query },
+    S: {},
+    esc: String,
+    dinero: String,
+    hora: String,
+    bonito: String,
+    traducir: String,
+    toast: value => { mensaje = value; },
+    ADM: [],
+    METODOS: [],
+    mio: q => q
+  });
+  await modulo.nuevaVenta();
+  assert.match(mensaje, /permiso denegado/);
+});
