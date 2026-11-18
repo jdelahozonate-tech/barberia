@@ -40,9 +40,9 @@ async function reservar(e){
  const b=$('#go');if(b.disabled)return;
  const nombre=$('#nm').value,telefono=$('#tl').value,barbero=$('#br').value,servicio=$('#sv').value,inicio=T;
  const servicioTexto=$('#sv').selectedOptions[0]?.text||'',barberoTexto=$('#br').selectedOptions[0]?.text||'';
- b.disabled=true;document.querySelectorAll('#f input,#f select,#hs button').forEach(x=>x.disabled=true);
+ b.disabled=true;document.querySelectorAll('#sv,#br,#dia,#f input,#f select,#hs button').forEach(x=>x.disabled=true);
  const{error}=await sb.rpc('reservar_cita_publica',{p_slug:slug,p_nombre:nombre,p_telefono:telefono,p_barbero:barbero,p_servicio:servicio,p_inicio:inicio});
- if(error){b.disabled=false;document.querySelectorAll('#f input,#f select,#hs button').forEach(x=>x.disabled=false);toast(error.message);return horas()}
+ if(error){b.disabled=false;document.querySelectorAll('#sv,#br,#dia,#f input,#f select,#hs button').forEach(x=>x.disabled=false);toast(error.message);return horas()}
  const dia=new Date(inicio).toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',timeZone:TZ});
  const tel=String(C.negocio.telefono||'').replace(/\D/g,''),num=tel.length===10?'57'+tel:tel,sv=servicioTexto,br=barberoTexto;
  const wa=num?`<a class="btn" style="display:block;text-align:center;text-decoration:none;background:#1F7A4D;margin-top:14px" target="_blank" rel="noopener" href="https://wa.me/${num}?text=${encodeURIComponent('Hola, acabo de reservar una cita en '+C.negocio.nombre+': '+dia+' a las '+hh(inicio)+', '+sv+' con '+br+'. Soy '+nombre+', mi teléfono es '+telefono+'. ¿Me la confirman, por favor?')}">Avisar a la barbería por WhatsApp</a>`:'';
