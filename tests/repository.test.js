@@ -204,6 +204,9 @@ test('equipo, agenda y cierres limitan operaciones al negocio y bloquean escritu
   assert.match(equipo, /from\('horarios_barbero'\)\.delete\(\)\.eq\('negocio_id',S\.perfil\.negocio_id\)/);
   assert.match(equipo, /let guardando=false/);
   assert.match(equipo, /let creando=false/);
+  assert.match(equipo, /Completa la hora de entrada y salida/);
+  assert.match(equipo, /Cada día marcado debe tener al menos un horario/);
+  assert.match(equipo, /if\(b\.disabled\)return;b\.disabled=true/);
   assert.match(agenda, /from\('citas'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
   assert.match(agenda, /update\(\{estado:f\.estado[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
   assert.match(finanzas, /let cerrando=false/);
