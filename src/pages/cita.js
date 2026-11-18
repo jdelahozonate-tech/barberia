@@ -8,7 +8,9 @@ const f2=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+Strin
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.className='show';clearTimeout(tt);tt=setTimeout(()=>t.className='',4500)}
 let C;
 async function cargar(){
- const{data}=await sb.rpc('cita_publica',{p_token:tk});
+ if(!tk)return app.innerHTML='<h1>Enlace no válido</h1><p class="mute">El enlace no contiene un identificador de cita.</p>';
+ const{data,error}=await sb.rpc('cita_publica',{p_token:tk});
+ if(error)return app.innerHTML='<h1>No pudimos consultar tu cita</h1><p class="mute">'+esc(error.message)+'</p>';
  if(!data)return app.innerHTML='<h1>Enlace no válido</h1><p class="mute">No encontramos esta cita. Pide a la barbería que te envíe el enlace de nuevo.</p>';
  C=data;const activa=['PENDIENTE','CONFIRMADA'].includes(C.estado)&&new Date(C.inicio)>new Date();
  const est={PENDIENTE:'Pendiente de confirmar',CONFIRMADA:'Confirmada',CANCELADA:'Cancelada',ATENDIDA:'Atendida',NO_ASISTIO:'No asististe'}[C.estado]||C.estado;
@@ -21,9 +23,13 @@ async function cargar(){
  $('#no').onclick=()=>{if(confirm('¿Seguro que quieres cancelar tu cita?'))accion('cancelar','Tu cita fue cancelada.')};
  $('#ch').onclick=cambio;
 }
+let accionEnCurso=false;
 async function accion(a,msg){
+ if(accionEnCurso)return;accionEnCurso=true;
+ const botones=['#ok','#no','#ch'].map(x=>$(x)).filter(Boolean);botones.forEach(b=>b.disabled=true);
  const{error}=await sb.rpc('responder_cita_publica',{p_token:tk,p_accion:a});
- if(error)return toast(error.message);toast(msg);cargar();
+ if(error){accionEnCurso=false;botones.forEach(b=>b.disabled=false);return toast(error.message)}
+ toast(msg);await cargar();accionEnCurso=false;
 }
 function cambio(){
  const hoy=f2(new Date());
@@ -34,10 +40,12 @@ async function horas(){
  if(!$('#dia').value)return;$('#hs').innerHTML='<span class="mute">Buscando horas…</span>';
  const{data,error}=await sb.rpc('horas_libres_publicas',{p_slug:C.slug,p_dia:$('#dia').value,p_barbero:C.barbero_id,p_servicio:C.servicio_id});
  if(error)return $('#hs').innerHTML=`<span class="mute">${esc(error.message)}</span>`;
- $('#hs').innerHTML=data.length?data.map(x=>`<button type="button" class="h" data-t="${x.inicio}">${hh(x.inicio)}</button>`).join(''):'<span class="mute">No hay horas libres ese día. Prueba otra fecha.</span>';
+ const disponibles=Array.isArray(data)?data:[];
+ $('#hs').innerHTML=disponibles.length?disponibles.map(x=>`<button type="button" class="h" data-t="${x.inicio}">${hh(x.inicio)}</button>`).join(''):'<span class="mute">No hay horas libres ese día. Prueba otra fecha.</span>';
  document.querySelectorAll('.h').forEach(b=>b.onclick=async()=>{
-  if(!confirm('¿Cambiar tu cita a '+cuando(b.dataset.t)+'?'))return;
+  if(accionEnCurso||!confirm('¿Cambiar tu cita a '+cuando(b.dataset.t)+'?'))return;
+  accionEnCurso=true;document.querySelectorAll('.h').forEach(x=>x.disabled=true);
   const{error}=await sb.rpc('reprogramar_cita_publica',{p_token:tk,p_inicio:b.dataset.t});
-  if(error){toast(error.message);return horas()}toast('Tu cita cambió y quedó confirmada.');cargar()});
+  if(error){accionEnCurso=false;toast(error.message);return horas()}toast('Tu cita cambió y quedó confirmada.');await cargar();accionEnCurso=false});
 }
 cargar();
