@@ -22,7 +22,7 @@ async function informe(){
   sb.from('detalle_ventas').select('tipo_item,descripcion,cantidad,subtotal,costo_unitario,comision_generada,ventas!inner(estado_venta,fecha_hora,barberos(nombre))').eq('negocio_id',S.perfil.negocio_id).neq('ventas.estado_venta','ANULADA').gte('ventas.fecha_hora',A).lt('ventas.fecha_hora',B).limit(5000),
   sb.from('pagos').select('valor_pago,metodo_pago,cuentas(nombre),ventas!inner(estado_venta)').eq('negocio_id',S.perfil.negocio_id).eq('estado_pago','REGISTRADO').neq('ventas.estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
   sb.from('gastos').select('categoria_gasto,valor').eq('negocio_id',S.perfil.negocio_id).eq('estado_gasto','REGISTRADO').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
-  sb.from('citas').select('estado').eq('negocio_id',S.perfil.negocio_id).gte('inicio',A).lt('inicio',B).limit(5000)]);
+  sb.from('citas').select('inicio,estado').eq('negocio_id',S.perfil.negocio_id).gte('inicio',A).lt('inicio',B).limit(5000)]);
  const fallo=respuestas.find(r=>r.error);if(fallo){$('#inf').innerHTML='<p class="empty">No fue posible cargar el informe: '+esc(fallo.error.message)+'</p>';return}
  const[V,D,P,G,C]=respuestas.map(r=>r.data||[]);
  const sum=(a,f)=>a.reduce((t,x)=>t+Number(f(x)||0),0),cl=x=>Number(x.costo_unitario)*Number(x.cantidad)+Number(x.comision_generada);
@@ -40,7 +40,7 @@ async function informe(){
  ${sec('Margen por producto',mg(D,x=>x.descripcion,'vendidos',x=>x.tipo_item==='PRODUCTO'))}
  ${sec('Margen por servicio',mg(D,x=>x.descripcion,'servicios',x=>x.tipo_item==='SERVICIO'))}
  ${sec('Cobrado por método de pago',pm)}${sec('Cobrado por cuenta',pc)}`;
- const csvCell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+ $('#ex').onclick=()=>{\n const csvCell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
  const lineas=[['Tipo','Fecha','Concepto','Barbero','Método','Estado','Cantidad','Ingreso','Costo','Descuento']];
  V.forEach(x=>lineas.push(['VENTA',x.fecha_hora,'Venta '+x.id,'','','',1,0,0,Number(x.descuento||0)]));
  D.forEach(x=>lineas.push(['DETALLE',x.ventas?.fecha_hora||'',x.descripcion,x.ventas?.barberos?.nombre||'','',x.ventas?.estado_venta||'',x.cantidad,Number(x.subtotal||0),Number(x.costo_unitario||0)*Number(x.cantidad||0),0]));
