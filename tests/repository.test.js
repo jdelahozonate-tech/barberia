@@ -128,7 +128,7 @@ test('el formulario de venta no continúa si falla la lectura de catálogos', as
     $: () => ({ innerHTML: '' }),
     dlg: {},
     sb: { from: () => query },
-    S: {},
+    S: { perfil: { negocio_id: 'n1' } },
     esc: String,
     dinero: String,
     hora: String,
