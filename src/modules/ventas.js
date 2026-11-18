@@ -10,7 +10,7 @@ async function ventas(){
  document.querySelectorAll('.row').forEach(b=>b.onclick=()=>detalleVenta(data.find(v=>v.id===b.dataset.id)));
 }
 async function nuevaVenta(pre){
- const respuestas=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre,modelo_pago,porcentaje_comision'],['servicios','id,nombre,precio'],['productos','id,nombre,precio_venta,costo_unitario'],['cuentas','id,nombre,detalle']].map(([t,campos])=>sb.from(t).select(campos).eq('estado','ACTIVO').order('nombre')));
+ const respuestas=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre,modelo_pago,porcentaje_comision'],['servicios','id,nombre,precio'],['productos','id,nombre,precio_venta,costo_unitario'],['cuentas','id,nombre,detalle']].map(([t,campos])=>sb.from(t).select(campos).eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').order('nombre')));
  const fallo=respuestas.find(r=>r.error);if(fallo)return toast(traducir(fallo.error.message),true);
  const[cl,ba,se,pr,cu]=respuestas.map(r=>r.data||[]);
  if(!se.length&&!pr.length)return toast('Primero crea un servicio o un producto.',true);
@@ -52,11 +52,11 @@ async function nuevaVenta(pre){
    return{negocio_id:nid,venta_id:v.id,tipo_item:s?'SERVICIO':'PRODUCTO',servicio_id:s?id:null,producto_id:s?null:id,descripcion:l.i.n,cantidad:l.q,precio_unitario:l.i.p,costo_unitario:pd?pd.costo_unitario:0,comision_generada:com}});
   let r=await sb.from('detalle_ventas').insert(det);
   if(!r.error&&PG.length)r=await sb.from('pagos').insert(PG.map(x=>({negocio_id:nid,venta_id:v.id,valor_pago:x.v,metodo_pago:x.m,cuenta_id:x.c,recibido_por:S.perfil.id})));
-  if(r.error){const rollback=await sb.from('ventas').delete().eq('id',v.id);guardando=false;if(boton)boton.disabled=false;return toast(rollback.error?'No se completó la venta y tampoco pudo revertirse automáticamente: '+r.error.message+' / '+rollback.error.message:'No se completó la venta; se revirtió el registro inicial. '+r.error.message,true)}
+  if(r.error){const rollback=await sb.from('ventas').delete().eq('negocio_id',nid).eq('id',v.id);guardando=false;if(boton)boton.disabled=false;return toast(rollback.error?'No se completó la venta y tampoco pudo revertirse automáticamente: '+r.error.message+' / '+rollback.error.message:'No se completó la venta; se revirtió el registro inicial. '+r.error.message,true)}
   dlg.close();toast('Venta registrada');ventas()};
 }
 async function detalleVenta(v){
- const[rd,rp]=await Promise.all([sb.from('detalle_ventas').select('*').eq('venta_id',v.id),sb.from('pagos').select('*').eq('venta_id',v.id).order('fecha_hora')]);
+ const[rd,rp]=await Promise.all([sb.from('detalle_ventas').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id),sb.from('pagos').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id).order('fecha_hora')]);
  if(rd.error)return toast(traducir(rd.error.message),true);if(rp.error)return toast(traducir(rp.error.message),true);
  const d=rd.data||[],p=rp.data||[];
  const abierta=v.estado_venta==='PENDIENTE',fila=(a,b,c='')=>`<div class="ln2 ${c}"><span>${a}</span><span>${b}</span></div>`;
@@ -69,13 +69,14 @@ async function detalleVenta(v){
  ${ADM.includes(S.perfil.rol)&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn sec block" id="an">Anular venta</button>':''}
  <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
- if(abierta)$('#rp').onclick=async()=>{const n=Number($('#pg').value);
+ if(abierta)$('#rp').onclick=async()=>{const b=$('#rp');if(b.disabled)return;const n=Number($('#pg').value);
   if(!(n>0)||n>v.saldo_pendiente)return toast('El pago debe ser mayor a cero y no superar el saldo.',true);
+  b.disabled=true;
   const{error}=await sb.from('pagos').insert({negocio_id:S.perfil.negocio_id,venta_id:v.id,valor_pago:n,metodo_pago:$('#mp').value,recibido_por:S.perfil.id});
-  if(error)return toast(error.message,true);dlg.close();toast('Pago registrado');ventas()};
- const an=$('#an');if(an)an.onclick=async()=>{if(!confirm('¿Anular esta venta? No se puede deshacer.'))return;
-  const{error}=await sb.from('ventas').update({estado_venta:'ANULADA'}).eq('id',v.id);
-  if(error)return toast(error.message,true);dlg.close();toast('Venta anulada');ventas()};
+  if(error){b.disabled=false;return toast(error.message,true)}dlg.close();toast('Pago registrado');ventas()};
+ const an=$('#an');if(an)an.onclick=async()=>{const b=$('#an');if(b.disabled)return;if(!confirm('¿Anular esta venta? No se puede deshacer.'))return;b.disabled=true;
+  const{error}=await sb.from('ventas').update({estado_venta:'ANULADA'}).eq('negocio_id',S.perfil.negocio_id).eq('id',v.id);
+  if(error){b.disabled=false;return toast(error.message,true)}dlg.close();toast('Venta anulada');ventas()};
 }
 
 
