@@ -27,7 +27,7 @@ BEGIN
   IF auth.uid() IS NULL OR v_negocio IS NULL THEN
     RAISE EXCEPTION 'Sesión o negocio no válido.';
   END IF;
-  IF v_rol NOT IN ('ADMINISTRADOR', 'SUPERVISOR') THEN
+  IF COALESCE(v_rol, '') NOT IN ('ADMINISTRADOR', 'SUPERVISOR') THEN
     RAISE EXCEPTION 'No tienes permisos para editar ventas.';
   END IF;
   IF p_descuento IS NULL OR p_descuento < 0 THEN
