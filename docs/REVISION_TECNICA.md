@@ -68,3 +68,5 @@ No se ejecutaron cambios SQL ni se alteraron tablas, RPC, RLS, triggers o reglas
 
 - Cierre de caja: si falla la actualización, se libera el bloqueo y se reactiva el botón para permitir reintento sin cerrar el diálogo.
 - Ajustes del negocio: se bloquean envíos simultáneos; ante error al guardar el negocio o al sincronizar el servicio de reserva se permite reintentar. Se informa cuando la primera escritura ya quedó guardada y la segunda falló.
+
+- Catálogos: el cambio de estado de servicios, productos, clientes y demás registros bloquea clics repetidos, mantiene el filtro por negocio y permite reintentar si falla.
