@@ -1,6 +1,6 @@
 // Módulo de inicio e informes gerenciales.
 export function crearModuloInicio(deps) {
- const { $, sb, S, esc, dinero, hora, fecha, toast, ADM, mio, fila2, porConfirmar } = deps;
+ const { $, sb, S, esc, dinero, hora, fecha, bonito, toast, ADM, mio, fila2, porConfirmar } = deps;
 const RG=[['hoy','Hoy'],['ayer','Ayer'],['semana','Esta semana'],['mes','Este mes'],['30','Últimos 30 días'],['custom','Personalizado']];
 function rango(v,a,b){const d=new Date();d.setHours(0,0,0,0);const s=new Date(d);let e=new Date(d);e.setDate(e.getDate()+1);
  if(v==='ayer'){s.setDate(s.getDate()-1);e=new Date(d)}
