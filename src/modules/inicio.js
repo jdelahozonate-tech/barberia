@@ -137,15 +137,13 @@ async function informe(){
  const grp=(a,k,f)=>{const m={};a.forEach(x=>{const n=k(x);m[n]=m[n]||{n,c:0,i:0,k:0};f(m[n],x)});return Object.values(m)};
  const lin=(g,e)=>fila2(esc(g.n)+'<br><small>'+g.c+' '+e+', ingresos '+dinero(g.i)+', costo '+dinero(g.k)+'</small>',dinero(g.i-g.k));
  const mg=(a,k,e,flt)=>grp(a.filter(flt||(()=>true)),k,(g,x)=>{g.c+=Number(x.cantidad||0);g.i+=Number(x.subtotal||0);g.k+=cl(x)}).sort((p,q)=>(q.i-q.k)-(p.i-p.k)).map(g=>lin(g,e));
- const sec=(t,r)=>r.length?'<label>'+t+'</label>'+r.join(''):'';
+ const sec=(t,r)=>r.length?(t?'<label>'+t+'</label>':'')+r.join(''):'';
  const pm=grp(P,x=>bonito(x.metodo_pago),(g,x)=>{g.i+=Number(x.valor_pago)}).map(g=>fila2(esc(g.n),dinero(g.i))),pc=grp(P.filter(x=>x.cuentas),x=>x.cuentas.nombre,(g,x)=>{g.i+=Number(x.valor_pago)}).map(g=>fila2(esc(g.n),dinero(g.i)));
  etapa='construyendo gráficas y agrupaciones';panelEtapa('Preparando gráficas y agrupaciones…');await new Promise(resolve=>setTimeout(resolve,0));
  const dias={};V.forEach(x=>{const k=fecha(new Date(x.fecha_hora));dias[k]=dias[k]||{ventas:0,gastos:0,citas:0};dias[k].ventas+=Number(x.total_venta||0)});
  G.forEach(x=>{const k=fecha(new Date(x.fecha_hora));dias[k]=dias[k]||{ventas:0,gastos:0,citas:0};dias[k].gastos+=Number(x.valor||0)});
  C.forEach(x=>{const k=fecha(new Date(x.inicio));dias[k]=dias[k]||{ventas:0,gastos:0,citas:0};dias[k].citas++});
- const serie=Object.entries(dias).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14),maxDia=Math.max(1,...serie.map(x=>Math.max(x[1].ventas,x[1].gastos))),cobrado=sum(P,x=>x.valor_pago),ticket=V.length?neto/V.length:0;
- const estados=['PENDIENTE','CONFIRMADA','ATENDIDA','CANCELADA','NO_ASISTIO'].map(k=>({k,n:C.filter(x=>x.estado===k).length})),maxEstado=Math.max(1,...estados.map(x=>x.n));
- const citasGraf='<label>Estado de las citas</label>'+estados.map(x=>'<div class="estado-graf"><span>'+bonito(x.k)+'</span><div><i style="width:'+100*x.n/maxEstado+'%"></i></div><b>'+x.n+'</b></div>').join('');
+ const serie=Object.entries(dias).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14),cobrado=sum(P,x=>x.valor_pago),ticket=V.length?neto/V.length:0;
  etapa='dibujando el informe';panelEtapa('Mostrando resultados…');await new Promise(resolve=>setTimeout(resolve,0));
  const margen=neto?util/neto*100:0,ratioCobro=neto?cobrado/neto*100:0,atendidas=C.filter(x=>x.estado==='ATENDIDA').length,pendientesC=C.filter(x=>['PENDIENTE','CONFIRMADA'].includes(x.estado)).length;
  const pagosMetodo=grp(P,x=>bonito(x.metodo_pago),(g,x)=>{g.i+=Number(x.valor_pago)}).map(g=>({nombre:g.n,valor:g.i})).sort((a,b)=>b.valor-a.valor);
@@ -153,7 +151,6 @@ async function informe(){
  const topServicios=grp(D.filter(x=>x.tipo_item==='SERVICIO'),x=>x.descripcion,(g,x)=>{g.i+=Number(x.subtotal||0);g.k+=cl(x);g.c+=Number(x.cantidad||0)}).map(g=>({nombre:g.n,valor:g.i-g.k})).sort((a,b)=>b.valor-a.valor).slice(0,5);
  const estados=['PENDIENTE','CONFIRMADA','ATENDIDA','CANCELADA','NO_ASISTIO'].map(k=>({k,n:C.filter(x=>x.estado===k).length})),maxEstado=Math.max(1,...estados.map(x=>x.n));
  const citasGraf=estados.map(x=>'<div class="dash-state"><span>'+bonito(x.k)+'</span><div class="track"><i style="width:'+100*x.n/maxEstado+'%"></i></div><b>'+x.n+'</b></div>').join('');
- const periodoLabel=RG.find(x=>x[0]===rg)?.[1]||'Periodo seleccionado';
  $('#inf').innerHTML=`<div class="dash-kpis">
  <div class="dash-kpi primary"><small>Ingresos por ventas</small><strong>${dinero(neto)}</strong><em>Ventas netas del periodo</em></div>
  <div class="dash-kpi"><small>Utilidad estimada</small><strong>${dinero(util)}</strong><em>Margen: ${margen.toFixed(1)}%</em></div>
