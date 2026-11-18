@@ -39,5 +39,5 @@ async function formulario(k,r,despues){
 }
 
 
- return { crud, formulario };
+ return { crud };
 }
