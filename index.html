@@ -124,43 +124,16 @@ const { ajustes } = crearModuloAjustes({ $, sb, S, esc, toast, equipo, ir });
 const CFG=crearConfigCatalogos(ADM,dinero);
 const { crud, formulario } = crearModuloCatalogos({ $, app, dlg, sb, S, CFG, esc, bonito, traducir, toast, horarios });
 const { ventas, nuevaVenta, detalleVenta } = crearModuloVentas({ $, dlg, sb, S, esc, dinero, hora, bonito, traducir, toast, ADM, METODOS });
-const { caja, gasto, comisiones } = crearModuloFinanzas({ $, dlg, sb, S, esc, dinero, hora, bonito, toast, METODOS, fila2, fm, detallePagos });
-const { agenda, nuevaCita, editarCita, cobrarCita, porConfirmar } = crearModuloAgenda({ $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, wa, nuevaVenta, mio, ir });
+const { caja, gasto, comisiones, misComisiones, detallePagos } = crearModuloFinanzas({ $, dlg, sb, S, esc, dinero, hora, bonito, toast, METODOS, fila2, fm });
+const { agenda, nuevaCita, editarCita, cobrarCita, porConfirmar } = crearModuloAgenda({ $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, nuevaVenta, mio, ir });
 const { inicio } = crearModuloInicio({ $, sb, S, esc, dinero, hora, fecha, toast, ADM, mio, fila2, porConfirmar });
 /* ---------- Agenda ---------- */
-
-async function misComisiones(){
- const b=S.perfil.barbero_id,main=$('#main');
- if(!b)return main.innerHTML='<div class="head"><h2>Mis comisiones</h2></div><p class="empty">Tu usuario no está ligado a un barbero. Pide a la administración que lo configure.</p>';
- const[{data:d},{data:l}]=await Promise.all([sb.from('detalle_ventas').select('id,descripcion,cantidad,subtotal,comision_generada,ventas!inner(fecha_hora,barbero_id,estado_venta)').eq('ventas.barbero_id',b).eq('ventas.estado_venta','PAGADA').gt('comision_generada',0).limit(500),sb.from('comisiones').select('detalle_id').eq('barbero_id',b).limit(2000)]);
- const pagado=new Set((l||[]).map(x=>x.detalle_id)),L=(d||[]).sort((p,q)=>new Date(q.ventas.fecha_hora)-new Date(p.ventas.fecha_hora)),pend=L.filter(x=>!pagado.has(x.id)),hist=L.filter(x=>pagado.has(x.id)),sum=a=>a.reduce((t,x)=>t+Number(x.comision_generada),0);
- const fl=x=>fila2(esc(x.descripcion)+'<br><small>'+new Date(x.ventas.fecha_hora).toLocaleDateString('es-CO',{day:'numeric',month:'short'})+'</small>',dinero(x.comision_generada));
- main.innerHTML=`<div class="head"><h2>Mis comisiones</h2></div><div class="kp"><div><small>Por cobrar</small><strong>${dinero(sum(pend))}</strong></div><div><small>Ya liquidado</small><strong>${dinero(sum(hist))}</strong></div></div>
- ${pend.length?'<label>Pendientes</label>'+pend.slice(0,30).map(fl).join(''):'<p class="empty">No tienes comisiones pendientes.</p>'}${hist.length?'<label>Últimas liquidadas</label>'+hist.slice(0,15).map(fl).join(''):''}`;
-}
 
 /* ---------- Horarios ---------- */
 /* ---------- Ventas y pagos ---------- */
 /* ---------- Caja, gastos y comisiones ---------- */
 /* ---------- Recordatorio por WhatsApp ---------- */
-function wa(c,conf){
- const tel=String(c.clientes?.telefono||'').replace(/\D/g,'');
- if(tel.length<7)return '<p class="mute">Este cliente no tiene teléfono guardado, no se puede enviar el recordatorio.</p>';
- const num=tel.length===10?'57'+tel:tel,url=location.origin+location.pathname.replace(/[^/]*$/,'')+'cita.html?t='+c.token;
- const cuando=new Date(c.inicio).toLocaleString('es-CO',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
- const msg=conf?`Hola ${c.clientes.nombre}, tu cita en ${S.negocio.nombre} quedó confirmada: ${cuando}, ${c.servicios?.nombre} con ${c.barberos?.nombre}.\nSi necesitas cambiar la hora o cancelarla, hazlo aquí: ${url}`:`Hola ${c.clientes.nombre}, te recordamos tu cita en ${S.negocio.nombre}: ${cuando}, ${c.servicios?.nombre} con ${c.barberos?.nombre}.\nConfirma, cancela o cambia la hora aquí: ${url}`;
- return `<a class="btn block" style="display:block;text-align:center;text-decoration:none;background:#1F7A4D" target="_blank" rel="noopener" id="${conf?'cf':'rw'}" href="https://wa.me/${num}?text=${encodeURIComponent(msg)}">${conf?'Confirmar y avisar por WhatsApp':'Recordar por WhatsApp'}</a>`;
-}
-
 /* ---------- Detalle de cobros y panel gerencial ---------- */
-function detallePagos(m,L){
- const por={};L.forEach(p=>{const n=p.cuentas?p.cuentas.nombre+(p.cuentas.detalle?' ('+p.cuentas.detalle+')':''):'Sin cuenta registrada';por[n]=(por[n]||0)+Number(p.valor_pago)});
- dlg.innerHTML=`<h2>Cobrado en ${bonito(m).toLowerCase()}</h2><p class="tot">${dinero(L.reduce((t,p)=>t+Number(p.valor_pago),0))}</p>
- ${m==='EFECTIVO'?'':'<label>Por cuenta</label>'+Object.entries(por).map(([n,v])=>fila2(esc(n),dinero(v))).join('')}
- <label>Movimientos</label>${L.map(p=>fila2(hora(p.fecha_hora)+', '+esc(p.ventas?.clientes?.nombre||'Cliente de paso')+(p.cuentas&&m!=='EFECTIVO'?'<br><small>'+esc(p.cuentas.nombre)+'</small>':''),dinero(p.valor_pago))).join('')}
- <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div>`;
- dlg.showModal();$('#cx').onclick=()=>dlg.close();
-}
 /* ---------- Inicio ---------- */
 sb.auth.onAuthStateChange(ev=>{if(ev==='SIGNED_OUT')pantallaAuth()});
 (async()=>{const{data:{session}}=await sb.auth.getSession();session?cargar():pantallaAuth()})();
