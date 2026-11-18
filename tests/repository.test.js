@@ -314,3 +314,15 @@ test('el panel gerencial recibe el formateador de estados y métodos de pago', (
   assert.match(inicio, /bonito\(x\.metodo_pago\)/);
   assert.match(inicio, /bonito\(x\.k\)/);
 });
+
+
+test('el informe gerencial informa el progreso, corta consultas colgadas y evita resultados obsoletos', () => {
+  const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
+  assert.match(inicio, /let informeEjecucion=0/);
+  assert.match(inicio, /const controller=new AbortController\(\)/);
+  assert.match(inicio, /setTimeout\(\(\)=>controller\.abort\(\),20000\)/);
+  assert.match(inicio, /superó los 20 segundos/);
+  assert.match(inicio, /fuentes\.map\(async\(\[nombre,q\]\)=>/);
+  assert.match(inicio, /Consultando:/);
+  assert.match(inicio, /if\(ejecucion!==informeEjecucion\|\|!\$\('#inf'\)\)return/);
+});
