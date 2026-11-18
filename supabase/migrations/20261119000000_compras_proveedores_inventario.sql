@@ -366,6 +366,27 @@ BEGIN
  WHERE d.compra_id = p_compra_id AND d.negocio_id = v_negocio
  FOR UPDATE OF p;
 
+ -- Recalcula el costo de referencia descontando el costo de la compra revertida.
+ WITH revertir AS (
+  SELECT d.producto_id, sum(d.cantidad) AS cantidad,
+         sum(d.cantidad * d.costo_unitario) AS costo_total
+  FROM public.detalle_compras_inventario d
+  WHERE d.compra_id = p_compra_id AND d.negocio_id = v_negocio
+  GROUP BY d.producto_id
+ )
+ UPDATE public.productos p
+ SET costo_unitario = CASE
+  WHEN COALESCE(st.existencias,0) > r.cantidad
+   THEN round((COALESCE(st.existencias,0) * COALESCE(p.costo_unitario,0) - r.costo_total)
+              / NULLIF(COALESCE(st.existencias,0) - r.cantidad,0),2)
+  ELSE p.costo_unitario
+ END
+ FROM revertir r
+ LEFT JOIN public.stock_actual st
+  ON st.producto_id = r.producto_id AND st.negocio_id = v_negocio
+ WHERE p.id = r.producto_id AND p.negocio_id = v_negocio
+  AND COALESCE(p.control_stock,false);
+
  IF EXISTS (
   SELECT 1
   FROM (
