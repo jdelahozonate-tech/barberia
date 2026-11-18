@@ -77,5 +77,5 @@ function detallePagos(m,L){
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
 }
 
- return { caja, gasto, comisiones, misComisiones, detallePagos };
+ return { caja, comisiones, misComisiones };
 }
