@@ -54,5 +54,5 @@ async function inicioSimple(){
  ${bajo.length?'<label>Stock bajo</label>'+bajo.map(x=>fila2(esc(x.nombre),x.existencias+' (mínimo '+x.stock_minimo+')')).join(''):''}`;
 }
 
- return { inicio, informe, inicioSimple };
+ return { inicio };
 }
