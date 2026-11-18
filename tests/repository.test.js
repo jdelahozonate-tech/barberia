@@ -184,3 +184,14 @@ test('las consultas financieras quedan limitadas al negocio activo', () => {
   assert.match(finanzas, /from\('detalle_ventas'\)[\s\S]*?eq\('negocio_id', S\.perfil\.negocio_id\)/);
   assert.match(finanzas, /from\('comisiones'\)[\s\S]*?eq\('negocio_id', S\.perfil\.negocio_id\)/);
 });
+
+
+test('ventas y catálogos filtran lecturas y escrituras por negocio activo', () => {
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  const catalogos = readFileSync(resolve(root, 'src/modules/catalogos.js'), 'utf8');
+  assert.match(ventas, /from\(t\)\.select\(campos\)\.eq\('negocio_id',S\.perfil\.negocio_id\)/);
+  assert.match(ventas, /from\('detalle_ventas'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
+  assert.match(ventas, /from\('pagos'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
+  assert.match(catalogos, /from\(k\)\.select\('\*'\)\.eq\('negocio_id',S\.perfil\.negocio_id\)/);
+  assert.match(catalogos, /from\('stock_actual'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
+});
