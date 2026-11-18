@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS public.pagos_compras_inventario (
  compra_id uuid NOT NULL REFERENCES public.compras_inventario(id) ON DELETE RESTRICT,
  fecha_pago timestamptz NOT NULL DEFAULT now(),
  valor_pago numeric(14,2) NOT NULL CHECK (valor_pago > 0),
- metodo_pago text NOT NULL CHECK (metodo_pago IN ('EFECTIVO','TRANSFERENCIA','NEQUI','DAVIPLATA')),
+ metodo_pago text NOT NULL CHECK (metodo_pago IN ('EFECTIVO','TRANSFERENCIA','TARJETA','NEQUI','DAVIPLATA')),
  referencia text,
  observaciones text,
  recibido_por uuid,
@@ -183,7 +183,7 @@ BEGIN
  WHERE p.negocio_id = v_negocio
  FOR UPDATE OF p;
 
- SELECT round(COALESCE(sum(x.cantidad * x.costo_unitario),0),2)
+ SELECT round(COALESCE(sum(round(x.cantidad * x.costo_unitario,2)),0),2)
  INTO v_total
  FROM jsonb_to_recordset(p_detalles) AS x(producto_id uuid, cantidad numeric, costo_unitario numeric);
 
