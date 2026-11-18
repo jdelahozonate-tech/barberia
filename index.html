@@ -89,6 +89,7 @@ import { esc, fecha, hora, bonito, slug, traducir, waNum } from "./src/shared/ut
 import { crearConfigCatalogos } from "./src/config/catalogos.js";
 import { crearModuloCatalogos } from "./src/modules/catalogos.js";
 import { crearModuloAgenda } from "./src/modules/agenda.js";
+import { crearModuloEquipo } from "./src/modules/equipo.js";
 const $=s=>document.querySelector(s),app=$('#app'),dlg=$('#dlg');
 const S={perfil:null,negocio:null,vista:'inicio',dia:fecha(new Date())};
 const dinero=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:S.negocio?.moneda||'COP',maximumFractionDigits:0}).format(n||0);
@@ -157,6 +158,7 @@ function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.tog
 /* ---------- Clientes, barberos y servicios ---------- */
 const ADM=['ADMINISTRADOR','SUPERVISOR'];
 const soloMio=()=>S.perfil.rol==='BARBERO'&&!!S.perfil.barbero_id,mio=q=>soloMio()?q.eq('barbero_id',S.perfil.barbero_id):q;
+const { horarios, equipo, invitar } = crearModuloEquipo({ $, dlg, sb, S, esc, bonito, toast });
 const CFG=crearConfigCatalogos(ADM,dinero);
 const { crud, formulario } = crearModuloCatalogos({ $, app, dlg, sb, S, CFG, esc, bonito, traducir, toast, horarios });
 const { agenda, nuevaCita, editarCita, cobrarCita, porConfirmar } = crearModuloAgenda({ $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, wa, nuevaVenta, mio, ir });
@@ -173,24 +175,6 @@ async function misComisiones(){
 }
 
 /* ---------- Horarios ---------- */
-async function horarios(b){
- const{data}=await sb.from('horarios_barbero').select('*').eq('barbero_id',b.id).order('hora_inicio');
- const D=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'],O=[1,2,3,4,5,6,0],hm=t=>String(t).slice(0,5),nuevo=!(data||[]).length;
- const T=(n,v,l)=>`<input type="time" name="${n}" value="${v}" aria-label="${l}">`;
- const dia=d=>{const R=(data||[]).filter(y=>y.dia_semana===d),m=R[0],t=R[1],on=R.length>0||(nuevo&&d>=1&&d<=6),
-  mv=m?[hm(m.hora_inicio),hm(m.hora_fin)]:['08:40','12:00'],tv=t?[hm(t.hora_inicio),hm(t.hora_fin)]:(R.length?['','']:['14:00','19:00']);
-  return `<div class="hd"><label class="chk"><input type="checkbox" name="o${d}"${on?' checked':''}>${D[d]}</label><div class="hr2"><small>Mañana</small>${T('a'+d,mv[0],'Mañana entrada '+D[d])}${T('b'+d,mv[1],'Mañana salida '+D[d])}<small>Tarde</small>${T('c'+d,tv[0],'Tarde entrada '+D[d])}${T('d'+d,tv[1],'Tarde salida '+D[d])}</div></div>`};
- dlg.innerHTML=`<form id="df"><h2>Horario de ${esc(b.nombre)}</h2><p class="mute">Marca los días que atiende. Si no trabaja en la tarde, deja esa fila vacía.</p>${O.map(dia).join('')}<button type="button" class="link" id="cl">Copiar el horario del lunes a todos los días</button><div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Guardar horario</button></div></form>`;
- $('#cx').onclick=()=>dlg.close();
- $('#cl').onclick=()=>{const el=$('#df').elements;for(const d of O)if(d!==1){for(const p of 'abcd')el[p+d].value=el[p+'1'].value;el['o'+d].checked=el.o1.checked}};
- $('#df').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),L=[];
-  for(const d of O)if(f.get('o'+d))for(const[i,j]of[['a','b'],['c','d']]){const x=f.get(i+d),y=f.get(j+d);if(x&&y)L.push({negocio_id:S.perfil.negocio_id,barbero_id:b.id,dia_semana:d,hora_inicio:x,hora_fin:y})}
-  let{error}=await sb.from('horarios_barbero').delete().eq('barbero_id',b.id);
-  if(!error&&L.length)({error}=await sb.from('horarios_barbero').insert(L));
-  if(error)return toast(error.message.includes('check')?'La hora de salida debe ser después de la entrada.':error.message,true);
-  dlg.close();toast('Horario guardado')};
-}
-
 /* ---------- Ventas y pagos ---------- */
 const METODOS=['EFECTIVO','TRANSFERENCIA','TARJETA','NEQUI','DAVIPLATA'].map(m=>`<option value="${m}">${bonito(m)}</option>`).join('');
 async function ventas(){
@@ -419,26 +403,6 @@ function ajustes(){
 }
 
 /* ---------- Equipo e invitaciones ---------- */
-async function equipo(){
- const{data}=await sb.from('perfiles').select('id,nombre,rol,estado').order('creado_en');
- $('#eq').innerHTML=(data||[]).map(p=>`<div class="row"><span><strong>${esc(p.nombre)}</strong><br><small>${bonito(p.rol)}${p.id===S.perfil.id?', tú':''}${p.estado==='ACTIVO'?'':', inactivo'}</small></span>${p.id===S.perfil.id?'':`<button type="button" class="btn sec" data-p="${p.id}" data-e="${p.estado}">${p.estado==='ACTIVO'?'Desactivar':'Reactivar'}</button>`}</div>`).join('');
- document.querySelectorAll('[data-p]').forEach(b=>b.onclick=async()=>{const{error}=await sb.from('perfiles').update({estado:b.dataset.e==='ACTIVO'?'INACTIVO':'ACTIVO'}).eq('id',b.dataset.p);if(error)return toast(error.message,true);equipo()});
- $('#iv').onclick=invitar;
-}
-async function invitar(){
- const{data:ba}=await sb.from('barberos').select('id,nombre').eq('estado','ACTIVO').order('nombre');
- dlg.innerHTML=`<form id="df"><h2>Invitar a alguien</h2><label for="i1">Rol</label><select id="i1"><option value="BARBERO">Barbero</option><option value="SUPERVISOR">Supervisor</option><option value="ADMINISTRADOR">Administrador</option></select>
- <label for="i2">Corresponde al barbero</label><select id="i2"><option value="">Ninguno</option>${(ba||[]).map(b=>`<option value="${b.id}">${esc(b.nombre)}</option>`).join('')}</select>
- <div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Crear invitación</button></div></form>`;
- dlg.showModal();$('#cx').onclick=()=>dlg.close();
- $('#df').onsubmit=async e=>{e.preventDefault();
-  const{data,error}=await sb.from('invitaciones').insert({negocio_id:S.perfil.negocio_id,rol:$('#i1').value,barbero_id:$('#i2').value||null}).select('codigo').single();
-  if(error)return toast(error.message,true);
-  const url=location.origin+location.pathname.replace(/[^/]*$/,''),msg=`Te invitaron a ${S.negocio.nombre}. 1) Entra a ${url} 2) Toca “Soy nuevo, crear cuenta” 3) Cuando te lo pida, escribe este código: ${data.codigo} (vence en 7 días)`;
-  dlg.innerHTML=`<h2>Invitación lista</h2><p>Código: <strong>${data.codigo}</strong></p><p class="mute">Vence en 7 días y solo sirve una vez.</p><a class="btn block" style="display:block;text-align:center;text-decoration:none;background:#1F7A4D" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">Enviar por WhatsApp</a><div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div>`;
-  $('#cx').onclick=()=>dlg.close()};
-}
-
 /* ---------- Inicio ---------- */
 sb.auth.onAuthStateChange(ev=>{if(ev==='SIGNED_OUT')pantallaAuth()});
 (async()=>{const{data:{session}}=await sb.auth.getSession();session?cargar():pantallaAuth()})();
