@@ -89,3 +89,14 @@ No se debe mover todo el código de una sola vez. Cada etapa debe dejar la aplic
 - Si se puede introducir Vite sin afectar URLs existentes de reservas y citas.
 - Cobertura de pruebas manuales o automatizadas para login, onboarding, agenda, venta, caja y reservas públicas.
 - Contratos exactos de datos para los módulos que se extraigan; se conservarán los actuales hasta validarlos.
+
+
+## 8. Extracciones realizadas
+
+- `src/lib/supabase.js`: cliente compartido de Supabase.
+- `src/shared/utils.js`: escape HTML, fechas, horas, etiquetas, slug, traducción de errores y normalización de WhatsApp.
+- `src/config/catalogos.js`: configuración de campos, permisos de interfaz y presentación para clientes, barberos, servicios, productos y cuentas de recaudo. Se construye mediante `crearConfigCatalogos(ADM, dinero)` para conservar las dependencias actuales.
+- `index.html` importa las utilidades y la configuración de catálogos; la lógica CRUD permanece temporalmente en la pantalla principal.
+- `sw.js` precarga los módulos compartidos y de catálogos en la versión `barberia-v5` para mejorar el arranque sin conexión.
+
+Estas extracciones no modifican el esquema ni las RPC de Supabase. La validación realizada hasta ahora es sintáctica; falta comprobar flujos en navegador real.
