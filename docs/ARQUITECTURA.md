@@ -39,7 +39,7 @@ La aplicación utiliza JavaScript vanilla y Supabase JS UMD desde CDN. No se enc
 
 ## 3. Dependencias y límites actuales
 
-- Las pantallas crean su propio cliente Supabase y repiten utilidades como escape HTML y formato de fechas.
+- Las cuatro páginas comparten ahora una instancia de Supabase mediante `src/lib/supabase.js`; aún hay utilidades pequeñas repetidas en las páginas públicas que pueden centralizarse después.
 - La aplicación privada mezcla renderizado, eventos, consultas y reglas de interfaz en funciones globales.
 - El enrutamiento es una selección de vistas dentro de una sola página.
 - Hay consultas directas a tablas y llamadas RPC. La reorganización no debe cambiar su semántica.
@@ -59,19 +59,22 @@ Se propone mantener JavaScript vanilla y separar por responsabilidades:
 
 Cada módulo debe exponer operaciones e inicialización claras. Evitar dependencias implícitas de variables globales como `S`, `sb`, `$()` y `dlg`; se migrarán gradualmente a dependencias explícitas.
 
-## 5. Orden de migración
+## 5. Estado de la migración
 
-1. **Base y documentación:** registrar estado actual, decisiones y estructura propuesta.
-2. **Infraestructura compartida:** centralizar cliente Supabase, configuración y utilidades sin cambiar pantallas.
-3. **Acceso y contexto:** extraer autenticación, perfil, negocio y suscripción.
-4. **Módulos de bajo acoplamiento:** clientes, catálogos y equipo/horarios.
-5. **Agenda:** extraer citas y flujos de confirmación/cobro.
-6. **Operación:** ventas, pagos, inventario, caja y gastos.
-7. **Finanzas:** comisiones e informes.
-8. **Pantallas separadas:** administración, reserva pública y gestión pública de cita.
-9. **PWA y despliegue:** revisar rutas, caché, manifest y proceso de publicación.
+- [x] Documentación y estructura base del repositorio.
+- [x] Cliente Supabase compartido.
+- [x] Utilidades comunes y configuración de catálogos.
+- [x] Acceso, onboarding y contexto de suscripción.
+- [x] CRUD de catálogos, equipo e invitaciones.
+- [x] Agenda, citas, confirmaciones y cobro asociado.
+- [x] Ventas, pagos, caja, gastos y comisiones.
+- [x] Inicio, indicadores, informes y ajustes.
+- [x] Lógica de administración, reservas públicas y gestión pública de citas separada de los HTML.
+- [x] Precarga PWA actualizada para los módulos locales.
+- [x] Pruebas automatizadas de sintaxis, rutas e utilidades con GitHub Actions.
 
-No se debe mover todo el código de una sola vez. Cada etapa debe dejar la aplicación compilable y navegable.
+**Pendiente antes de integrar:** pruebas funcionales en navegador real con Supabase, revisión visual/responsiva y validación de instalación/actualización PWA. No se ha introducido un bundler porque las rutas estáticas actuales funcionan con GitHub Pages y deben conservarse.
+
 
 ## 6. Reglas de seguridad y compatibilidad
 
@@ -91,41 +94,23 @@ No se debe mover todo el código de una sola vez. Cada etapa debe dejar la aplic
 - Contratos exactos de datos para los módulos que se extraigan; se conservarán los actuales hasta validarlos.
 
 
-## 8. Extracciones realizadas
+## 8. Estructura implementada
 
 - `src/lib/supabase.js`: cliente compartido de Supabase.
 - `src/shared/utils.js`: escape HTML, fechas, horas, etiquetas, slug, traducción de errores y normalización de WhatsApp.
-- `src/config/catalogos.js`: configuración de campos, permisos de interfaz y presentación para clientes, barberos, servicios, productos y cuentas de recaudo. Se construye mediante `crearConfigCatalogos(ADM, dinero)` para conservar las dependencias actuales.
-- `index.html` importa utilidades, configuración y operaciones CRUD de catálogos; la pantalla principal monta el módulo con dependencias explícitas.
-- `sw.js` precarga los módulos compartidos y de catálogos en la versión vigente del caché PWA para mejorar el arranque sin conexión.
+- `src/config/catalogos.js`: configuración declarativa de clientes, barberos, servicios, productos y cuentas.
+- `src/modules/acceso.js`: autenticación, onboarding, carga de perfil, negocio y suscripción.
+- `src/modules/agenda.js`: agenda diaria, citas, confirmación, cobro asociado y recordatorios.
+- `src/modules/ajustes.js`: datos del negocio, enlace público y opciones operativas.
+- `src/modules/catalogos.js`: operaciones CRUD y formularios de catálogos.
+- `src/modules/equipo.js`: perfiles, invitaciones y horarios de barberos.
+- `src/modules/finanzas.js`: caja, gastos, liquidaciones y vista individual de comisiones.
+- `src/modules/inicio.js`: resumen diario e informe gerencial.
+- `src/modules/ventas.js`: registro, detalle, pagos adicionales y anulación de ventas.
+- `src/pages/admin.js`, `reservar.js`, `cita.js`: lógica de las pantallas independientes, separada de su HTML.
+- `tests/` y `.github/workflows/ci.yml`: pruebas automáticas y ejecución continua.
+- `docs/`: arquitectura, estructura y guía de validación.
 
-Estas extracciones no modifican el esquema ni las RPC de Supabase. La validación realizada hasta ahora es sintáctica; falta comprobar flujos en navegador real.
+Las cuatro páginas conservan sus nombres y rutas de entrada. La aplicación privada mantiene en `index.html` el montaje, navegación y estado de pantalla; las operaciones de dominio se delegan en módulos. La reorganización no cambia tablas, RPC ni datos de Supabase.
 
-- `src/modules/catalogos.js`: operaciones CRUD y formularios de catálogos extraídos de `index.html`; las dependencias se inyectan desde la pantalla y las reglas de negocio permanecen iguales.
-- `src/README.md`: guía de carpetas, responsabilidades y criterios para nuevas extracciones.
-- `docs/ESTRUCTURA_REPOSITORIO.md`: explica por qué las entradas HTML y los archivos PWA permanecen en la raíz.
-- `.gitignore`: excluye dependencias, artefactos locales, archivos de entorno y logs.
-
-- `src/modules/agenda.js`: agenda diaria, creación y edición de citas, confirmación, cobro asociado y citas pendientes de confirmar; recibe dependencias explícitas desde `index.html`.
-
-- `src/modules/equipo.js`: gestión de perfiles del equipo, invitaciones y horarios de barberos; recibe dependencias desde la pantalla principal.
-
-- `src/modules/ventas.js`: registro de ventas, detalle, pagos adicionales y anulación.
-- `src/modules/finanzas.js`: apertura y cierre de caja, gastos y liquidación de comisiones.
-
-- `src/modules/inicio.js`: inicio, indicadores e informe gerencial.
-- `src/modules/ajustes.js`: configuración del negocio, enlace público de reservas y gestión del equipo desde ajustes.
-
-- `src/modules/acceso.js`: autenticación, onboarding por invitación, carga de perfil y validación del acceso/suscripción.
-
-- `src/modules/acceso.js`: autenticación y onboarding.
-- `src/modules/agenda.js`: gestión de citas y recordatorios por WhatsApp.
-- `src/modules/finanzas.js`: caja, gastos, liquidación y vista de comisiones.
-- `src/modules/inicio.js`: indicadores e informe gerencial.
-- `src/modules/ajustes.js`: configuración del negocio.
-- `src/modules/equipo.js`: perfiles, invitaciones y horarios.
-- `src/modules/ventas.js`: registro de ventas y pagos.
-
-La pantalla `index.html` conserva el montaje de la aplicación, navegación y estado compartido; los flujos de dominio anteriores ya se delegan en módulos ES.
-
-- `src/pages/admin.js`, `src/pages/reservar.js` y `src/pages/cita.js`: lógica de cada pantalla pública separada de su HTML, conservando los nombres y rutas de entrada en la raíz.
+La suite automática se ejecuta con `npm test` y está configurada en GitHub Actions. La última ejecución consultada completó correctamente. Esto valida sintaxis, rutas e utilidades, pero no sustituye la prueba manual en navegador real descrita en `docs/PRUEBAS.md`.
