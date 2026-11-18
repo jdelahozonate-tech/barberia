@@ -16,6 +16,7 @@ const sourceFiles = [
   'src/modules/agenda.js',
   'src/modules/ajustes.js',
   'src/modules/catalogos.js',
+  'src/modules/productos.js',
   'src/modules/equipo.js',
   'src/modules/finanzas.js',
   'src/modules/inicio.js',
@@ -373,4 +374,34 @@ test('las tarjetas del dashboard actualizan la gráfica seleccionada sin recarga
   assert.match(inicio, /aria-pressed="true"/);
   assert.match(inicio, /graficaIndicador\(serie,m\.campo,m\.moneda\)/);
   assert.match(inicio, /S\.rg=x\.target\.value/);
+});
+
+
+test('el módulo de productos integra proveedores, compras, pagos e historial de inventario', () => {
+  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261119000000_compras_proveedores_inventario.sql'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  const sw = readFileSync(resolve(root, 'sw.js'), 'utf8');
+  for (const table of ['proveedores_inventario', 'compras_inventario', 'detalle_compras_inventario', 'pagos_compras_inventario']) {
+    assert.ok(sql.includes('public.' + table), 'Falta tabla ' + table);
+  }
+  for (const rpc of ['registrar_compra_inventario', 'registrar_pago_compra_inventario', 'anular_compra_inventario']) {
+    assert.ok(sql.includes('FUNCTION public.' + rpc), 'Falta RPC ' + rpc);
+    assert.ok(productos.includes("rpc('" + rpc + "'"), 'La interfaz no llama ' + rpc);
+  }
+  assert.match(sql, /SECURITY DEFINER/);
+  assert.match(sql, /mi_negocio\(\)/);
+  assert.match(sql, /mi_rol\(\)/);
+  assert.match(sql, /FOR UPDATE/);
+  assert.match(sql, /compra_id/);
+  assert.match(sql, /stock_actual/);
+  assert.match(sql, /No hay existencias suficientes para revertir esta compra/);
+  assert.match(sql, /promedio ponderado/);
+  assert.match(productos, /eq\('negocio_id',nid\(\)\)/);
+  assert.match(productos, /data-tab="movimientos"/);
+  assert.match(productos, /data-tab="proveedores"/);
+  assert.match(index, /crearModuloProductos/);
+  assert.match(index, /productos,caja/);
+  assert.match(sw, /src\/modules\/productos\.js/);
+  assert.match(sw, /barberia-v15/);
 });
