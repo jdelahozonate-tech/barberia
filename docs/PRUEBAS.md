@@ -39,6 +39,11 @@ Las pruebas automáticas no sustituyen una ejecución real con Supabase y navega
 10. Probar reserva pública y enlace de gestión de cita en una ventana privada.
 11. Instalar la PWA, actualizarla y comprobar su comportamiento sin conexión.
 12. Confirmar que la experiencia sigue funcionando en móvil y escritorio.
+13. Probar errores de lectura en inicio, informes, equipo, caja y comisiones; la interfaz no debe presentar resultados parciales como completos.
+14. Probar doble envío de reserva pública y acciones simultáneas de confirmar, cancelar y reprogramar una cita.
+15. Probar cambios rápidos de fecha, barbero y servicio en la reserva pública; solo deben mostrarse horas de la última selección.
+
+La matriz ampliada y los riesgos que requieren validación manual están en `docs/REVISION_TECNICA.md`.
 
 No se deben probar escrituras destructivas sobre datos reales. Usar un negocio y registros de prueba.
 
