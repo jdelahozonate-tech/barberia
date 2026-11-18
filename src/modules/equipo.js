@@ -41,5 +41,5 @@ async function invitar(){
 }
 
 
- return { horarios, equipo, invitar };
+ return { horarios, equipo };
 }
