@@ -37,11 +37,14 @@ async function horas(){
 }
 async function reservar(e){
  e.preventDefault();if(!T)return toast('Elige una hora.');
- const b=$('#go');if(b.disabled)return;b.disabled=true;
- const{error}=await sb.rpc('reservar_cita_publica',{p_slug:slug,p_nombre:$('#nm').value,p_telefono:$('#tl').value,p_barbero:$('#br').value,p_servicio:$('#sv').value,p_inicio:T});
- if(error){b.disabled=false;toast(error.message);return horas()}
- const dia=new Date(T).toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',timeZone:TZ});
- const tel=String(C.negocio.telefono||'').replace(/\D/g,''),num=tel.length===10?'57'+tel:tel,sv=$('#sv').selectedOptions[0]?.text||'',br=$('#br').selectedOptions[0]?.text||'';
- const wa=num?`<a class="btn" style="display:block;text-align:center;text-decoration:none;background:#1F7A4D;margin-top:14px" target="_blank" rel="noopener" href="https://wa.me/${num}?text=${encodeURIComponent('Hola, acabo de reservar una cita en '+C.negocio.nombre+': '+dia+' a las '+hh(T)+', '+sv+' con '+br+'. Soy '+$('#nm').value+', mi teléfono es '+$('#tl').value+'. ¿Me la confirman, por favor?')}">Avisar a la barbería por WhatsApp</a>`:'';
- app.innerHTML=`<h1>¡Cita reservada!</h1><div class="ok"><strong>${esc(C.negocio.nombre)}</strong><br>${esc(dia)} a las ${hh(T)}<br>${esc($('#sv').selectedOptions[0]?.text||'')}<br>con ${esc($('#br').selectedOptions[0]?.text||'')}</div>${wa}<p class="mute">Tu cita queda pendiente hasta que la barbería la confirme. Si no puedes asistir, avísale a la barbería${C.negocio.telefono?' al '+esc(C.negocio.telefono):''}.</p>`;
+ const b=$('#go');if(b.disabled)return;
+ const nombre=$('#nm').value,telefono=$('#tl').value,barbero=$('#br').value,servicio=$('#sv').value,inicio=T;
+ const servicioTexto=$('#sv').selectedOptions[0]?.text||'',barberoTexto=$('#br').selectedOptions[0]?.text||'';
+ b.disabled=true;document.querySelectorAll('#f input,#f select,#hs button').forEach(x=>x.disabled=true);
+ const{error}=await sb.rpc('reservar_cita_publica',{p_slug:slug,p_nombre:nombre,p_telefono:telefono,p_barbero:barbero,p_servicio:servicio,p_inicio:inicio});
+ if(error){b.disabled=false;document.querySelectorAll('#f input,#f select,#hs button').forEach(x=>x.disabled=false);toast(error.message);return horas()}
+ const dia=new Date(inicio).toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',timeZone:TZ});
+ const tel=String(C.negocio.telefono||'').replace(/\D/g,''),num=tel.length===10?'57'+tel:tel,sv=servicioTexto,br=barberoTexto;
+ const wa=num?`<a class="btn" style="display:block;text-align:center;text-decoration:none;background:#1F7A4D;margin-top:14px" target="_blank" rel="noopener" href="https://wa.me/${num}?text=${encodeURIComponent('Hola, acabo de reservar una cita en '+C.negocio.nombre+': '+dia+' a las '+hh(inicio)+', '+sv+' con '+br+'. Soy '+nombre+', mi teléfono es '+telefono+'. ¿Me la confirman, por favor?')}">Avisar a la barbería por WhatsApp</a>`:'';
+ app.innerHTML=`<h1>¡Cita reservada!</h1><div class="ok"><strong>${esc(C.negocio.nombre)}</strong><br>${esc(dia)} a las ${hh(inicio)}<br>${esc(servicioTexto)}<br>con ${esc(barberoTexto)}</div>${wa}<p class="mute">Tu cita queda pendiente hasta que la barbería la confirme. Si no puedes asistir, avísale a la barbería${C.negocio.telefono?' al '+esc(C.negocio.telefono):''}.</p>`;
 }
