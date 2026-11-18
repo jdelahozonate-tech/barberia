@@ -11,7 +11,7 @@ async function caja(){
   <label for="si">Efectivo inicial en caja</label><input id="si" type="number" min="0" value="0" inputmode="decimal"><button class="btn block" id="ab">Abrir caja</button>
   ${u?.length?'<label>Últimos cierres</label>'+u.map(c=>fila2(fm(c.fecha_cierre)+', contó '+dinero(c.efectivo_contado),(c.diferencia>=0?'+':'')+dinero(c.diferencia))).join(''):''}`;
   $('#gs').onclick=()=>gasto(null);
-  $('#ab').onclick=async()=>{const{error}=await sb.from('cajas').insert({negocio_id:S.perfil.negocio_id,usuario_apertura:S.perfil.id,saldo_inicial:Number($('#si').value)||0});if(error)return toast(error.message,true);caja()};
+  $('#ab').onclick=async()=>{const b=$('#ab');if(b.disabled)return;b.disabled=true;const{error}=await sb.from('cajas').insert({negocio_id:S.perfil.negocio_id,usuario_apertura:S.perfil.id,saldo_inicial:Number($('#si').value)||0});if(error){b.disabled=false;return toast(error.message,true)}caja()};
   return}
  const[rp,rg]=await Promise.all([sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,cuentas(nombre,detalle),ventas(estado_venta,clientes(nombre))').eq('estado_pago','REGISTRADO').gte('fecha_hora',cj.fecha_apertura),sb.from('gastos').select('*').eq('estado_gasto','REGISTRADO').gte('fecha_hora',cj.fecha_apertura).order('fecha_hora',{ascending:false})]);
  if(rp.error)return toast(rp.error.message,true);if(rg.error)return toast(rg.error.message,true);
@@ -39,9 +39,10 @@ function gasto(cj){
  <label for="g4">Método de pago</label><select id="g4" name="metodo_pago">${METODOS}</select><label for="g5">Proveedor</label><input id="g5" name="proveedor">
  <div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Guardar gasto</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
- $('#df').onsubmit=async e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));
+ let guardando=false;
+ $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
   const{error}=await sb.from('gastos').insert({...f,valor:Number(f.valor),proveedor:f.proveedor||null,negocio_id:S.perfil.negocio_id,usuario_registro:S.perfil.id,caja_id:cj?.id||null});
-  if(error)return toast(error.message,true);dlg.close();toast('Gasto guardado');caja()};
+  if(error){guardando=false;if(boton)boton.disabled=false;return toast(error.message,true)}dlg.close();toast('Gasto guardado');caja()};
 }
 async function comisiones(){
  const[rd,rl]=await Promise.all([sb.from('detalle_ventas').select('id,subtotal,comision_generada,ventas!inner(barbero_id,estado_venta,barberos(nombre))').eq('ventas.estado_venta','PAGADA').gt('comision_generada',0).limit(1000),sb.from('comisiones').select('detalle_id').limit(5000)]);
