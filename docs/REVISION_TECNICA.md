@@ -79,3 +79,13 @@ No se ejecutaron cambios SQL ni se alteraron tablas, RPC, RLS, triggers o reglas
 - Se añadieron pruebas de regresión para ambas validaciones.
 
 **Pendiente:** la atomicidad de cabecera, detalle y pagos de venta sigue dependiendo de backend. También sigue pendiente la atomicidad de liquidación de comisiones y su gasto asociado. No se hicieron cambios en Supabase ni SQL.
+
+
+## Validación de caja y gastos (18 nov 2026)
+
+- Apertura de caja: el saldo inicial debe ser finito y no negativo.
+- Cierre de caja: el efectivo contado debe ser finito y no negativo antes de actualizar el cierre.
+- Registro de gastos: el valor debe ser finito y estrictamente mayor que cero.
+- Se añadió una prueba de regresión que comprueba estas tres barreras.
+
+La liquidación de comisiones continúa siendo una operación de dos escrituras (comisión y gasto). No se reordenó para evitar crear gastos huérfanos si falla la liquidación; la solución correcta requiere una operación transaccional en backend, fuera del alcance autorizado para esta rama.
