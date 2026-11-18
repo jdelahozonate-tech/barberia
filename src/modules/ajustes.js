@@ -21,7 +21,7 @@ function ajustes(){
   const{data:sc,error:consultaError}=await sb.from('servicios').select('id').eq('negocio_id',S.perfil.negocio_id).eq('categoria','CITA').limit(1);
   if(consultaError)return toast('Los datos del negocio se guardaron, pero no se pudo consultar el servicio de reserva: '+consultaError.message,true);
   let errorServicio=null;
-  if(sc&&sc[0])({error:errorServicio}=await sb.from('servicios').update({precio:o.valor_cita,estado:o.valor_cita>0?'ACTIVO':'INACTIVO'}).eq('id',sc[0].id));
+  if(sc&&sc[0])({error:errorServicio}=await sb.from('servicios').update({precio:o.valor_cita,estado:o.valor_cita>0?'ACTIVO':'INACTIVO'}).eq('negocio_id',S.perfil.negocio_id).eq('id',sc[0].id));
   else if(o.valor_cita>0)({error:errorServicio}=await sb.from('servicios').insert({negocio_id:S.perfil.negocio_id,nombre:'Cita (reserva)',categoria:'CITA',precio:o.valor_cita,duracion_minutos:1}));
   if(errorServicio)return toast('Los datos del negocio se guardaron, pero no se pudo actualizar el servicio de reserva: '+errorServicio.message,true);
   toast('Ajustes guardados')};
