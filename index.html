@@ -87,7 +87,6 @@ dialog::backdrop{background:rgba(16,34,63,.55)}
 import { sb } from "./src/lib/supabase.js";
 import { esc, fecha, hora, bonito, slug, traducir, waNum } from "./src/shared/utils.js";
 const $=s=>document.querySelector(s),app=$('#app'),dlg=$('#dlg');
-const fecha=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const S={perfil:null,negocio:null,vista:'inicio',dia:fecha(new Date())};
 const dinero=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:S.negocio?.moneda||'COP',maximumFractionDigits:0}).format(n||0);
 let tt;function toast(m,err){const t=$('#toast');t.textContent=m;t.className='show'+(err?' err':'');clearTimeout(tt);tt=setTimeout(()=>t.className='',4000)}
