@@ -296,10 +296,10 @@ test('la interfaz reserva edición administrativa de catálogos, citas, ventas y
 
 test('los informes gerenciales paginan todas las fuentes y muestran gráficos gerenciales', () => {
   const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
-  assert.match(inicio, /async function todos\(q\)/);
-  assert.match(inicio, /q\.range\(desde,desde\+999\)/);
+  assert.match(inicio, /async function todos\(q,nombre\)/);
+  assert.match(inicio, /q\.abortSignal\(controller\.signal\)\.range\(desde,desde\+999\)/);
   assert.match(inicio, /if\(bloque\.length<1000\)break/);
-  assert.match(inicio, /\]\.map\(todos\)\)/);
+  assert.match(inicio, /fuentes\.map\(async\(\[nombre,q\]\)=>/);
   assert.match(inicio, /function grafica\(/);
   assert.match(inicio, /Ventas por día/);
   assert.match(inicio, /Gastos por día/);
@@ -313,4 +313,16 @@ test('el panel gerencial recibe el formateador de estados y métodos de pago', (
   assert.match(inicio, /const \{[^}]*\bbonito\b[^}]*\} = deps/);
   assert.match(inicio, /bonito\(x\.metodo_pago\)/);
   assert.match(inicio, /bonito\(x\.k\)/);
+});
+
+
+test('el informe gerencial informa el progreso, corta consultas colgadas y evita resultados obsoletos', () => {
+  const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
+  assert.match(inicio, /let informeEjecucion=0/);
+  assert.match(inicio, /const controller=new AbortController\(\)/);
+  assert.match(inicio, /setTimeout\(\(\)=>controller\.abort\(\),20000\)/);
+  assert.match(inicio, /superó los 20 segundos/);
+  assert.match(inicio, /fuentes\.map\(async\(\[nombre,q\]\)=>/);
+  assert.match(inicio, /Consultando:/);
+  assert.match(inicio, /if\(ejecucion!==informeEjecucion\|\|!\$\('#inf'\)\)return/);
 });
