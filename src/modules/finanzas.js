@@ -2,10 +2,10 @@
 export function crearModuloFinanzas(deps) {
  const { $, dlg, sb, S, esc, dinero, hora, bonito, toast, METODOS, fila2, fm } = deps;
 async function caja(){
- const main=$('#main'),{data:cj,error:errorCaja}=await sb.from('cajas').select('*').eq('estado_caja','ABIERTA').maybeSingle();
+ const main=$('#main'),{data:cj,error:errorCaja}=await sb.from('cajas').select('*').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
  if(errorCaja)return toast(errorCaja.message,true);
  if(!cj){
-  const{data:u,error:errorCierres}=await sb.from('cajas').select('*').eq('estado_caja','CERRADA').order('fecha_cierre',{ascending:false}).limit(5);
+  const{data:u,error:errorCierres}=await sb.from('cajas').select('*').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','CERRADA').order('fecha_cierre',{ascending:false}).limit(5);
   if(errorCierres)return toast(errorCierres.message,true);
   main.innerHTML=`<div class="head"><h2>Caja</h2><button class="btn sec" id="gs">Registrar gasto</button></div><p class="info">La caja está cerrada. Ábrela al empezar el día.</p>
   <label for="si">Efectivo inicial en caja</label><input id="si" type="number" min="0" value="0" inputmode="decimal"><button class="btn block" id="ab">Abrir caja</button>
@@ -13,7 +13,7 @@ async function caja(){
   $('#gs').onclick=()=>gasto(null);
   $('#ab').onclick=async()=>{const b=$('#ab');if(b.disabled)return;b.disabled=true;const{error}=await sb.from('cajas').insert({negocio_id:S.perfil.negocio_id,usuario_apertura:S.perfil.id,saldo_inicial:Number($('#si').value)||0});if(error){b.disabled=false;return toast(error.message,true)}caja()};
   return}
- const[rp,rg]=await Promise.all([sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,cuentas(nombre,detalle),ventas(estado_venta,clientes(nombre))').eq('estado_pago','REGISTRADO').gte('fecha_hora',cj.fecha_apertura),sb.from('gastos').select('*').eq('estado_gasto','REGISTRADO').gte('fecha_hora',cj.fecha_apertura).order('fecha_hora',{ascending:false})]);
+ const[rp,rg]=await Promise.all([sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,cuentas(nombre,detalle),ventas(estado_venta,clientes(nombre))').eq('negocio_id',S.perfil.negocio_id).eq('estado_pago','REGISTRADO').gte('fecha_hora',cj.fecha_apertura),sb.from('gastos').select('*').eq('negocio_id',S.perfil.negocio_id).eq('estado_gasto','REGISTRADO').gte('fecha_hora',cj.fecha_apertura).order('fecha_hora',{ascending:false})]);
  if(rp.error)return toast(rp.error.message,true);if(rg.error)return toast(rg.error.message,true);
  const pg=rp.data,gs=rg.data;
  const por={};(pg||[]).filter(p=>p.ventas?.estado_venta!=='ANULADA').forEach(p=>por[p.metodo_pago]=(por[p.metodo_pago]||0)+Number(p.valor_pago));
@@ -45,7 +45,7 @@ function gasto(cj){
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(error.message,true)}dlg.close();toast('Gasto guardado');caja()};
 }
 async function comisiones(){
- const[rd,rl]=await Promise.all([sb.from('detalle_ventas').select('id,subtotal,comision_generada,ventas!inner(barbero_id,estado_venta,barberos(nombre))').eq('ventas.estado_venta','PAGADA').gt('comision_generada',0).limit(1000),sb.from('comisiones').select('detalle_id').limit(5000)]);
+ const[rd,rl]=await Promise.all([sb.from('detalle_ventas').select('id,subtotal,comision_generada,ventas!inner(barbero_id,estado_venta,barberos(nombre))').eq('negocio_id',S.perfil.negocio_id).eq('ventas.estado_venta','PAGADA').gt('comision_generada',0).limit(1000),sb.from('comisiones').select('detalle_id').eq('negocio_id',S.perfil.negocio_id).limit(5000)]);
  if(rd.error)return toast(rd.error.message,true);if(rl.error)return toast(rl.error.message,true);
  const d=rd.data||[],l=rl.data||[];
  const hechos=new Set((l||[]).map(x=>x.detalle_id)),P={};
@@ -59,7 +59,7 @@ async function comisiones(){
   if(!confirm('¿Liquidar '+dinero(p.t)+' a '+p.n+'?'))return;
   b.disabled=true;
   const ef=confirm('¿Se pagó en efectivo desde la caja?\nAceptar = efectivo. Cancelar = transferencia.');
-  const{data:cj,error:errorCaja}=await sb.from('cajas').select('id').eq('estado_caja','ABIERTA').maybeSingle();
+  const{data:cj,error:errorCaja}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
   if(errorCaja){b.disabled=false;return toast('No fue posible verificar la caja: '+errorCaja.message,true)}
   const ahora=new Date().toISOString(),{error}=await sb.from('comisiones').insert(p.L.map(x=>({negocio_id:S.perfil.negocio_id,barbero_id:b.dataset.b,detalle_id:x.id,valor_base:x.subtotal,valor_comision:x.comision_generada,estado_liquidacion:'LIQUIDADA',fecha_pago:ahora})));
   if(error){b.disabled=false;return toast(error.message,true)}
@@ -73,7 +73,7 @@ async function comisiones(){
 async function misComisiones(){
  const b=S.perfil.barbero_id,main=$('#main');
  if(!b)return main.innerHTML='<div class="head"><h2>Mis comisiones</h2></div><p class="empty">Tu usuario no está ligado a un barbero. Pide a la administración que lo configure.</p>';
- const[rd,rl]=await Promise.all([sb.from('detalle_ventas').select('id,descripcion,cantidad,subtotal,comision_generada,ventas!inner(fecha_hora,barbero_id,estado_venta)').eq('ventas.barbero_id',b).eq('ventas.estado_venta','PAGADA').gt('comision_generada',0).limit(500),sb.from('comisiones').select('detalle_id').eq('barbero_id',b).limit(2000)]);
+ const[rd,rl]=await Promise.all([sb.from('detalle_ventas').select('id,descripcion,cantidad,subtotal,comision_generada,ventas!inner(fecha_hora,barbero_id,estado_venta)').eq('negocio_id',S.perfil.negocio_id).eq('ventas.barbero_id',b).eq('ventas.estado_venta','PAGADA').gt('comision_generada',0).limit(500),sb.from('comisiones').select('detalle_id').eq('negocio_id',S.perfil.negocio_id).eq('barbero_id',b).limit(2000)]);
  if(rd.error)return toast(rd.error.message,true);if(rl.error)return toast(rl.error.message,true);
  const d=rd.data||[],l=rl.data||[];
  const pagado=new Set((l||[]).map(x=>x.detalle_id)),L=(d||[]).sort((p,q)=>new Date(q.ventas.fecha_hora)-new Date(p.ventas.fecha_hora)),pend=L.filter(x=>!pagado.has(x.id)),hist=L.filter(x=>pagado.has(x.id)),sum=a=>a.reduce((t,x)=>t+Number(x.comision_generada),0);
