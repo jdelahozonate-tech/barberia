@@ -85,7 +85,7 @@ dialog::backdrop{background:rgba(16,34,63,.55)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script type="module">
 import { sb } from "./src/lib/supabase.js";
-import { esc, fecha, hora, bonito, slug, traducir, waNum } from "./src/shared/utils.js";
+import { esc, fecha, hora, bonito, traducir, waNum } from "./src/shared/utils.js";
 import { crearConfigCatalogos } from "./src/config/catalogos.js";
 import { crearModuloCatalogos } from "./src/modules/catalogos.js";
 import { crearModuloAgenda } from "./src/modules/agenda.js";
@@ -106,7 +106,7 @@ let tt;function toast(m,err){const t=$('#toast');t.textContent=m;t.className='sh
 /* ---------- Acceso ---------- */
 /* ---------- Estructura ---------- */
 const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Productos'],['caja','Caja',1],['comisiones','Comisiones',1],['ajustes','Ajustes',2],['miscom','Mis comisiones',3]];
-const { pantallaAuth, onboarding, cargar, bloqueada, aviso } = crearModuloAcceso({ $, app, sb, S, esc, traducir, toast, waNum, shell });
+const { pantallaAuth, cargar, aviso } = crearModuloAcceso({ $, app, sb, S, esc, traducir, toast, waNum, shell });
 function shell(){
  app.innerHTML=`<div class="pole"></div><div class="bar">${S.negocio.logo_url?`<img src="${esc(S.negocio.logo_url)}" alt="${esc(S.negocio.nombre)}" style="height:44px;display:block">`:`<strong>${esc(S.negocio.nombre)}</strong>`}<span><small>${esc(S.perfil.nombre)}, ${S.perfil.rol.toLowerCase()}</small> <button class="link light" id="out">Salir</button></span></div>
  <nav class="nav">${MENU.filter(m=>!m[2]||(m[2]===3?S.perfil.rol==='BARBERO':m[2]===2?S.perfil.rol==='ADMINISTRADOR':ADM.includes(S.perfil.rol))).map(([k,l])=>`<button data-v="${k}">${l}</button>`).join('')}</nav><div class="wrap">${aviso()}<main id="main"></main></div>`;
@@ -119,13 +119,13 @@ function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.tog
 /* ---------- Clientes, barberos y servicios ---------- */
 const ADM=['ADMINISTRADOR','SUPERVISOR'];
 const soloMio=()=>S.perfil.rol==='BARBERO'&&!!S.perfil.barbero_id,mio=q=>soloMio()?q.eq('barbero_id',S.perfil.barbero_id):q;
-const { horarios, equipo, invitar } = crearModuloEquipo({ $, dlg, sb, S, esc, bonito, toast });
+const { horarios, equipo } = crearModuloEquipo({ $, dlg, sb, S, esc, bonito, toast });
 const { ajustes } = crearModuloAjustes({ $, sb, S, esc, toast, equipo, ir });
 const CFG=crearConfigCatalogos(ADM,dinero);
-const { crud, formulario } = crearModuloCatalogos({ $, app, dlg, sb, S, CFG, esc, bonito, traducir, toast, horarios });
-const { ventas, nuevaVenta, detalleVenta } = crearModuloVentas({ $, dlg, sb, S, esc, dinero, hora, bonito, traducir, toast, ADM, METODOS });
-const { caja, gasto, comisiones, misComisiones, detallePagos } = crearModuloFinanzas({ $, dlg, sb, S, esc, dinero, hora, bonito, toast, METODOS, fila2, fm });
-const { agenda, nuevaCita, editarCita, cobrarCita, porConfirmar } = crearModuloAgenda({ $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, nuevaVenta, mio, ir });
+const { crud } = crearModuloCatalogos({ $, app, dlg, sb, S, CFG, esc, bonito, traducir, toast, horarios });
+const { ventas, nuevaVenta } = crearModuloVentas({ $, dlg, sb, S, esc, dinero, hora, bonito, traducir, toast, ADM, METODOS });
+const { caja, comisiones, misComisiones } = crearModuloFinanzas({ $, dlg, sb, S, esc, dinero, hora, bonito, toast, METODOS, fila2, fm });
+const { agenda, porConfirmar } = crearModuloAgenda({ $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, nuevaVenta, mio, ir });
 const { inicio } = crearModuloInicio({ $, sb, S, esc, dinero, hora, fecha, toast, ADM, mio, fila2, porConfirmar });
 /* ---------- Agenda ---------- */
 
