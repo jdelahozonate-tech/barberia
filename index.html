@@ -85,15 +85,11 @@ dialog::backdrop{background:rgba(16,34,63,.55)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script type="module">
 import { sb } from "./src/lib/supabase.js";
+import { esc, fecha, hora, bonito, slug, traducir, waNum } from "./src/shared/utils.js";
 const $=s=>document.querySelector(s),app=$('#app'),dlg=$('#dlg');
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fecha=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-const hora=d=>new Date(d).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
-const bonito=s=>{s=s.replace(/_/g,' ').toLowerCase();return s[0].toUpperCase()+s.slice(1)};
 const S={perfil:null,negocio:null,vista:'inicio',dia:fecha(new Date())};
 const dinero=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:S.negocio?.moneda||'COP',maximumFractionDigits:0}).format(n||0);
-const slug=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
-const traducir=m=>m.includes('Invalid login')?'Correo o contraseña incorrectos.':m.includes('not confirmed')?'Confirma tu correo antes de entrar.':m.includes('already registered')?'Ese correo ya tiene cuenta. Entra con tu contraseña.':m.includes('sin_cruce_cliente')?'Ese cliente ya tiene una cita a esa hora.':m.includes('exclusion')?'Ese barbero ya tiene una cita en ese horario.':m.includes('duplicate key')?'Ese enlace ya está en uso, prueba otro.':m;
 let tt;function toast(m,err){const t=$('#toast');t.textContent=m;t.className='show'+(err?' err':'');clearTimeout(tt);tt=setTimeout(()=>t.className='',4000)}
 
 /* ---------- Acceso ---------- */
@@ -134,7 +130,6 @@ async function cargar(){
 }
 
 /* ---------- Plan y suscripción ---------- */
-const waNum=t=>{t=String(t||'').replace(/\D/g,'');return t.length===10?'57'+t:t};
 function bloqueada(su){
  const venc=su&&su.dias<0,wa=waNum(su?.contacto);
  app.innerHTML=`<div class="pole"></div><div class="auth"><h1>${venc?'Tu plan venció':'Acceso no disponible'}</h1>
