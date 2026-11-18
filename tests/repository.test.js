@@ -250,3 +250,11 @@ test('entrada de inventario rechaza cantidades no finitas y no positivas', () =>
   const catalogos = readFileSync(resolve(root, 'src/modules/catalogos.js'), 'utf8');
   assert.match(catalogos, /!Number\.isFinite\(n\)\|\|n<=0/);
 });
+
+
+test('caja y gastos rechazan importes no finitos o negativos', () => {
+  const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
+  assert.match(finanzas, /Number\.isFinite\(inicial\)\|\|inicial<0/);
+  assert.match(finanzas, /Number\.isFinite\(n\)\|\|n<0/);
+  assert.match(finanzas, /Number\.isFinite\(valor\)\|\|valor<=0/);
+});
