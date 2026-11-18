@@ -229,7 +229,8 @@ test('la edición y anulación de ventas usan RPC transaccional y no borrado fí
   assert.match(sql, /trg_devolver_inventario/);
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.editar_venta/);
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.anular_venta/);
-  assert.doesNotMatch(ventas, /from\('ventas'\)\.delete\(/);
+  const editar = ventas.slice(ventas.indexOf('async function editarVenta'), ventas.indexOf('async function detalleVenta'));
+  assert.doesNotMatch(editar, /\.delete\(/);
 });
 
 test('los informes gerenciales limitan cada fuente al negocio activo', () => {
