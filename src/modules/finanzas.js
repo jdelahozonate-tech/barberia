@@ -52,13 +52,20 @@ async function comisiones(){
  const B=Object.entries(P);
  $('#main').innerHTML=`<div class="head"><h2>Comisiones</h2></div><p class="mute">Comisiones por pagar de ventas ya cobradas por completo.</p>
  ${B.length?B.map(([id,p])=>`<div class="row"><span><strong>${esc(p.n)}</strong><br><small>${p.L.length} servicio${p.L.length>1?'s':''}</small></span><span><strong>${dinero(p.t)}</strong><br><button class="btn" data-b="${id}">Liquidar</button></span></div>`).join(''):'<p class="empty">No hay comisiones pendientes.</p>'}`;
- document.querySelectorAll('[data-b]').forEach(b=>b.onclick=async()=>{const p=P[b.dataset.b];if(!confirm('¿Liquidar '+dinero(p.t)+' a '+p.n+'?'))return;
+ document.querySelectorAll('[data-b]').forEach(b=>b.onclick=async()=>{
+  if(b.disabled)return;
+  const p=P[b.dataset.b];
+  if(!confirm('¿Liquidar '+dinero(p.t)+' a '+p.n+'?'))return;
+  b.disabled=true;
   const ef=confirm('¿Se pagó en efectivo desde la caja?\nAceptar = efectivo. Cancelar = transferencia.');
+  const{data:cj,error:errorCaja}=await sb.from('cajas').select('id').eq('estado_caja','ABIERTA').maybeSingle();
+  if(errorCaja){b.disabled=false;return toast('No fue posible verificar la caja: '+errorCaja.message,true)}
   const ahora=new Date().toISOString(),{error}=await sb.from('comisiones').insert(p.L.map(x=>({negocio_id:S.perfil.negocio_id,barbero_id:b.dataset.b,detalle_id:x.id,valor_base:x.subtotal,valor_comision:x.comision_generada,estado_liquidacion:'LIQUIDADA',fecha_pago:ahora})));
-  if(error)return toast(error.message,true);
-  const{data:cj}=await sb.from('cajas').select('id').eq('estado_caja','ABIERTA').maybeSingle();
+  if(error){b.disabled=false;return toast(error.message,true)}
   const r=await sb.from('gastos').insert({negocio_id:S.perfil.negocio_id,categoria_gasto:'COMISIONES',descripcion:'Liquidación de comisión a '+p.n,valor:p.t,metodo_pago:ef?'EFECTIVO':'TRANSFERENCIA',usuario_registro:S.perfil.id,caja_id:cj?.id||null});
-  toast(r.error?'Se liquidó, pero no se registró en caja: '+r.error.message:'Comisión liquidada y registrada en caja',!!r.error);comisiones()});
+  toast(r.error?'Se liquidó, pero no se registró en caja: '+r.error.message:'Comisión liquidada y registrada en caja',!!r.error);
+  comisiones()
+ });
 }
 
 
