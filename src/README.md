@@ -21,3 +21,11 @@ Este directorio contiene módulos JavaScript ES importados por las páginas HTML
 ## Regla de extracción
 
 Un módulo nuevo debe tener una responsabilidad concreta, exportaciones claras y dependencias explícitas. Evitar crear archivos vacíos o mover funciones sin definir quién las usa. Las páginas siguen siendo las entradas públicas mientras no se migre el hosting.
+
+## Entradas de páginas separadas
+
+- `pages/admin.js`: lógica del panel de administración de plataforma.
+- `pages/reservar.js`: lógica de reservas públicas.
+- `pages/cita.js`: consulta y gestión pública de citas.
+
+Las páginas HTML de la raíz conservan sus URLs públicas y cargan estos módulos externos.
