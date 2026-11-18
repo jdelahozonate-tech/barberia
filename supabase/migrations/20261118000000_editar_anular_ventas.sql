@@ -223,7 +223,7 @@ BEGIN
     CASE WHEN x.tipo_item = 'PRODUCTO' THEN COALESCE(p.costo_unitario, 0) ELSE 0 END,
     CASE WHEN x.tipo_item = 'SERVICIO' AND p_barbero_id IS NOT NULL
                    AND COALESCE(v_modelo_pago, '') <> 'ALQUILER'
-         THEN x.cantidad * x.precio_unitario * v_porcentaje / 100
+         THEN x.cantidad * s.precio * v_porcentaje / 100
          ELSE 0 END
   FROM jsonb_to_recordset(p_detalles) AS x(
     tipo_item text,
