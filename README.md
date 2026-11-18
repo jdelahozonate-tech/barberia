@@ -43,8 +43,10 @@ Los HTML de entrada y los archivos PWA permanecen en la raíz intencionalmente: 
 │   │   └── catalogos.js       # CRUD y formularios de catálogos
 │   └── shared/
 │       └── utils.js           # Utilidades puras compartidas
-└── docs/
-    └── ARQUITECTURA.md        # Mapa funcional y plan de migración
+├── docs/
+│   ├── ARQUITECTURA.md        # Mapa funcional y plan de migración
+│   └── ESTRUCTURA_REPOSITORIO.md # Organización y convenciones
+└── src/README.md              # Guía de módulos fuente
 ```
 
 La estructura se ampliará a medida que se extraigan módulos reales; no se crean carpetas vacías como sustituto de código modular.
