@@ -258,3 +258,16 @@ test('caja y gastos rechazan importes no finitos o negativos', () => {
   assert.match(finanzas, /Number\.isFinite\(n\)\|\|n<0/);
   assert.match(finanzas, /Number\.isFinite\(valor\)\|\|valor<=0/);
 });
+
+
+test('las reservas públicas toleran catálogos incompletos y filtran horarios inválidos', () => {
+  const reservar = readFileSync(resolve(root, 'src/pages/reservar.js'), 'utf8');
+  const cita = readFileSync(resolve(root, 'src/pages/cita.js'), 'utf8');
+  assert.match(reservar, /C\.servicios=Array\.isArray\(C\.servicios\)\?C\.servicios:\[\]/);
+  assert.match(reservar, /C\.barberos=Array\.isArray\(C\.barberos\)\?C\.barberos:\[\]/);
+  assert.match(reservar, /filter\(x=>x&&typeof x\.inicio==='string'&&Number\.isFinite\(Date\.parse\(x\.inicio\)\)\)/);
+  assert.match(reservar, /data-t="\$\{esc\(x\.inicio\)\}"/);
+  assert.match(cita, /!data\|\|typeof data!=='object'\|\|!data\.inicio\|\|!data\.estado/);
+  assert.match(cita, /tk\.length>512/);
+  assert.match(cita, /data-t="\$\{esc\(x\.inicio\)\}"/);
+});
