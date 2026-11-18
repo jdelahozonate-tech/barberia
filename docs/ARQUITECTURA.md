@@ -127,3 +127,5 @@ Estas extracciones no modifican el esquema ni las RPC de Supabase. La validació
 - `src/modules/ventas.js`: registro de ventas y pagos.
 
 La pantalla `index.html` conserva el montaje de la aplicación, navegación y estado compartido; los flujos de dominio anteriores ya se delegan en módulos ES.
+
+- `src/pages/admin.js`, `src/pages/reservar.js` y `src/pages/cita.js`: lógica de cada pantalla pública separada de su HTML, conservando los nombres y rutas de entrada en la raíz.
