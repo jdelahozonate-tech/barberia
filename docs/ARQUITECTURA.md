@@ -105,3 +105,5 @@ Estas extracciones no modifican el esquema ni las RPC de Supabase. La validació
 - `src/README.md`: guía de carpetas, responsabilidades y criterios para nuevas extracciones.
 - `docs/ESTRUCTURA_REPOSITORIO.md`: explica por qué las entradas HTML y los archivos PWA permanecen en la raíz.
 - `.gitignore`: excluye dependencias, artefactos locales, archivos de entorno y logs.
+
+- `src/modules/agenda.js`: agenda diaria, creación y edición de citas, confirmación, cobro asociado y citas pendientes de confirmar; recibe dependencias explícitas desde `index.html`.
