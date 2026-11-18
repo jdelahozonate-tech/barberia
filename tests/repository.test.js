@@ -403,7 +403,7 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(productos, /Ajuste de inventario/);
   assert.match(sql, /caja_id/);
   assert.equal((sql.match(/La caja indicada no existe/g) || []).length, 2);
-  assert.match(sql, /existencias\) \* COALESCE\(p\.costo_unitario,0\) > r\.costo_total/);
+  assert.match(sql, /COALESCE\(st\.existencias,0\) \* COALESCE\(p\.costo_unitario,0\) > r\.costo_total/);
   assert.match(finanzas, /pagos_compras_inventario/);
   assert.match(finanzas, /Compras pagadas en efectivo/);
   assert.match(productos, /eq\('negocio_id',nid\(\)\)/);
