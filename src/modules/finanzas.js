@@ -1,6 +1,6 @@
 // Módulo de caja, gastos y liquidación de comisiones.
 export function crearModuloFinanzas(deps) {
- const { $, dlg, sb, S, esc, dinero, hora, bonito, toast, METODOS, fila2, fm, detallePagos } = deps;
+ const { $, dlg, sb, S, esc, dinero, hora, bonito, toast, METODOS, fila2, fm } = deps;
 async function caja(){
  const main=$('#main'),{data:cj}=await sb.from('cajas').select('*').eq('estado_caja','ABIERTA').maybeSingle();
  if(!cj){
@@ -57,5 +57,25 @@ async function comisiones(){
 }
 
 
- return { caja, gasto, comisiones };
+async function misComisiones(){
+ const b=S.perfil.barbero_id,main=$('#main');
+ if(!b)return main.innerHTML='<div class="head"><h2>Mis comisiones</h2></div><p class="empty">Tu usuario no está ligado a un barbero. Pide a la administración que lo configure.</p>';
+ const[{data:d},{data:l}]=await Promise.all([sb.from('detalle_ventas').select('id,descripcion,cantidad,subtotal,comision_generada,ventas!inner(fecha_hora,barbero_id,estado_venta)').eq('ventas.barbero_id',b).eq('ventas.estado_venta','PAGADA').gt('comision_generada',0).limit(500),sb.from('comisiones').select('detalle_id').eq('barbero_id',b).limit(2000)]);
+ const pagado=new Set((l||[]).map(x=>x.detalle_id)),L=(d||[]).sort((p,q)=>new Date(q.ventas.fecha_hora)-new Date(p.ventas.fecha_hora)),pend=L.filter(x=>!pagado.has(x.id)),hist=L.filter(x=>pagado.has(x.id)),sum=a=>a.reduce((t,x)=>t+Number(x.comision_generada),0);
+ const fl=x=>fila2(esc(x.descripcion)+'<br><small>'+new Date(x.ventas.fecha_hora).toLocaleDateString('es-CO',{day:'numeric',month:'short'})+'</small>',dinero(x.comision_generada));
+ main.innerHTML=`<div class="head"><h2>Mis comisiones</h2></div><div class="kp"><div><small>Por cobrar</small><strong>${dinero(sum(pend))}</strong></div><div><small>Ya liquidado</small><strong>${dinero(sum(hist))}</strong></div></div>
+ ${pend.length?'<label>Pendientes</label>'+pend.slice(0,30).map(fl).join(''):'<p class="empty">No tienes comisiones pendientes.</p>'}${hist.length?'<label>Últimas liquidadas</label>'+hist.slice(0,15).map(fl).join(''):''}`;
+}
+
+
+function detallePagos(m,L){
+ const por={};L.forEach(p=>{const n=p.cuentas?p.cuentas.nombre+(p.cuentas.detalle?' ('+p.cuentas.detalle+')':''):'Sin cuenta registrada';por[n]=(por[n]||0)+Number(p.valor_pago)});
+ dlg.innerHTML=`<h2>Cobrado en ${bonito(m).toLowerCase()}</h2><p class="tot">${dinero(L.reduce((t,p)=>t+Number(p.valor_pago),0))}</p>
+ ${m==='EFECTIVO'?'':'<label>Por cuenta</label>'+Object.entries(por).map(([n,v])=>fila2(esc(n),dinero(v))).join('')}
+ <label>Movimientos</label>${L.map(p=>fila2(hora(p.fecha_hora)+', '+esc(p.ventas?.clientes?.nombre||'Cliente de paso')+(p.cuentas&&m!=='EFECTIVO'?'<br><small>'+esc(p.cuentas.nombre)+'</small>':''),dinero(p.valor_pago))).join('')}
+ <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div>`;
+ dlg.showModal();$('#cx').onclick=()=>dlg.close();
+}
+
+ return { caja, gasto, comisiones, misComisiones, detallePagos };
 }
