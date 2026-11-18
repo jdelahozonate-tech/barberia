@@ -13,7 +13,7 @@ export function crearModuloAgenda(deps) {
 
 async function agenda(){
  const main=$('#main'),d0=new Date(S.dia+'T00:00:00'),d1=new Date(d0);d1.setDate(d1.getDate()+1);
- const{data,error}=await mio(sb.from('citas').select('*,clientes(nombre,telefono),barberos(nombre),servicios(nombre)').gte('inicio',d0.toISOString()).lt('inicio',d1.toISOString())).order('inicio');
+ const{data,error}=await mio(sb.from('citas').select('*,clientes(nombre,telefono),barberos(nombre),servicios(nombre)').eq('negocio_id',S.perfil.negocio_id).gte('inicio',d0.toISOString()).lt('inicio',d1.toISOString())).order('inicio');
  if(error)return toast(error.message,true);
  main.innerHTML=`<div class="head"><h2>Agenda</h2><button class="btn" id="nv">Nueva cita</button></div>
  <div class="dia"><button class="btn sec" id="pv" aria-label="Día anterior">‹</button><input type="date" id="dd" value="${S.dia}" aria-label="Fecha"><button class="btn sec" id="nx" aria-label="Día siguiente">›</button></div>
@@ -26,7 +26,7 @@ async function agenda(){
  document.querySelectorAll('.row').forEach(b=>b.onclick=()=>editarCita(data.find(c=>c.id===b.dataset.id)));
 }
 async function nuevaCita(){
- const rs=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre'],['servicios','id,nombre,duracion_minutos']].map(([t,s])=>sb.from(t).select(s).eq('estado','ACTIVO').order('nombre')));
+ const rs=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre'],['servicios','id,nombre,duracion_minutos']].map(([t,s])=>sb.from(t).select(s).eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').order('nombre')));
  const fallo=rs.find(r=>r.error);if(fallo)return toast(traducir(fallo.error.message),true);
  const[cl,ba,se]=rs.map(r=>r.data||[]);
  if(!cl.length||!ba.length||!se.length)return toast('Antes de agendar crea al menos un cliente, un barbero y un servicio.',true);
@@ -56,15 +56,15 @@ function editarCita(c){
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  let guardando=false;
  $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
-  const{error}=await sb.from('citas').update({estado:f.estado,observaciones:f.observaciones||null}).eq('id',c.id);
+  const{error}=await sb.from('citas').update({estado:f.estado,observaciones:f.observaciones||null}).eq('negocio_id',S.perfil.negocio_id).eq('id',c.id);
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}dlg.close();toast('Cita actualizada');ir();
   if(f.estado==='ATENDIDA'&&c.estado!=='ATENDIDA')cobrarCita(c)};
- const cf=$('#cf');if(cf)cf.onclick=async()=>{if(guardando)return;guardando=true;cf.style.pointerEvents='none';const{error}=await sb.from('citas').update({estado:'CONFIRMADA'}).eq('id',c.id);if(error){guardando=false;cf.style.pointerEvents='';return toast(traducir(error.message),true)}dlg.close();toast('Cita confirmada');ir()};
+ const cf=$('#cf');if(cf)cf.onclick=async()=>{if(guardando)return;guardando=true;cf.style.pointerEvents='none';const{error}=await sb.from('citas').update({estado:'CONFIRMADA'}).eq('negocio_id',S.perfil.negocio_id).eq('id',c.id);if(error){guardando=false;cf.style.pointerEvents='';return toast(traducir(error.message),true)}dlg.close();toast('Cita confirmada');ir()};
 }
 
 /* ---------- Cobro de la cita y citas por confirmar ---------- */
 async function cobrarCita(c){
- const{data:ya,error:errorVenta}=await sb.from('ventas').select('id').eq('cita_id',c.id).limit(1);
+ const{data:ya,error:errorVenta}=await sb.from('ventas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('cita_id',c.id).limit(1);
  if(errorVenta)return toast(traducir(errorVenta.message),true);
  if(ya&&ya.length)return;
  let fee=null;
@@ -72,7 +72,7 @@ async function cobrarCita(c){
  nuevaVenta({cliente_id:c.cliente_id,barbero_id:c.barbero_id,servicio_id:c.servicio_id,cita_id:c.id,fee});
 }
 async function porConfirmar(){
- const{data,error}=await mio(sb.from('citas').select('*,clientes(nombre,telefono),barberos(nombre),servicios(nombre)').eq('estado','PENDIENTE').gte('inicio',new Date().toISOString())).order('inicio').limit(10);
+ const{data,error}=await mio(sb.from('citas').select('*,clientes(nombre,telefono),barberos(nombre),servicios(nombre)').eq('negocio_id',S.perfil.negocio_id).eq('estado','PENDIENTE').gte('inicio',new Date().toISOString())).order('inicio').limit(10);
  if(error)return toast(traducir(error.message),true);
  if(!data||!data.length||!$('#pc'))return;
  $('#pc').innerHTML=`<label>Citas por confirmar (${data.length})</label>`+data.map(c=>`<button class="row" data-c="${c.id}"><span><strong>${new Date(c.inicio).toLocaleDateString('es-CO',{weekday:'short',day:'numeric',month:'short'})}, ${hora(c.inicio)}</strong><br>${esc(c.clientes?.nombre)}<br><small>${esc(c.servicios?.nombre)} con ${esc(c.barberos?.nombre)}</small></span><span class="chip">Pendiente</span></button>`).join('');
