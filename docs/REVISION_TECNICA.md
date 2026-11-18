@@ -53,3 +53,13 @@ Ejecutar con un negocio y registros de prueba, no con datos reales:
 ## Alcance
 
 No se ejecutaron cambios SQL ni se alteraron tablas, RPC, RLS, triggers o reglas de negocio. No se integró la rama en `main`. La validación automatizada de CI no sustituye las pruebas manuales anteriores.
+
+## Revisión de equipo, agenda y cierre de caja (18 nov 2026)
+
+- Equipo: perfiles, barberos activos y horarios se consultan dentro del negocio activo; las escrituras de estado de perfil y borrado de horarios también quedan acotadas por negocio.
+- Horarios e invitaciones: se bloquean envíos duplicados mientras una operación está en curso; ante error se permite reintentar.
+- Agenda: las citas del día, citas por confirmar, catálogos de nueva cita, cambios de estado y comprobación de venta asociada quedan limitados al negocio activo.
+- Caja: el formulario de cierre impide envíos simultáneos y permite reintentar si falla la actualización.
+- Se añadieron pruebas de regresión estática para alcance por negocio y protección de doble envío.
+
+**Límite pendiente:** el guardado de horarios sigue ejecutando borrado e inserción en dos operaciones. Se evita el doble envío y se limita el borrado al negocio, pero un fallo de inserción aún puede dejar el horario sin filas. La solución completa exige una RPC/transacción backend; no se altera Supabase desde esta revisión.
