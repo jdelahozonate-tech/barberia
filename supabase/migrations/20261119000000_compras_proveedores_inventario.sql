@@ -432,7 +432,7 @@ CREATE OR REPLACE FUNCTION public.ajustar_inventario_producto(
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
-AS $
+AS $$
 DECLARE
  v_negocio uuid := public.mi_negocio();
  v_usuario uuid := auth.uid();
