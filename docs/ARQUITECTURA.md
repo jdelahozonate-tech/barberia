@@ -102,7 +102,8 @@ Cada módulo debe exponer operaciones e inicialización claras. Evitar dependenc
 - `src/modules/acceso.js`: autenticación, onboarding, carga de perfil, negocio y suscripción.
 - `src/modules/agenda.js`: agenda diaria, citas, confirmación, cobro asociado y recordatorios.
 - `src/modules/ajustes.js`: datos del negocio, enlace público y opciones operativas.
-- `src/modules/catalogos.js`: operaciones CRUD y formularios de catálogos.
+- `src/modules/catalogos.js`: operaciones CRUD y formularios de catálogos generales.
+- `src/modules/productos.js`: catálogo de productos, existencias, proveedores, compras, cuentas por pagar, ajustes e historial de inventario.
 - `src/modules/equipo.js`: perfiles, invitaciones y horarios de barberos.
 - `src/modules/finanzas.js`: caja, gastos, liquidaciones y vista individual de comisiones.
 - `src/modules/inicio.js`: resumen diario e informe gerencial.
@@ -114,3 +115,12 @@ Cada módulo debe exponer operaciones e inicialización claras. Evitar dependenc
 Las cuatro páginas conservan sus nombres y rutas de entrada. La aplicación privada mantiene en `index.html` el montaje, navegación y estado de pantalla; las operaciones de dominio se delegan en módulos. La reorganización no cambia tablas, RPC ni datos de Supabase.
 
 La suite automática se ejecuta con `npm test` y está configurada en GitHub Actions. La última ejecución consultada completó correctamente. Esto valida sintaxis, rutas e utilidades, pero no sustituye la prueba manual en navegador real descrita en `docs/PRUEBAS.md`.
+
+
+## Gestión de productos y compras (noviembre 2026)
+
+El módulo de productos incorpora una interfaz especializada y mantiene el catálogo de productos existente. La migración `supabase/migrations/20261119000000_compras_proveedores_inventario.sql` agrega proveedores, compras, detalles y pagos a proveedores, además de las RPC transaccionales para registrar compras, abonos, anulaciones y ajustes de inventario.
+
+Las compras generan movimientos `ENTRADA` vinculados a su compra; las anulaciones permitidas generan movimientos `SALIDA` compensatorios. Las salidas de ajuste no pueden superar existencias disponibles. El costo de referencia de productos inventariables se actualiza por promedio ponderado. Los pagos en efectivo se relacionan con la caja abierta para conciliación; las compras no se contabilizan como gasto operativo para evitar duplicar el costo al vender.
+
+La migración debe aplicarse en Supabase antes de desplegar la nueva interfaz. La validación automatizada no sustituye las pruebas de inventario, pagos, caja, RLS y aislamiento entre negocios en un entorno de prueba.
