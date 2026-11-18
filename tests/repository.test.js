@@ -194,3 +194,16 @@ test('ventas y catálogos filtran lecturas y escrituras por negocio activo', () 
   assert.match(catalogos, /from\(k\)\.select\('\*'\)\.eq\('negocio_id',S\.perfil\.negocio_id\)/);
   assert.match(catalogos, /from\('stock_actual'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
 });
+
+\ntest('equipo, agenda y cierres limitan operaciones al negocio y bloquean escrituras repetidas', () => {
+  const equipo = readFileSync(resolve(root, 'src/modules/equipo.js'), 'utf8');
+  const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
+  const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
+  assert.match(equipo, /from\('perfiles'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
+  assert.match(equipo, /from\('horarios_barbero'\)\.delete\(\)\.eq\('negocio_id',S\.perfil\.negocio_id\)/);
+  assert.match(equipo, /let guardando=false/);
+  assert.match(equipo, /let creando=false/);
+  assert.match(agenda, /from\('citas'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
+  assert.match(agenda, /update\(\{estado:f\.estado[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
+  assert.match(finanzas, /let cerrando=false/);
+});
