@@ -17,12 +17,14 @@ async function informe(){
  $('#rg').onchange=x=>{S.rg=x.target.value;informe()};
  porConfirmar();
  if(rg==='custom')['ra','rb'].forEach(i=>$('#'+i).onchange=x=>{S[i]=x.target.value;informe()});
- const[V,D,P,G,C]=(await Promise.all([
+ const respuestas=await Promise.all([
   sb.from('ventas').select('descuento').neq('estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
   sb.from('detalle_ventas').select('tipo_item,descripcion,cantidad,subtotal,costo_unitario,comision_generada,ventas!inner(estado_venta,fecha_hora,barberos(nombre))').neq('ventas.estado_venta','ANULADA').gte('ventas.fecha_hora',A).lt('ventas.fecha_hora',B).limit(5000),
   sb.from('pagos').select('valor_pago,metodo_pago,cuentas(nombre),ventas!inner(estado_venta)').eq('estado_pago','REGISTRADO').neq('ventas.estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
   sb.from('gastos').select('categoria_gasto,valor').eq('estado_gasto','REGISTRADO').gte('fecha_hora',A).lt('fecha_hora',B).limit(5000),
-  sb.from('citas').select('estado').gte('inicio',A).lt('inicio',B).limit(5000)])).map(r=>r.data||[]);
+  sb.from('citas').select('estado').gte('inicio',A).lt('inicio',B).limit(5000)]);
+ const fallo=respuestas.find(r=>r.error);if(fallo){$('#inf').innerHTML='<p class="empty">No fue posible cargar el informe: '+esc(fallo.error.message)+'</p>';return}
+ const[V,D,P,G,C]=respuestas.map(r=>r.data||[]);
  const sum=(a,f)=>a.reduce((t,x)=>t+Number(f(x)||0),0),cl=x=>Number(x.costo_unitario)*Number(x.cantidad)+Number(x.comision_generada);
  const bruto=sum(D,x=>x.subtotal),desc=sum(V,x=>x.descuento),neto=bruto-desc,costo=sum(D,x=>Number(x.costo_unitario)*Number(x.cantidad)),com=sum(D,x=>x.comision_generada);
  const gast=sum(G.filter(x=>!['COMISIONES','PRODUCTOS'].includes(x.categoria_gasto)),x=>x.valor),util=neto-costo-com-gast;
@@ -43,10 +45,12 @@ async function informe(){
 /* ---------- Resumen y ajustes ---------- */
 async function inicioSimple(){
  const h0=new Date();h0.setHours(0,0,0,0);const h1=new Date(h0);h1.setDate(h1.getDate()+1);
- const[{data:v},{data:c},{data:s}]=await Promise.all([
+ const respuestas=await Promise.all([
   mio(sb.from('ventas').select('total_venta').neq('estado_venta','ANULADA').gte('fecha_hora',h0.toISOString()).lt('fecha_hora',h1.toISOString())),
   mio(sb.from('citas').select('inicio,estado,clientes(nombre),barberos(nombre)').in('estado',['PENDIENTE','CONFIRMADA']).gte('inicio',h0.toISOString()).lt('inicio',h1.toISOString())).order('inicio'),
   ADM.includes(S.perfil.rol)?sb.from('stock_actual').select('nombre,existencias,stock_minimo'):Promise.resolve({data:[]})]);
+ const fallo=respuestas.find(r=>r.error);if(fallo)return toast('No fue posible cargar el resumen: '+fallo.error.message,true);
+ const[{data:v},{data:c},{data:s}]=respuestas;
  const tot=(v||[]).reduce((a,x)=>a+Number(x.total_venta),0),bajo=(s||[]).filter(x=>Number(x.existencias)<=Number(x.stock_minimo)),prox=(c||[]).filter(x=>new Date(x.inicio)>=new Date());
  $('#main').innerHTML=`<div class="head"><h2>Hoy</h2></div>
  <div class="kp"><div><small>Vendido hoy</small><strong>${dinero(tot)}</strong></div><div><small>Ventas</small><strong>${(v||[]).length}</strong></div><div><small>Citas pendientes</small><strong>${(c||[]).length}</strong></div></div>
