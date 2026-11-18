@@ -44,6 +44,8 @@ Los HTML de entrada y los archivos PWA permanecen en la raíz intencionalmente: 
 │   │   ├── equipo.js          # Equipo, invitaciones y horarios
 │   │   ├── ventas.js          # Ventas y pagos
 │   │   ├── finanzas.js        # Caja, gastos y comisiones
+│   │   ├── inicio.js          # Inicio e informe gerencial
+│   │   └── ajustes.js         # Configuración del negocio
 │   │   └── catalogos.js       # CRUD y formularios de catálogos
 │   └── shared/
 │       └── utils.js           # Utilidades puras compartidas
