@@ -13,17 +13,17 @@ async function caja(){
   $('#gs').onclick=()=>gasto(null);
   $('#ab').onclick=async()=>{const b=$('#ab');if(b.disabled)return;const inicial=Number($('#si').value);if(!Number.isFinite(inicial)||inicial<0)return toast('El saldo inicial debe ser un valor válido y no negativo.',true);b.disabled=true;const{error}=await sb.from('cajas').insert({negocio_id:S.perfil.negocio_id,usuario_apertura:S.perfil.id,saldo_inicial:inicial});if(error){b.disabled=false;return toast(error.message,true)}caja()};
   return}
- const[rp,rg]=await Promise.all([sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,cuentas(nombre,detalle),ventas(estado_venta,clientes(nombre))').eq('negocio_id',S.perfil.negocio_id).eq('estado_pago','REGISTRADO').gte('fecha_hora',cj.fecha_apertura),sb.from('gastos').select('*').eq('negocio_id',S.perfil.negocio_id).eq('estado_gasto','REGISTRADO').gte('fecha_hora',cj.fecha_apertura).order('fecha_hora',{ascending:false})]);
- if(rp.error)return toast(rp.error.message,true);if(rg.error)return toast(rg.error.message,true);
- const pg=rp.data,gs=rg.data;
+ const[rp,rg,rc]=await Promise.all([sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,cuentas(nombre,detalle),ventas(estado_venta,clientes(nombre))').eq('negocio_id',S.perfil.negocio_id).eq('estado_pago','REGISTRADO').gte('fecha_hora',cj.fecha_apertura),sb.from('gastos').select('*').eq('negocio_id',S.perfil.negocio_id).eq('estado_gasto','REGISTRADO').gte('fecha_hora',cj.fecha_apertura).order('fecha_hora',{ascending:false}),sb.from('pagos_compras_inventario').select('valor_pago,metodo_pago,fecha_pago,compra_id').eq('negocio_id',S.perfil.negocio_id).eq('caja_id',cj.id).order('fecha_pago',{ascending:false})]);
+ if(rp.error)return toast(rp.error.message,true);if(rg.error)return toast(rg.error.message,true);if(rc.error)return toast('No fue posible consultar los pagos de compras: '+rc.error.message,true);
+ const pg=rp.data,gs=rg.data,pc=rc.data||[];
  const por={};(pg||[]).filter(p=>p.ventas?.estado_venta!=='ANULADA').forEach(p=>por[p.metodo_pago]=(por[p.metodo_pago]||0)+Number(p.valor_pago));
- const gEf=(gs||[]).filter(g=>g.metodo_pago==='EFECTIVO').reduce((s,g)=>s+Number(g.valor),0),esp=Number(cj.saldo_inicial)+(por.EFECTIVO||0)-gEf;
+ const gEf=(gs||[]).filter(g=>g.metodo_pago==='EFECTIVO').reduce((s,g)=>s+Number(g.valor),0),cEf=pc.filter(p=>p.metodo_pago==='EFECTIVO').reduce((s,p)=>s+Number(p.valor_pago),0),esp=Number(cj.saldo_inicial)+(por.EFECTIVO||0)-gEf-cEf;
  main.innerHTML=`<div class="head"><h2>Caja abierta</h2><button class="btn sec" id="gs">Registrar gasto</button></div>
  <p class="mute">Desde ${new Date(cj.fecha_apertura).toLocaleString('es-CO',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>
  ${fila2('Efectivo inicial',dinero(cj.saldo_inicial))}
  ${Object.entries(por).map(([m,v])=>`<button type="button" class="row" data-m="${m}"><span>Cobrado en ${bonito(m).toLowerCase()}, ver detalle</span><strong>${dinero(v)}</strong></button>`).join('')||'<p class="empty">Aún no hay cobros desde que abriste la caja.</p>'}
- ${fila2('Gastos en efectivo','-'+dinero(gEf))}${fila2('Efectivo que debe haber',dinero(esp),'tot')}
- ${gs?.length?'<label>Gastos del turno</label>'+gs.map(g=>fila2(esc(g.descripcion||bonito(g.categoria_gasto))+', '+bonito(g.metodo_pago).toLowerCase(),dinero(g.valor))).join(''):''}
+ ${fila2('Gastos en efectivo','-'+dinero(gEf))}${fila2('Compras pagadas en efectivo','-'+dinero(cEf))}${fila2('Efectivo que debe haber',dinero(esp),'tot')}
+ ${pc.length?'<label>Abonos a proveedores desde esta caja</label>'+pc.map(p=>fila2('Pago de compra '+p.compra_id.slice(0,8)+', '+bonito(p.metodo_pago).toLowerCase(),dinero(p.valor_pago))).join(''):''}${gs?.length?'<label>Gastos del turno</label>'+gs.map(g=>fila2(esc(g.descripcion||bonito(g.categoria_gasto))+', '+bonito(g.metodo_pago).toLowerCase(),dinero(g.valor))).join(''):''}
  <button class="btn block" id="ce">Cerrar caja</button>`;
  $('#gs').onclick=()=>gasto(cj);
  document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>detallePagos(b.dataset.m,(pg||[]).filter(p=>p.ventas?.estado_venta!=='ANULADA'&&p.metodo_pago===b.dataset.m)));
