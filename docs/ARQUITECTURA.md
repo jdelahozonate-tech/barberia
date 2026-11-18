@@ -109,3 +109,6 @@ Estas extracciones no modifican el esquema ni las RPC de Supabase. La validació
 - `src/modules/agenda.js`: agenda diaria, creación y edición de citas, confirmación, cobro asociado y citas pendientes de confirmar; recibe dependencias explícitas desde `index.html`.
 
 - `src/modules/equipo.js`: gestión de perfiles del equipo, invitaciones y horarios de barberos; recibe dependencias desde la pantalla principal.
+
+- `src/modules/ventas.js`: registro de ventas, detalle, pagos adicionales y anulación.
+- `src/modules/finanzas.js`: apertura y cierre de caja, gastos y liquidación de comisiones.
