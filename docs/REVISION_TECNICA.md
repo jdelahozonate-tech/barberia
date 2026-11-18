@@ -70,3 +70,12 @@ No se ejecutaron cambios SQL ni se alteraron tablas, RPC, RLS, triggers o reglas
 - Ajustes del negocio: se bloquean envíos simultáneos; ante error al guardar el negocio o al sincronizar el servicio de reserva se permite reintentar. Se informa cuando la primera escritura ya quedó guardada y la segunda falló.
 
 - Catálogos: el cambio de estado de servicios, productos, clientes y demás registros bloquea clics repetidos, mantiene el filtro por negocio y permite reintentar si falla.
+
+
+## Validación adicional de importes (18 nov 2026)
+
+- Registro de ventas: antes de crear la cabecera se rechazan cantidades vacías, no positivas o no finitas, precios inválidos, totales no finitos y valores de pago negativos o no finitos. Esto evita que valores extremos como infinito avancen a escrituras parciales.
+- Entrada de inventario: se rechazan cantidades no finitas o menores/iguales a cero antes de insertar el movimiento.
+- Se añadieron pruebas de regresión para ambas validaciones.
+
+**Pendiente:** la atomicidad de cabecera, detalle y pagos de venta sigue dependiendo de backend. También sigue pendiente la atomicidad de liquidación de comisiones y su gasto asociado. No se hicieron cambios en Supabase ni SQL.
