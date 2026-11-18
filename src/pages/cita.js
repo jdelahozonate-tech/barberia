@@ -23,7 +23,7 @@ async function cargar(){
  $('#no').onclick=()=>{if(confirm('¿Seguro que quieres cancelar tu cita?'))accion('cancelar','Tu cita fue cancelada.')};
  $('#ch').onclick=cambio;
 }
-let accionEnCurso=false;
+let accionEnCurso=false,consultaHoras=0;
 async function accion(a,msg){
  if(accionEnCurso)return;accionEnCurso=true;
  const botones=['#ok','#no','#ch'].map(x=>$(x)).filter(Boolean);botones.forEach(b=>b.disabled=true);
@@ -37,8 +37,9 @@ function cambio(){
  $('#dia').onchange=horas;horas();
 }
 async function horas(){
- if(!$('#dia').value)return;$('#hs').innerHTML='<span class="mute">Buscando horas…</span>';
- const{data,error}=await sb.rpc('horas_libres_publicas',{p_slug:C.slug,p_dia:$('#dia').value,p_barbero:C.barbero_id,p_servicio:C.servicio_id});
+ if(!$('#dia').value)return;const consulta=++consultaHoras,dia=$('#dia').value;$('#hs').innerHTML='<span class="mute">Buscando horas…</span>';
+ const{data,error}=await sb.rpc('horas_libres_publicas',{p_slug:C.slug,p_dia:dia,p_barbero:C.barbero_id,p_servicio:C.servicio_id});
+ if(consulta!==consultaHoras)return;
  if(error)return $('#hs').innerHTML=`<span class="mute">${esc(error.message)}</span>`;
  const disponibles=Array.isArray(data)?data:[];
  $('#hs').innerHTML=disponibles.length?disponibles.map(x=>`<button type="button" class="h" data-t="${x.inicio}">${hh(x.inicio)}</button>`).join(''):'<span class="mute">No hay horas libres ese día. Prueba otra fecha.</span>';
