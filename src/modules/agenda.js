@@ -62,10 +62,11 @@ function editarCita(c){
 
 /* ---------- Cobro de la cita y citas por confirmar ---------- */
 async function cobrarCita(c){
- const{data:ya}=await sb.from('ventas').select('id').eq('cita_id',c.id).limit(1);
+ const{data:ya,error:errorVenta}=await sb.from('ventas').select('id').eq('cita_id',c.id).limit(1);
+ if(errorVenta)return toast(traducir(errorVenta.message),true);
  if(ya&&ya.length)return;
  let fee=null;
- if(Number(S.negocio.valor_cita)>0){const{data:s}=await sb.from('servicios').select('id').eq('categoria','CITA').eq('estado','ACTIVO').limit(1);fee=s?.[0]?.id||null}
+ if(Number(S.negocio.valor_cita)>0){const{data:s,error:errorServicio}=await sb.from('servicios').select('id').eq('negocio_id',S.perfil.negocio_id).eq('categoria','CITA').eq('estado','ACTIVO').limit(1);if(errorServicio)return toast(traducir(errorServicio.message),true);fee=s?.[0]?.id||null}
  nuevaVenta({cliente_id:c.cliente_id,barbero_id:c.barbero_id,servicio_id:c.servicio_id,cita_id:c.id,fee});
 }
 async function porConfirmar(){
