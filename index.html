@@ -95,6 +95,9 @@ import { crearModuloFinanzas } from "./src/modules/finanzas.js";
 const $=s=>document.querySelector(s),app=$('#app'),dlg=$('#dlg');
 const S={perfil:null,negocio:null,vista:'inicio',dia:fecha(new Date())};
 const dinero=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:S.negocio?.moneda||'COP',maximumFractionDigits:0}).format(n||0);
+const METODOS=['EFECTIVO','TRANSFERENCIA','TARJETA','NEQUI','DAVIPLATA'].map(m=>`<option value="${m}">${bonito(m)}</option>`).join('');
+const fm=d=>new Date(d).toLocaleDateString('es-CO',{day:'numeric',month:'short'});
+const fila2=(a,b,c='')=>`<div class="ln2 ${c}"><span>${a}</span><span>${b}</span></div>`;
 let tt;function toast(m,err){const t=$('#toast');t.textContent=m;t.className='show'+(err?' err':'');clearTimeout(tt);tt=setTimeout(()=>t.className='',4000)}
 
 /* ---------- Acceso ---------- */
@@ -180,10 +183,7 @@ async function misComisiones(){
 
 /* ---------- Horarios ---------- */
 /* ---------- Ventas y pagos ---------- */
-const METODOS=['EFECTIVO','TRANSFERENCIA','TARJETA','NEQUI','DAVIPLATA'].map(m=>`<option value="${m}">${bonito(m)}</option>`).join('');
 /* ---------- Caja, gastos y comisiones ---------- */
-const fm=d=>new Date(d).toLocaleDateString('es-CO',{day:'numeric',month:'short'});
-const fila2=(a,b,c='')=>`<div class="ln2 ${c}"><span>${a}</span><span>${b}</span></div>`;
 /* ---------- Recordatorio por WhatsApp ---------- */
 function wa(c,conf){
  const tel=String(c.clientes?.telefono||'').replace(/\D/g,'');
