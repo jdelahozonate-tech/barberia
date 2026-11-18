@@ -1,7 +1,8 @@
 // Módulo de equipo, invitaciones y horarios de barberos.
 export function crearModuloEquipo(deps) {
- const { $, dlg, sb, S, esc, bonito, toast } = deps;
+ const { $, dlg, sb, S, esc, bonito, toast, ADM=['ADMINISTRADOR','SUPERVISOR'] } = deps;
 async function horarios(b){
+ if(!ADM.includes(S.perfil.rol))return toast('Solo administración puede modificar horarios.',true);
  const{data,error}=await sb.from('horarios_barbero').select('*').eq('negocio_id',S.perfil.negocio_id).eq('barbero_id',b.id).order('hora_inicio');
  if(error)return toast(error.message,true);
  const D=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'],O=[1,2,3,4,5,6,0],hm=t=>String(t).slice(0,5),nuevo=!(data||[]).length;
@@ -31,6 +32,7 @@ async function horarios(b){
 
 
 async function equipo(){
+ if(!ADM.includes(S.perfil.rol))return toast('Solo administración puede gestionar el equipo.',true);
  const{data,error}=await sb.from('perfiles').select('id,nombre,rol,estado').eq('negocio_id',S.perfil.negocio_id).order('creado_en');
  if(error)return toast(error.message,true);
  $('#eq').innerHTML=(data||[]).map(p=>`<div class="row"><span><strong>${esc(p.nombre)}</strong><br><small>${bonito(p.rol)}${p.id===S.perfil.id?', tú':''}${p.estado==='ACTIVO'?'':', inactivo'}</small></span>${p.id===S.perfil.id?'':`<button type="button" class="btn sec" data-p="${p.id}" data-e="${p.estado}">${p.estado==='ACTIVO'?'Desactivar':'Reactivar'}</button>`}</div>`).join('');
@@ -38,6 +40,7 @@ async function equipo(){
  $('#iv').onclick=invitar;
 }
 async function invitar(){
+ if(!ADM.includes(S.perfil.rol))return toast('Solo administración puede invitar usuarios.',true);
  const{data:ba,error:errorBarberos}=await sb.from('barberos').select('id,nombre').eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').order('nombre');
  if(errorBarberos)return toast(errorBarberos.message,true);
  dlg.innerHTML=`<form id="df"><h2>Invitar a alguien</h2><label for="i1">Rol</label><select id="i1"><option value="BARBERO">Barbero</option><option value="SUPERVISOR">Supervisor</option><option value="ADMINISTRADOR">Administrador</option></select>
