@@ -197,7 +197,8 @@ test('ventas y catálogos filtran lecturas y escrituras por negocio activo', () 
 
 
 test('equipo, agenda y cierres limitan operaciones al negocio y bloquean escrituras repetidas', () => {
-  const equipo = readFileSync(resolve(root, 'src/modules/equipo.js'), 'utf8');\n  const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
+  const equipo = readFileSync(resolve(root, 'src/modules/equipo.js'), 'utf8');
+  const inicio = readFileSync(resolve(root, 'src/modules/inicio.js'), 'utf8');
   const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
   const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
   assert.match(equipo, /from\('perfiles'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
