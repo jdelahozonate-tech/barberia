@@ -26,7 +26,9 @@ async function agenda(){
  document.querySelectorAll('.row').forEach(b=>b.onclick=()=>editarCita(data.find(c=>c.id===b.dataset.id)));
 }
 async function nuevaCita(){
- const[cl,ba,se]=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre'],['servicios','id,nombre,duracion_minutos']].map(([t,s])=>sb.from(t).select(s).eq('estado','ACTIVO').order('nombre').then(r=>r.data||[])));
+ const rs=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre'],['servicios','id,nombre,duracion_minutos']].map(([t,s])=>sb.from(t).select(s).eq('estado','ACTIVO').order('nombre')));
+ const fallo=rs.find(r=>r.error);if(fallo)return toast(traducir(fallo.error.message),true);
+ const[cl,ba,se]=rs.map(r=>r.data||[]);
  if(!cl.length||!ba.length||!se.length)return toast('Antes de agendar crea al menos un cliente, un barbero y un servicio.',true);
  const ini=new Date(S.dia+'T09:00:00'),loc=new Date(ini.getTime()-ini.getTimezoneOffset()*6e4).toISOString().slice(0,16);
  const op=a=>a.map(o=>`<option value="${o.id}">${esc(o.nombre)}</option>`).join('');
@@ -55,7 +57,7 @@ function editarCita(c){
   const{error}=await sb.from('citas').update({estado:f.estado,observaciones:f.observaciones||null}).eq('id',c.id);
   if(error)return toast(traducir(error.message),true);dlg.close();toast('Cita actualizada');ir();
   if(f.estado==='ATENDIDA'&&c.estado!=='ATENDIDA')cobrarCita(c)};
- const cf=$('#cf');if(cf)cf.onclick=()=>{sb.from('citas').update({estado:'CONFIRMADA'}).eq('id',c.id).then(()=>{dlg.close();toast('Cita confirmada');ir()})};
+ const cf=$('#cf');if(cf)cf.onclick=async()=>{const{error}=await sb.from('citas').update({estado:'CONFIRMADA'}).eq('id',c.id);if(error)return toast(traducir(error.message),true);dlg.close();toast('Cita confirmada');ir()};
 }
 
 /* ---------- Cobro de la cita y citas por confirmar ---------- */
