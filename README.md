@@ -1,89 +1,82 @@
 # App-Barberia
 
-Aplicación web progresiva (PWA) para la gestión de barberías. El frontend actual está construido con HTML, CSS y JavaScript, y utiliza Supabase para autenticación, base de datos y funciones RPC.
+Aplicación web progresiva (PWA) para la gestión de barberías. Frontend en HTML, CSS y JavaScript nativo; backend en Supabase.
 
 ## Estado del proyecto
 
-El repositorio contiene la versión funcional inicial. La reorganización se está realizando en la rama `refactor/arquitectura-modular`; la rama `main` se conserva como referencia estable.
+La versión funcional inicial se conserva como base. La reorganización ocurre en `refactor/arquitectura-modular`; `main` no se modifica durante este trabajo.
 
-**No se está reconstruyendo el producto desde cero.** La prioridad es conservar los flujos actuales y mejorar gradualmente su estructura.
+La prioridad es ordenar el código sin romper URLs públicas, instalación PWA ni flujos existentes. No se ha introducido todavía un bundler ni un framework.
 
-## Pantallas actuales
+## Pantallas y entradas públicas
 
 | Archivo | Responsabilidad |
 | --- | --- |
-| `index.html` | Aplicación privada: acceso, inicio, agenda, clientes, equipo, servicios, productos, ventas, caja, comisiones y ajustes. |
-| `admin.html` | Administración de la plataforma: negocios, invitaciones de administrador, renovaciones y suspensión. |
-| `reservar.html` | Catálogo público y creación de reservas por negocio. |
-| `cita.html` | Consulta, confirmación, cancelación y reprogramación de una cita mediante enlace. |
-| `sw.js` | Service worker y caché de respaldo de la PWA. |
-| `manifest.webmanifest` | Metadatos e instalación de la PWA. |
+| `index.html` | Aplicación privada: acceso, agenda, clientes, equipo, catálogos, ventas y finanzas. |
+| `admin.html` | Administración de la plataforma. |
+| `reservar.html` | Reserva pública por negocio. |
+| `cita.html` | Consulta y gestión pública de una cita mediante token. |
+| `sw.js` | Service worker y caché PWA. |
+| `manifest.webmanifest` | Metadatos de instalación PWA. |
 
-## Funcionalidades identificadas
+Los HTML de entrada y los archivos PWA permanecen en la raíz intencionalmente: GitHub Pages publica desde la raíz y las rutas actuales forman parte de los enlaces compartidos y del funcionamiento instalado. Su traslado requiere una migración coordinada de URLs, manifest, caché y enlaces externos.
 
-- Autenticación y vinculación de usuarios mediante invitaciones.
-- Perfiles con roles de administrador, supervisor y barbero.
-- Gestión de clientes, barberos, servicios y productos.
-- Agenda, horarios de atención y gestión de estados de citas.
-- Reservas públicas y gestión de citas mediante enlaces.
-- Ventas, detalle de ventas y pagos por diferentes medios.
-- Apertura/cierre de caja y registro de gastos.
-- Control de inventario y movimientos de stock.
-- Cálculo y liquidación de comisiones.
-- Panel gerencial e indicadores.
-- Ajustes del negocio y administración de suscripciones desde la plataforma.
-
-## Backend
-
-Supabase es el backend. Las operaciones del cliente usan la API de Supabase y algunas operaciones de negocio se ejecutan mediante funciones RPC de PostgreSQL. Las reglas de acceso y la integridad de datos deben seguir aplicándose en el backend; ocultar botones en la interfaz no sustituye RLS ni validaciones del servidor.
-
-No almacenar claves privadas o service-role en el frontend. La clave publicable que utiliza el cliente no es un secreto; su seguridad depende de las políticas y permisos correctamente configurados en Supabase.
-
-## Criterios de reorganización
-
-1. Conservar las pantallas y flujos existentes mientras se extraen módulos.
-2. Separar configuración, acceso a Supabase, utilidades compartidas y funcionalidades de negocio.
-3. Evitar duplicar reglas de negocio entre la aplicación privada, administración y reservas públicas.
-4. Mantener JavaScript sin framework por ahora; no introducir React u otra capa visual sin una necesidad concreta.
-5. No cambiar nombres de tablas, columnas, RPC ni contratos de datos como parte de una simple reorganización.
-6. Realizar cambios pequeños, revisables y probables en la rama de refactor antes de integrarlos a `main`.
-
-## Estructura objetivo (propuesta)
-
-La estructura definitiva se confirmará al revisar el despliegue actual y completar la extracción inicial:
+## Estructura actual
 
 ```text
-src/
-  app/
-  config/
-  lib/
-  shared/
-    components/
-    utils/
-  modules/
-    auth/
-    agenda/
-    clientes/
-    equipo/
-    catalogos/
-    ventas/
-    inventario/
-    caja/
-    comisiones/
-    ajustes/
-    suscripciones/
-  pages/
-    admin/
-    reservar/
-    cita/
-public/
-  icons/
-  manifest.webmanifest
-  sw.js
+/
+├── index.html                 # Aplicación privada (entrada estable)
+├── admin.html                 # Administración de plataforma
+├── reservar.html              # Reservas públicas
+├── cita.html                  # Gestión pública de citas
+├── sw.js                      # Service worker
+├── manifest.webmanifest       # Manifest PWA
+├── icon-192.png               # Icono PWA
+├── icon-512.png               # Icono PWA
+├── logo-dhbarber.png          # Logo usado por la aplicación
+├── src/
+│   ├── config/
+│   │   └── catalogos.js       # Configuración de catálogos
+│   ├── lib/
+│   │   └── supabase.js        # Cliente Supabase compartido
+│   ├── modules/
+│   │   └── catalogos.js       # CRUD y formularios de catálogos
+│   └── shared/
+│       └── utils.js           # Utilidades puras compartidas
+└── docs/
+    └── ARQUITECTURA.md        # Mapa funcional y plan de migración
 ```
 
-La estructura es un destino de trabajo, no implica que todos los módulos deban implementarse de nuevo.
+La estructura se ampliará a medida que se extraigan módulos reales; no se crean carpetas vacías como sustituto de código modular.
 
-## Trabajo en curso
+## Funcionalidades existentes
 
-Consulta [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) para conocer el mapa funcional y el orden previsto de migración.
+- Autenticación, perfiles e invitaciones por rol.
+- Clientes, barberos, servicios y productos.
+- Horarios, agenda y citas.
+- Reservas públicas y enlaces de gestión de citas.
+- Ventas, pagos, caja y gastos.
+- Inventario y movimientos de stock.
+- Comisiones e informes gerenciales.
+- Ajustes del negocio y administración de suscripciones.
+
+## Backend y seguridad
+
+Supabase gestiona autenticación, datos y funciones RPC. RLS y las validaciones del backend son la autoridad; ocultar botones en la interfaz no sustituye controles del servidor.
+
+No incluir claves privadas ni service-role en el frontend. La clave publicable del cliente puede estar en el navegador, con RLS y permisos correctamente configurados.
+
+## Convenciones de trabajo
+
+1. Mantener `main` intacta hasta completar revisión y pruebas.
+2. Extraer una responsabilidad a la vez y conservar los contratos actuales.
+3. Mantener las rutas públicas y PWA hasta planificar una migración explícita.
+4. No cambiar tablas, columnas, RPC ni estados al reorganizar frontend.
+5. No duplicar lógica de negocio ni introducir dependencias sin necesidad.
+6. Actualizar `sw.js` y su versión de caché cuando se agreguen módulos necesarios para el arranque offline.
+7. Documentar los cambios y validar sintaxis; las pruebas de navegador siguen siendo obligatorias antes de integrar.
+
+## Documentación
+
+- [Arquitectura y plan de migración](docs/ARQUITECTURA.md)
+- [Estructura y convenciones del repositorio](docs/ESTRUCTURA_REPOSITORIO.md)
