@@ -385,7 +385,7 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   for (const table of ['proveedores_inventario', 'compras_inventario', 'detalle_compras_inventario', 'pagos_compras_inventario']) {
     assert.ok(sql.includes('public.' + table), 'Falta tabla ' + table);
   }
-  for (const rpc of ['registrar_compra_inventario', 'registrar_pago_compra_inventario', 'anular_compra_inventario']) {
+  for (const rpc of ['registrar_compra_inventario', 'registrar_pago_compra_inventario', 'anular_compra_inventario', 'ajustar_inventario_producto']) {
     assert.ok(sql.includes('FUNCTION public.' + rpc), 'Falta RPC ' + rpc);
     assert.ok(productos.includes("rpc('" + rpc + "'"), 'La interfaz no llama ' + rpc);
   }
@@ -397,6 +397,9 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(sql, /stock_actual/);
   assert.match(sql, /No hay existencias suficientes para revertir esta compra/);
   assert.match(sql, /promedio ponderado/);
+  assert.match(sql, /fecha_vencimiento/);
+  assert.match(sql, /numero_factura/);
+  assert.match(productos, /Ajuste de inventario/);
   assert.match(sql, /caja_id/);
   assert.match(finanzas, /pagos_compras_inventario/);
   assert.match(finanzas, /Compras pagadas en efectivo/);
