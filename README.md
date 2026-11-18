@@ -25,38 +25,48 @@ Los HTML de entrada y los archivos PWA permanecen en la raíz intencionalmente: 
 
 ```text
 /
-├── index.html                 # Aplicación privada (entrada estable)
-├── admin.html                 # Administración de plataforma
-├── reservar.html              # Reservas públicas
-├── cita.html                  # Gestión pública de citas
-├── sw.js                      # Service worker
-├── manifest.webmanifest       # Manifest PWA
-├── icon-192.png               # Icono PWA
-├── icon-512.png               # Icono PWA
-├── logo-dhbarber.png          # Logo usado por la aplicación
+├── index.html
+├── admin.html
+├── reservar.html
+├── cita.html
+├── sw.js
+├── manifest.webmanifest
+├── icon-192.png
+├── icon-512.png
+├── logo-dhbarber.png
+├── package.json
+├── .gitignore
+├── .github/
+│   └── workflows/ci.yml
 ├── src/
-│   ├── config/
-│   │   └── catalogos.js       # Configuración de catálogos
-│   ├── lib/
-│   │   └── supabase.js        # Cliente Supabase compartido
+│   ├── config/catalogos.js
+│   ├── lib/supabase.js
+│   ├── shared/utils.js
 │   ├── modules/
-│   │   ├── agenda.js          # Agenda y gestión de citas
-│   │   ├── equipo.js          # Equipo, invitaciones y horarios
-│   │   ├── ventas.js          # Ventas y pagos
-│   │   ├── finanzas.js        # Caja, gastos y comisiones
-│   │   ├── inicio.js          # Inicio e informe gerencial
-│   │   └── ajustes.js         # Configuración del negocio
-│   │   └── catalogos.js       # CRUD y formularios de catálogos
-│   └── shared/
-│       └── utils.js           # Utilidades puras compartidas
-├── docs/
-│   ├── ARQUITECTURA.md        # Mapa funcional y plan de migración
-│   └── ESTRUCTURA_REPOSITORIO.md # Organización y convenciones
-└── src/README.md              # Guía de módulos fuente
+│   │   ├── acceso.js
+│   │   ├── agenda.js
+│   │   ├── ajustes.js
+│   │   ├── catalogos.js
+│   │   ├── equipo.js
+│   │   ├── finanzas.js
+│   │   ├── inicio.js
+│   │   └── ventas.js
+│   ├── pages/
+│   │   ├── admin.js
+│   │   ├── reservar.js
+│   │   └── cita.js
+│   └── README.md
+├── tests/
+│   ├── repository.test.js
+│   └── utils.test.js
+└── docs/
+    ├── ARQUITECTURA.md
+    ├── ESTRUCTURA_REPOSITORIO.md
+    └── PRUEBAS.md
 ```
 
-La estructura se ampliará a medida que se extraigan módulos reales; no se crean carpetas vacías como sustituto de código modular.
-
+Los HTML de entrada permanecen en la raíz para conservar las URLs públicas actuales y la instalación PWA.
+ 
 ## Funcionalidades existentes
 
 - Autenticación, perfiles e invitaciones por rol.
