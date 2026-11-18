@@ -86,6 +86,7 @@ dialog::backdrop{background:rgba(16,34,63,.55)}
 <script type="module">
 import { sb } from "./src/lib/supabase.js";
 import { esc, fecha, hora, bonito, slug, traducir, waNum } from "./src/shared/utils.js";
+import { crearConfigCatalogos } from "./src/config/catalogos.js";
 const $=s=>document.querySelector(s),app=$('#app'),dlg=$('#dlg');
 const S={perfil:null,negocio:null,vista:'inicio',dia:fecha(new Date())};
 const dinero=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:S.negocio?.moneda||'COP',maximumFractionDigits:0}).format(n||0);
@@ -154,23 +155,7 @@ function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.tog
 /* ---------- Clientes, barberos y servicios ---------- */
 const ADM=['ADMINISTRADOR','SUPERVISOR'];
 const soloMio=()=>S.perfil.rol==='BARBERO'&&!!S.perfil.barbero_id,mio=q=>soloMio()?q.eq('barbero_id',S.perfil.barbero_id):q;
-const CFG={
- clientes:{t:'Clientes',uno:'cliente',w:[...ADM,'BARBERO'],
-  f:[['nombre','Nombre','text',1],['telefono','Teléfono','tel'],['telefono_alterno','Teléfono alterno','tel'],['fecha_nacimiento','Cumpleaños','date'],['barbero_preferido','Barbero preferido','ref:barberos'],['observaciones','Observaciones','area']],
-  l:r=>[r.nombre,r.telefono||'Sin teléfono']},
- barberos:{t:'Barberos',uno:'barbero',w:ADM,
-  f:[['nombre','Nombre','text',1],['telefono','Teléfono','tel'],['correo','Correo','email'],['fecha_ingreso','Fecha de ingreso','date'],['modelo_pago','Modelo de pago','sel:COMISION,ALQUILER,MIXTO'],['porcentaje_comision','Porcentaje de comisión (%)','number'],['valor_alquiler','Valor del alquiler','number'],['acepta_citas','Recibe citas por la reserva en línea','bool'],['observaciones','Observaciones','area']],
-  l:r=>[r.nombre,r.modelo_pago==='ALQUILER'?'Alquiler '+dinero(r.valor_alquiler):'Comisión '+r.porcentaje_comision+'%']},
- servicios:{t:'Servicios',uno:'servicio',w:ADM,
-  f:[['nombre','Nombre','text',1],['categoria','Categoría','text'],['descripcion','Descripción','area'],['precio','Precio','number',1],['duracion_minutos','Duración (minutos)','number',1]],
-  l:r=>[r.nombre,dinero(r.precio)+', '+r.duracion_minutos+' min']},
- productos:{t:'Productos',uno:'producto',w:ADM,
-  f:[['nombre','Nombre','text',1],['categoria','Categoría','text'],['descripcion','Descripción','area'],['costo_unitario','Costo de compra','number'],['precio_venta','Precio de venta','number',1],['stock_minimo','Stock mínimo','number']],
-  l:r=>[r.nombre,dinero(r.precio_venta)+', en stock: '+(r.existencias??0)]},
- cuentas:{t:'Cuentas de recaudo',uno:'cuenta',w:ADM,
-  f:[['nombre','Nombre (ej. Nequi Harold)','text',1],['detalle','Número o detalle','text']],
-  l:r=>[r.nombre,r.detalle||'Sin detalle']}
-};
+const CFG=crearConfigCatalogos(ADM,dinero);
 async function crud(k){
  const c=CFG[k],main=$('#main'),puede=c.w.includes(S.perfil.rol);let ver=false,q='',rows=[];
  main.innerHTML=`<div class="head"><h2>${c.t}</h2>${puede?`<button class="btn" id="nv">Nuevo ${c.uno}</button>`:''}</div>
