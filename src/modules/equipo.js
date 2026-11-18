@@ -12,7 +12,8 @@ async function horarios(b){
  dlg.innerHTML=`<form id="df"><h2>Horario de ${esc(b.nombre)}</h2><p class="mute">Marca los días que atiende. Si no trabaja en la tarde, deja esa fila vacía.</p>${O.map(dia).join('')}<button type="button" class="link" id="cl">Copiar el horario del lunes a todos los días</button><div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Guardar horario</button></div></form>`;
  $('#cx').onclick=()=>dlg.close();
  $('#cl').onclick=()=>{const el=$('#df').elements;for(const d of O)if(d!==1){for(const p of 'abcd')el[p+d].value=el[p+'1'].value;el['o'+d].checked=el.o1.checked}};
- let guardando=false;\n $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type=\"submit\"],button:not([type])');if(boton)boton.disabled=true;const f=new FormData(e.target),L=[];
+ let guardando=false;
+ $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type=\"submit\"],button:not([type])');if(boton)boton.disabled=true;const f=new FormData(e.target),L=[];
   for(const d of O)if(f.get('o'+d))for(const[i,j]of[['a','b'],['c','d']]){const x=f.get(i+d),y=f.get(j+d);if(x&&y)L.push({negocio_id:S.perfil.negocio_id,barbero_id:b.id,dia_semana:d,hora_inicio:x,hora_fin:y})}
   let{error}=await sb.from('horarios_barbero').delete().eq('negocio_id',S.perfil.negocio_id).eq('barbero_id',b.id);
   if(!error&&L.length)({error}=await sb.from('horarios_barbero').insert(L));
