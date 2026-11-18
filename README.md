@@ -84,6 +84,10 @@ No incluir claves privadas ni service-role en el frontend. La clave publicable d
 6. Actualizar `sw.js` y su versión de caché cuando se agreguen módulos necesarios para el arranque offline.
 7. Documentar los cambios y validar sintaxis; las pruebas de navegador siguen siendo obligatorias antes de integrar.
 
+## Pruebas
+
+Con Node.js 20 o superior, ejecuta `npm test`. GitHub Actions corre la misma suite automáticamente. La guía de validación manual está en [docs/PRUEBAS.md](docs/PRUEBAS.md).
+
 ## Documentación
 
 - [Arquitectura y plan de migración](docs/ARQUITECTURA.md)
