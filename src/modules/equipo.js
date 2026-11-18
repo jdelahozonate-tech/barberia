@@ -14,7 +14,15 @@ async function horarios(b){
  $('#cl').onclick=()=>{const el=$('#df').elements;for(const d of O)if(d!==1){for(const p of 'abcd')el[p+d].value=el[p+'1'].value;el['o'+d].checked=el.o1.checked}};
  let guardando=false;
  $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type=\"submit\"],button:not([type])');if(boton)boton.disabled=true;const f=new FormData(e.target),L=[];
-  for(const d of O)if(f.get('o'+d))for(const[i,j]of[['a','b'],['c','d']]){const x=f.get(i+d),y=f.get(j+d);if(x&&y)L.push({negocio_id:S.perfil.negocio_id,barbero_id:b.id,dia_semana:d,hora_inicio:x,hora_fin:y})}
+  for(const d of O)if(f.get('o'+d)){
+   let tramos=0;
+   for(const[i,j]of[['a','b'],['c','d']]){
+    const x=f.get(i+d),y=f.get(j+d);
+    if(Boolean(x)!==Boolean(y)){guardando=false;if(boton)boton.disabled=false;return toast('Completa la hora de entrada y salida de cada tramo.',true)}
+    if(x&&y){if(x>=y){guardando=false;if(boton)boton.disabled=false;return toast('La hora de salida debe ser después de la entrada.',true)}L.push({negocio_id:S.perfil.negocio_id,barbero_id:b.id,dia_semana:d,hora_inicio:x,hora_fin:y});tramos++}
+   }
+   if(!tramos){guardando=false;if(boton)boton.disabled=false;return toast('Cada día marcado debe tener al menos un horario.',true)}
+  }
   let{error}=await sb.from('horarios_barbero').delete().eq('negocio_id',S.perfil.negocio_id).eq('barbero_id',b.id);
   if(!error&&L.length)({error}=await sb.from('horarios_barbero').insert(L));
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(error.message.includes('check')?'La hora de salida debe ser después de la entrada.':error.message,true)}
@@ -26,7 +34,7 @@ async function equipo(){
  const{data,error}=await sb.from('perfiles').select('id,nombre,rol,estado').eq('negocio_id',S.perfil.negocio_id).order('creado_en');
  if(error)return toast(error.message,true);
  $('#eq').innerHTML=(data||[]).map(p=>`<div class="row"><span><strong>${esc(p.nombre)}</strong><br><small>${bonito(p.rol)}${p.id===S.perfil.id?', tú':''}${p.estado==='ACTIVO'?'':', inactivo'}</small></span>${p.id===S.perfil.id?'':`<button type="button" class="btn sec" data-p="${p.id}" data-e="${p.estado}">${p.estado==='ACTIVO'?'Desactivar':'Reactivar'}</button>`}</div>`).join('');
- document.querySelectorAll('[data-p]').forEach(b=>b.onclick=async()=>{const{error}=await sb.from('perfiles').update({estado:b.dataset.e==='ACTIVO'?'INACTIVO':'ACTIVO'}).eq('negocio_id',S.perfil.negocio_id).eq('id',b.dataset.p);if(error)return toast(error.message,true);equipo()});
+ document.querySelectorAll('[data-p]').forEach(b=>b.onclick=async()=>{if(b.disabled)return;b.disabled=true;const{error}=await sb.from('perfiles').update({estado:b.dataset.e==='ACTIVO'?'INACTIVO':'ACTIVO'}).eq('negocio_id',S.perfil.negocio_id).eq('id',b.dataset.p);if(error){b.disabled=false;return toast(error.message,true)}equipo()});
  $('#iv').onclick=invitar;
 }
 async function invitar(){
