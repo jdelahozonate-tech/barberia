@@ -84,10 +84,12 @@ test('el service worker precarga módulos privados y páginas públicas', () => 
   }
 });
 
-test('el módulo de ventas aplica el filtro de datos del barbero', async () => {
+test('el módulo de ventas aplica el filtro del barbero a ventas y citas atendidas', async () => {
   let aplicado = 0;
+  const tablas = [];
   const query = {
     select() { return this; },
+    eq() { return this; },
     order() { return this; },
     limit() { return Promise.resolve({ data: [], error: null }); }
   };
@@ -97,8 +99,8 @@ test('el módulo de ventas aplica el filtro de datos del barbero', async () => {
     const modulo = crearModuloVentas({
       $: () => ({ innerHTML: '' }),
       dlg: {},
-      sb: { from: tabla => { assert.equal(tabla, 'ventas'); return query; } },
-      S: {},
+      sb: { from: tabla => { tablas.push(tabla); return query; } },
+      S: { perfil: { negocio_id: 'negocio-test' } },
       esc: String,
       dinero: String,
       hora: String,
@@ -110,7 +112,8 @@ test('el módulo de ventas aplica el filtro de datos del barbero', async () => {
       mio: q => { aplicado++; return q; }
     });
     await modulo.ventas();
-    assert.equal(aplicado, 1);
+    assert.deepEqual(tablas, ['ventas', 'citas']);
+    assert.equal(aplicado, 2);
   } finally {
     if (previo === undefined) delete globalThis.document;
     else globalThis.document = previo;
