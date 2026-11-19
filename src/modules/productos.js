@@ -19,7 +19,7 @@ export function crearModuloProductos(deps) {
  };
  const existencia=id=>Number(stock.find(x=>x.producto_id===id)?.existencias||0);
  const minimo=p=>Number(p.stock_minimo??stock.find(x=>x.producto_id===p.id)?.stock_minimo??0);
- const tabs=()=>'<div class="acts"><button class="btn '+(vista==='productos'?'':'sec')+'" data-tab="productos">Productos</button><button class="btn '+(vista==='compras'?'':'sec')+'" data-tab="compras">Compras</button><button class="btn '+(vista==='proveedores'?'':'sec')+'" data-tab="proveedores">Proveedores</button><button class="btn '+(vista==='movimientos'?'':'sec')+'" data-tab="movimientos">Movimientos</button></div>';
+ const tabs=()=>'<div class="product-tabs"><button class="btn '+(vista==='productos'?'':'sec')+'" data-tab="productos">Catálogo</button><button class="btn '+(vista==='pedidos'?'':'sec')+'" data-tab="pedidos">Pedidos</button><button class="btn '+(vista==='compras'?'':'sec')+'" data-tab="compras">Compras</button><button class="btn '+(vista==='proveedores'?'':'sec')+'" data-tab="proveedores">Proveedores</button><button class="btn '+(vista==='movimientos'?'':'sec')+'" data-tab="movimientos">Movimientos</button></div>';
  async function productosVista(){
   if(!await cargarBase())return;
   const total=productos.length,agotados=productos.filter(p=>p.control_stock!==false&&existencia(p.id)<=0).length,bajos=productos.filter(p=>p.control_stock!==false&&existencia(p.id)>0&&existencia(p.id)<=minimo(p)).length;
@@ -32,20 +32,33 @@ export function crearModuloProductos(deps) {
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{vista=b.dataset.tab;render()});
   const pintar=()=>{const q=$('#buscarp').value.trim().toLocaleLowerCase(),inac=$('#inactivos').checked;
    const lista=productos.filter(p=>(inac||p.estado==='ACTIVO')&&(p.nombre+' '+(p.categoria||'')).toLocaleLowerCase().includes(q));
-   $('#listap').innerHTML=lista.length?lista.map(p=>'<button class="row" data-prod="'+p.id+'"><span><strong>'+esc(p.nombre)+'</strong><br><small>'+esc(p.categoria||'Sin categoría')+' · '+dinero(p.precio_venta)+' · '+(p.control_stock===false?'Sin control de stock':'Stock: '+existencia(p.id)+' / mínimo '+minimo(p))+'</small></span><span class="chip '+(p.estado==='ACTIVO'?(p.control_stock!==false&&existencia(p.id)<=minimo(p)?'ojo':'bien'):'')+'">'+(p.estado==='ACTIVO'?(p.control_stock!==false&&existencia(p.id)<=minimo(p)?'Reponer':'Activo'):'Inactivo')+'</span></button>').join(''):'<p class="empty">No hay productos para mostrar.</p>';
+   $('#listap').innerHTML=lista.length?'<div class="product-grid">'+lista.map(p=>'<button class="product-card" data-prod="'+p.id+'"><div class="product-card-image">'+(p.imagen_url?'<img loading="lazy" src="'+esc(p.imagen_url)+'" alt="'+esc(p.nombre)+'">':'<span>Sin fotografía</span>')+'</div><div class="product-card-body"><span class="product-category">'+esc(p.categoria||'Producto')</span><strong>'+esc(p.nombre)+'</strong><span class="product-price">'+dinero(p.precio_venta)+'</span><small>'+(p.control_stock===false?'Existencias no controladas':'Disponible: '+existencia(p.id)+' · Mínimo: '+minimo(p))+'</small><span class="chip '+(p.estado==='ACTIVO'?(p.control_stock!==false&&existencia(p.id)<=minimo(p)?'ojo':'bien'):'')+'">'+(p.estado==='ACTIVO'?(p.control_stock!==false&&existencia(p.id)<=minimo(p)?'Reponer':'Activo'):'Inactivo')+'</span></div></button>').join('')+'</div>':'<p class="empty">No hay productos para mostrar.</p>';
    document.querySelectorAll('[data-prod]').forEach(b=>b.onclick=()=>productoForm(productos.find(p=>p.id===b.dataset.prod)));
   };
   $('#buscarp').oninput=pintar;$('#inactivos').onchange=pintar;pintar();
  }
  async function productoForm(p){
-  dlg.innerHTML='<form id="pf"><h2>'+(p?'Editar':'Nuevo')+' producto</h2><label>Nombre</label><input name="nombre" required maxlength="120" value="'+esc(p?.nombre||'')+'"><label>Categoría</label><input name="categoria" maxlength="80" value="'+esc(p?.categoria||'')+'"><label>Descripción</label><textarea name="descripcion" rows="2">'+esc(p?.descripcion||'')+'</textarea><label>Costo de referencia</label><input name="costo_unitario" type="number" min="0" step="0.01" required value="'+Number(p?.costo_unitario||0)+'"><label>Precio de venta</label><input name="precio_venta" type="number" min="0" step="0.01" required value="'+Number(p?.precio_venta||0)+'"><label>Stock mínimo</label><input name="stock_minimo" type="number" min="0" step="0.01" value="'+Number(p?.stock_minimo||0)+'"><label class="chk"><input name="control_stock" type="checkbox" '+(p?.control_stock===false?'':'checked')+'> Controlar existencias</label><div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Guardar producto</button></div>'+(p?'<button type="button" class="btn sec block" id="estado">'+(p.estado==='ACTIVO'?'Desactivar':'Reactivar')+'</button>':'')+'</form>';
+  dlg.innerHTML='<form id="pf"><h2>'+(p?'Editar':'Nuevo')+' producto</h2><label>Nombre</label><input name="nombre" required maxlength="120" value="'+esc(p?.nombre||'')+'"><label>Categoría</label><input name="categoria" maxlength="80" value="'+esc(p?.categoria||'')+'"><label>Descripción</label><textarea name="descripcion" rows="2">'+esc(p?.descripcion||'')+'</textarea><label>Fotografía del producto</label><div class="product-photo-preview">'+(p?.imagen_url?'<img src="'+esc(p.imagen_url)+'" alt="Foto actual de '+esc(p.nombre)+'">':'<span>Sin fotografía</span>')+'</div><input name="imagen" type="file" accept="image/jpeg,image/png,image/webp"><small class="mute">JPG, PNG o WEBP · máximo 5 MB.</small><label>Costo de referencia</label><input name="costo_unitario" type="number" min="0" step="0.01" required value="'+Number(p?.costo_unitario||0)+'"><label>Precio de venta</label><input name="precio_venta" type="number" min="0" step="0.01" required value="'+Number(p?.precio_venta||0)+'"><label>Stock mínimo</label><input name="stock_minimo" type="number" min="0" step="0.01" value="'+Number(p?.stock_minimo||0)+'"><label class="chk"><input name="control_stock" type="checkbox" '+(p?.control_stock===false?'':'checked')+'> Controlar existencias</label><div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Guardar producto</button></div>'+(p?'<button type="button" class="btn sec block" id="estado">'+(p.estado==='ACTIVO'?'Desactivar':'Reactivar')+'</button>':'')+'</form>';
   dlg.showModal();$('#cx').onclick=()=>dlg.close();let busy=false;
-  $('#pf').onsubmit=async e=>{e.preventDefault();if(busy)return;const f=Object.fromEntries(new FormData(e.target));const costo=Number(f.costo_unitario),precio=Number(f.precio_venta),min=Number(f.stock_minimo||0);
+  const archivo=$('#pf [name="imagen"]');
+  archivo.onchange=()=>{const f=archivo.files?.[0];if(!f)return;if(!['image/jpeg','image/png','image/webp'].includes(f.type)||f.size>5242880){archivo.value='';return toast('La imagen debe ser JPG, PNG o WEBP y pesar máximo 5 MB.',true)}const url=URL.createObjectURL(f);$('.product-photo-preview').innerHTML='<img src="'+url+'" alt="Vista previa del producto">';};
+  $('#pf').onsubmit=async e=>{e.preventDefault();if(busy)return;const f=Object.fromEntries(new FormData(e.target)),costo=Number(f.costo_unitario),precio=Number(f.precio_venta),min=Number(f.stock_minimo||0),imagen=f.imagen;
    if(!Number.isFinite(costo)||costo<0||!Number.isFinite(precio)||precio<0||!Number.isFinite(min)||min<0)return toast('Verifica los costos, precios y stock mínimo.',true);
+   if(imagen?.size&&(!['image/jpeg','image/png','image/webp'].includes(imagen.type)||imagen.size>5242880))return toast('La imagen debe ser JPG, PNG o WEBP y pesar máximo 5 MB.',true);
    const data={nombre:f.nombre.trim(),categoria:f.categoria.trim()||null,descripcion:f.descripcion.trim()||null,costo_unitario:costo,precio_venta:precio,stock_minimo:min,control_stock:!!f.control_stock};
    busy=true;const b=e.target.querySelector('button[type="submit"],button:not([type])');if(b)b.disabled=true;
-   const q=p?sb.from('productos').update(data).eq('id',p.id).eq('negocio_id',nid()):sb.from('productos').insert({...data,negocio_id:nid(),estado:'ACTIVO'});
-   const{error:e1}=await q;if(e1){busy=false;if(b)b.disabled=false;return error(e1)}dlg.close();toast('Producto guardado');productosVista();
+   let productoId=p?.id;
+   if(p){const{error:e1}=await sb.from('productos').update(data).eq('id',p.id).eq('negocio_id',nid());if(e1){busy=false;if(b)b.disabled=false;return error(e1)}}
+   else{const{data:creado,error:e1}=await sb.from('productos').insert({...data,negocio_id:nid(),estado:'ACTIVO'}).select('id').single();if(e1){busy=false;if(b)b.disabled=false;return error(e1)}productoId=creado.id}
+   if(imagen?.size){
+    const ext=imagen.type==='image/png'?'png':imagen.type==='image/webp'?'webp':'jpg',ruta=nid()+'/'+productoId+'/'+crypto.randomUUID()+'.'+ext;
+    const{subError,...up}=await sb.storage.from('productos').upload(ruta,imagen,{contentType:imagen.type,upsert:true});
+    if(up.error){busy=false;if(b)b.disabled=false;return toast('Producto guardado, pero no se pudo subir la fotografía: '+up.error.message,true)}
+    const{data:publica}=sb.storage.from('productos').getPublicUrl(ruta);
+    const{error:e1}=await sb.from('productos').update({imagen_url:publica.publicUrl}).eq('id',productoId).eq('negocio_id',nid());
+    if(e1){busy=false;if(b)b.disabled=false;return error(e1)}
+   }
+   dlg.close();toast('Producto guardado');productosVista();
   };
   if(p)$('#estado').onclick=async()=>{const b=$('#estado');if(b.disabled)return;b.disabled=true;const{error:e1}=await sb.from('productos').update({estado:p.estado==='ACTIVO'?'INACTIVO':'ACTIVO'}).eq('id',p.id).eq('negocio_id',nid());if(e1){b.disabled=false;return error(e1)}dlg.close();productosVista()};
  }
@@ -144,6 +157,15 @@ export function crearModuloProductos(deps) {
    (data.length?data.map(m=>'<div class="row"><span><strong>'+esc(m.productos?.nombre||'Producto')+' · '+esc(m.tipo_movimiento)+'</strong><br><small>'+fecha(m.fecha_hora)+' · '+esc(m.motivo||'Sin motivo')+'</small></span><strong>'+((m.tipo_movimiento==='SALIDA'?'-':'+')+m.cantidad)+'</strong></div>').join(''):'<p class="empty">Aún no hay movimientos.</p>');
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{vista=b.dataset.tab;render()});
  }
- async function render(){if(!rol())return toast('No tienes permisos para gestionar productos e inventario.',true);if(vista==='productos')return productosVista();if(vista==='compras')return comprasVista();if(vista==='proveedores')return proveedoresVista();return movimientosVista()}
+ async function pedidosVista(){
+  const{data,error:e1}=await sb.from('pedidos_productos').select('*,detalle_pedidos_productos(*)').eq('negocio_id',nid()).order('creado_en',{ascending:false}).limit(100);
+  if(e1)return error(e1);
+  const pedidos=data||[];
+  $('#main').innerHTML='<div class="head"><h2>Pedidos de clientes</h2><span class="chip">'+pedidos.filter(p=>!['ENTREGADO','CANCELADO'].includes(p.estado)).length+' pendientes</span></div>'+tabs()+
+   (pedidos.length?pedidos.map(p=>'<article class="order-card"><div class="order-head"><div><strong>'+esc(p.nombre_cliente)+'</strong><small>'+esc(p.telefono_cliente)+' · '+fecha(p.creado_en)+'</small></div><strong>'+dinero(p.total)+'</strong></div><div class="order-items">'+(p.detalle_pedidos_productos||[]).map(d=>'<span>'+esc(d.nombre_producto)+' × '+d.cantidad+'</span>').join('')+'</div><label>Estado del pedido</label><select data-order="'+p.id+'">'+['NUEVO','EN_PREPARACION','LISTO','ENTREGADO','CANCELADO'].map(s=>'<option value="'+s+'" '+(p.estado===s?'selected':'')+'>'+s.replaceAll('_',' ')+'</option>').join('')+'</select></article>').join(''):'<p class="empty">Todavía no hay pedidos de clientes.</p>');
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{vista=b.dataset.tab;render()});
+  document.querySelectorAll('[data-order]').forEach(s=>s.onchange=async()=>{s.disabled=true;const{error:e1}=await sb.from('pedidos_productos').update({estado:s.value,actualizado_en:new Date().toISOString()}).eq('id',s.dataset.order).eq('negocio_id',nid());if(e1){s.disabled=false;return error(e1)}toast('Estado del pedido actualizado');s.disabled=false});
+ }
+ async function render(){if(!rol())return toast('No tienes permisos para gestionar productos e inventario.',true);if(vista==='productos')return productosVista();if(vista==='pedidos')return pedidosVista();if(vista==='compras')return comprasVista();if(vista==='proveedores')return proveedoresVista();return movimientosVista()}
  return { productos:()=>{vista='productos';return render()} };
 }
