@@ -29,8 +29,7 @@ const sourceFiles = [
 
 function checkSyntax(file, code) {
   code = code.replace(/^import .*;\s*$/gm, '').replace(/^export\s+/gm, '');
-  try { new vm.Script(code, { filename: file }); }
-  catch (error) { throw new Error(file + ': ' + error.stack); }
+  assert.doesNotThrow(() => new vm.Script(code, { filename: file }), file);
 }
 
 test('todos los módulos JavaScript tienen sintaxis válida', () => {
