@@ -27,7 +27,26 @@ button{font:inherit;cursor:pointer}
 .ok{background:#fff;border:1px solid var(--line);border-left:6px solid var(--red);border-radius:10px;padding:18px;margin-top:20px}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--red);color:#fff;padding:12px 18px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
 #toast.show{opacity:1}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.booking-section{padding:16px;background:#fff;border:1px solid var(--line);border-radius:12px;margin:20px 0}
+.booking-section h2,.public-products h2{font-size:1.45rem;margin:0 0 10px}
+.public-products{margin:28px 0}
+.public-product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin:14px 0}
+.public-product-card{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.public-product-card>img,.public-product-placeholder{width:100%;height:140px;object-fit:cover;background:#E8EDF5}
+.public-product-placeholder{display:flex;align-items:center;justify-content:center;color:var(--mute);font-size:.85rem}
+.public-product-info{padding:12px;display:flex;flex-direction:column;gap:7px}
+.public-product-info small{color:var(--mute)}
+.public-product-info strong{font-size:1rem}
+.public-product-info>span{font-weight:800;font-size:1.1rem}
+.public-product-info p{font-size:.88rem;color:var(--mute);margin:0}
+.public-product-info .btn{margin-top:auto;padding:10px}
+.public-order-summary{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:18px}
+.public-order-line{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.public-order-line span{flex:1}
+.public-order-line button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 12px}
+.public-order-total{font-weight:800;font-size:1.1rem;text-align:right}
+\n@media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
