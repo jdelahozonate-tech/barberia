@@ -19,7 +19,7 @@ export function crearModuloProductos(deps) {
  };
  const existencia=id=>Number(stock.find(x=>x.producto_id===id)?.existencias||0);
  const minimo=p=>Number(p.stock_minimo??stock.find(x=>x.producto_id===p.id)?.stock_minimo??0);
- const tabs=()=>'<div class="product-tabs"><button class="btn '+(vista==='productos'?'':'sec')+'" data-tab="productos">Catálogo</button><button class="btn '+(vista==='pedidos'?'':'sec')+'" data-tab="pedidos">Pedidos</button><button class="btn '+(vista==='compras'?'':'sec')+'" data-tab="compras">Compras</button><button class="btn '+(vista==='proveedores'?'':'sec')+'" data-tab="proveedores">Proveedores</button><button class="btn '+(vista==='movimientos'?'':'sec')+'" data-tab="movimientos">Movimientos</button></div>';
+ const tabs=()=>'<div class="product-tabs">'+(!rol()?'<button class="btn" data-tab="pedidos">Pedidos</button>':'<button class="btn '+(vista==='productos'?'':'sec')+'" data-tab="productos">Catálogo</button><button class="btn '+(vista==='pedidos'?'':'sec')+'" data-tab="pedidos">Pedidos</button><button class="btn '+(vista==='compras'?'':'sec')+'" data-tab="compras">Compras</button><button class="btn '+(vista==='proveedores'?'':'sec')+'" data-tab="proveedores">Proveedores</button><button class="btn '+(vista==='movimientos'?'':'sec')+'" data-tab="movimientos">Movimientos</button>')+'</div>';
  async function productosVista(){
   if(!await cargarBase())return;
   const total=productos.length,agotados=productos.filter(p=>p.control_stock!==false&&existencia(p.id)<=0).length,bajos=productos.filter(p=>p.control_stock!==false&&existencia(p.id)>0&&existencia(p.id)<=minimo(p)).length;
