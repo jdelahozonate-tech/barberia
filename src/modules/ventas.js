@@ -1,10 +1,46 @@
 // Módulo de ventas, detalle y registro de pagos.
 export function crearModuloVentas(deps) {
  const { $, dlg, sb, S, esc, dinero, hora, bonito, traducir, toast, ADM, METODOS, mio } = deps;
+function fechaEnZona(d=new Date()){
+ const zona=S.negocio?.zona_horaria||'America/Bogota';
+ const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:zona,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d).map(x=>[x.type,x.value]));
+ return p.year+'-'+p.month+'-'+p.day;
+}
+function sumarFecha(fecha,dias){
+ const [y,m,d]=fecha.split('-').map(Number),x=new Date(Date.UTC(y,m-1,d+dias));
+ return x.getUTCFullYear()+'-'+String(x.getUTCMonth()+1).padStart(2,'0')+'-'+String(x.getUTCDate()).padStart(2,'0');
+}
+function instanteZona(local){
+ const [y,m,d,h,mi]=local.match(/\d+/g).map(Number),zona=S.negocio?.zona_horaria||'America/Bogota';
+ let ms=Date.UTC(y,m-1,d,h,mi);
+ for(let n=0;n<3;n++){
+  const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:zona,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(ms)).map(x=>[x.type,x.value]));
+  const real=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute),diff=Date.UTC(y,m-1,d,h,mi)-real;
+  if(!diff)break;ms+=diff;
+ }
+ return new Date(ms).toISOString();
+}
+function rangoVentas(filtro,desde,hasta){
+ const hoy=fechaEnZona(),mes=hoy.slice(0,7);
+ let a=hoy,b=sumarFecha(hoy,1);
+ if(filtro==='SEMANA'){
+  const dia=new Date(hoy+'T12:00:00Z').getUTCDay();
+  a=sumarFecha(hoy,-((dia+6)%7));b=sumarFecha(a,7);
+ }else if(filtro==='MES'){
+  a=mes+'-01';const [y,m]=mes.split('-').map(Number);b=new Date(Date.UTC(y,m,1)).toISOString().slice(0,10);
+ }else if(filtro==='PERSONALIZADO'){
+  a=desde||hoy;b=sumarFecha(hasta||desde||hoy,1);
+ }
+ return {desde:instanteZona(a+'T00:00'),hasta:instanteZona(b+'T00:00'),a,b};
+}
 async function ventas(){
- const{data,error}=await mio(sb.from('ventas').select('*,clientes(nombre),barberos(nombre)')).order('fecha_hora',{ascending:false}).limit(40);
+ const filtro=S.filtroVentas||'HOY',desde=S.ventasDesde||fechaEnZona(),hasta=S.ventasHasta||desde;
+ const rango=rangoVentas(filtro,desde,hasta);
+ const[{data,error},{data:citas,error:errorCitas}]=await Promise.all([
+  mio(sb.from('ventas').select('*,clientes(nombre),barberos(nombre)').eq('negocio_id',S.perfil.negocio_id).gte('fecha_hora',rango.desde).lt('fecha_hora',rango.hasta).order('fecha_hora',{ascending:false}).limit(500)),
+  mio(sb.from('citas').select('id,cliente_id,barbero_id,servicio_id,inicio,fin,estado,clientes(nombre),barberos(nombre),servicios(nombre,precio)').eq('negocio_id',S.perfil.negocio_id).in('estado',['PENDIENTE','CONFIRMADA','ATENDIDA']).order('inicio',{ascending:false}).limit(100))
+ ]);
  if(error)return toast(traducir(error.message),true);
- const{data:citas,error:errorCitas}=await mio(sb.from('citas').select('id,cliente_id,barbero_id,servicio_id,inicio,fin,clientes(nombre),barberos(nombre),servicios(nombre,precio)').eq('negocio_id',S.perfil.negocio_id).eq('estado','ATENDIDA').order('inicio',{ascending:false}).limit(50));
  if(errorCitas)return toast(traducir(errorCitas.message),true);
  const ids=(citas||[]).map(c=>c.id),cobradas=new Set();
  if(ids.length){
@@ -12,17 +48,34 @@ async function ventas(){
   if(errorRel)return toast(traducir(errorRel.message),true);
   (rel||[]).forEach(x=>cobradas.add(x.cita_id));
  }
- const pendientes=(citas||[]).filter(c=>!cobradas.has(c.id));
+ const pendientes=(citas||[]).filter(c=>!cobradas.has(c.id)&&(c.estado==='ATENDIDA'||new Date(c.fin)<=new Date()));
+ const ventaIds=(data||[]).map(v=>v.id),detallesPorVenta={};
+ if(ventaIds.length){
+  const{data:detalles,error:errorDetalles}=await sb.from('detalle_ventas').select('venta_id,descripcion,cantidad,tipo_item').eq('negocio_id',S.perfil.negocio_id).in('venta_id',ventaIds);
+  if(errorDetalles)return toast(traducir(errorDetalles.message),true);
+  (detalles||[]).forEach(x=>(detallesPorVenta[x.venta_id]??=[]).push(x));
+ }
+ const activa=k=>filtro===k?'':'sec';
  $('#main').innerHTML=`<div class="head"><h2>Ventas</h2><button class="btn" id="nv">Nueva venta</button></div>
  <div class="product-tabs"><button class="btn sec" id="vp">Venta de productos</button><button class="btn sec" id="vs">Venta de servicios</button><button class="btn sec" id="vm">Venta mixta</button></div>
- <section><h3>Citas atendidas por cobrar (${pendientes.length})</h3>
- ${pendientes.length?pendientes.map(c=>`<div class="row"><span><strong>${esc(c.clientes?.nombre||'Cliente')}</strong><br><small>${esc(c.servicios?.nombre||'Servicio')} · ${esc(c.barberos?.nombre||'Sin barbero')} · ${new Date(c.inicio).toLocaleString('es-CO',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</small><br><strong>${dinero(c.servicios?.precio||0)}</strong></span><button class="btn" data-cobrar-cita="${c.id}">Cobrar cita</button></div>`).join(''):'<p class="empty">No hay citas atendidas pendientes de cobro.</p>'}
- </section><section><h3>Últimas ventas</h3>
- ${data.length?data.map(v=>`<button class="row" data-id="${v.id}"><span><strong>${esc(v.clientes?.nombre||'Cliente de paso')}</strong><br><small>${new Date(v.fecha_hora).toLocaleString('es-CO',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}, ${dinero(v.total_venta)}${v.saldo_pendiente>0&&v.estado_venta!=='ANULADA'?', debe '+dinero(v.saldo_pendiente):''}</small></span><span class="chip ${v.estado_venta}">${bonito(v.estado_venta)}</span></button>`).join(''):'<p class="empty">Aún no hay ventas registradas.</p>'}</section>`;
+ <section><h3>Filtrar ventas</h3><div class="product-tabs">
+ <button class="btn ${activa('HOY')}" data-filtro-ventas="HOY">Hoy</button><button class="btn ${activa('SEMANA')}" data-filtro-ventas="SEMANA">Esta semana</button><button class="btn ${activa('MES')}" data-filtro-ventas="MES">Este mes</button><button class="btn ${activa('PERSONALIZADO')}" data-filtro-ventas="PERSONALIZADO">Personalizado</button></div>
+ <div class="dia" id="rango-personalizado" style="${filtro==='PERSONALIZADO'?'':'display:none'}"><label>Desde <input type="date" id="ventas-desde" value="${esc(desde)}"></label><label>Hasta <input type="date" id="ventas-hasta" value="${esc(hasta)}"></label><button class="btn" id="aplicar-rango">Aplicar</button></div>
+ </section>
+ <section><h3>Citas pendientes de cobro (${pendientes.length})</h3>
+ ${pendientes.length?pendientes.map(c=>`<div class="row"><span><strong>${esc(c.clientes?.nombre||'Cliente')}</strong><br><small>${esc(c.servicios?.nombre||'Servicio')} · ${esc(c.barberos?.nombre||'Sin barbero')} · ${new Date(c.inicio).toLocaleString('es-CO',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</small><br><strong>${dinero(c.servicios?.precio||0)}</strong></span><button class="btn" data-cobrar-cita="${c.id}">Cobrar cita</button></div>`).join(''):'<p class="empty">No hay citas pendientes de cobro.</p>'}
+ </section><section><h3>Ventas del período (${data.length})</h3>
+ ${data.length?data.map(v=>{
+  const items=detallesPorVenta[v.id]||[],conceptos=items.map(x=>esc(x.descripcion)+(Number(x.cantidad)!==1?' × '+x.cantidad:'')).join(' · ');
+  const saldo=Number(v.saldo_pendiente)>0&&v.estado_venta!=='ANULADA';
+  return `<button class="row" data-id="${v.id}"><span><strong>${esc(v.clientes?.nombre||'Cliente de paso')}</strong><br><small>${new Date(v.fecha_hora).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})} · Cobrado: ${dinero(v.total_pagado)}</small><br><small>${conceptos||'Sin detalle'}</small>${Number(v.descuento)>0?'<br><small>Descuento: '+dinero(v.descuento)+'</small>':''}${saldo?'<br><small>Saldo pendiente: '+dinero(v.saldo_pendiente)+' · Deudor: '+esc(v.clientes?.nombre||'Cliente de paso')+'</small>':''}</span><strong>${dinero(v.total_venta)}</strong></button>`;
+ }).join(''):'<p class="empty">No hay ventas en el período seleccionado.</p>'}</section>`;
  $('#nv').onclick=()=>nuevaVenta();
  $('#vp').onclick=()=>nuevaVenta(null,'PRODUCTOS');
  $('#vs').onclick=()=>nuevaVenta(null,'SERVICIOS');
  $('#vm').onclick=()=>nuevaVenta(null,'MIXTA');
+ document.querySelectorAll('[data-filtro-ventas]').forEach(b=>b.onclick=()=>{S.filtroVentas=b.dataset.filtroVentas;ventas()});
+ const aplicar=$('#aplicar-rango');if(aplicar)aplicar.onclick=()=>{const a=$('#ventas-desde').value,b=$('#ventas-hasta').value;if(!a||!b||a>b)return toast('Selecciona un rango de fechas válido.',true);S.ventasDesde=a;S.ventasHasta=b;S.filtroVentas='PERSONALIZADO';ventas()};
  document.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>detalleVenta(data.find(v=>v.id===b.dataset.id)));
  document.querySelectorAll('[data-cobrar-cita]').forEach(b=>b.onclick=()=>cobrarCitaPendiente(pendientes.find(c=>c.id===b.dataset.cobrarCita)));
 }
@@ -43,7 +96,7 @@ async function nuevaVenta(pre,tipo='MIXTA'){
  if(pre?.cita_id){
   const{data:cita,error:errorCita}=await sb.from('citas').select('estado').eq('negocio_id',S.perfil.negocio_id).eq('id',pre.cita_id).maybeSingle();
   if(errorCita)return toast(traducir(errorCita.message),true);
-  if(cita?.estado!=='ATENDIDA')return toast('Solo se puede cobrar una cita que esté marcada como ATENDIDA.',true);
+  if(!['PENDIENTE','CONFIRMADA','ATENDIDA'].includes(cita?.estado))return toast('Esta cita no está disponible para cobro.',true);
   const{data:existente,error:errorExistente}=await sb.from('ventas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('cita_id',pre.cita_id).neq('estado_venta','ANULADA').limit(1);
   if(errorExistente)return toast(traducir(errorExistente.message),true);
   if(existente?.length)return toast('Esta cita ya tiene una venta asociada.',true);
@@ -56,11 +109,11 @@ async function nuevaVenta(pre,tipo='MIXTA'){
  const[cl,ba,se,pr,cu]=respuestas.map(r=>r.data||[]);
  if(!se.length&&!pr.length)return toast('Primero crea un servicio o un producto.',true);
  const todos=[...se.map(x=>({k:'s:'+x.id,n:x.nombre,p:Number(x.precio)})),...pr.map(x=>({k:'p:'+x.id,n:x.nombre,p:Number(x.precio_venta)}))];
- const items=todos.filter(x=>tipo==='PRODUCTOS'?x.k.startsWith('p:'):tipo==='SERVICIOS'||tipo==='AGENDA'?x.k.startsWith('s:'):true);
+ const items=todos.filter(x=>tipo==='PRODUCTOS'?x.k.startsWith('p:'):tipo==='SERVICIOS'?x.k.startsWith('s:'):true);
  if(!items.length)return toast(tipo==='PRODUCTOS'?'No hay productos activos para vender.':'No hay servicios activos para vender.',true);
  if(pre?.servicio_id&&!items.some(x=>x.k==='s:'+pre.servicio_id))return toast('El servicio de esta cita ya no está activo. Revisa el catálogo antes de cobrar.',true);
  const op=a=>a.map(o=>`<option value="${o.id}">${esc(o.nombre)}</option>`).join('');
- const lin=()=>`<div class="ln"><select aria-label="Ítem">${items.map(i=>`<option value="${i.k}">${esc(i.n)}, ${dinero(i.p)}</option>`).join('')}</select><input type="number" min="1" value="1" inputmode="numeric" aria-label="Cantidad"></div>`;
+ const lin=()=>`<div class="ln edit-ln" style="grid-template-columns:minmax(0,1fr) 68px 34px;align-items:center"><select aria-label="Ítem">${items.map(i=>`<option value="${i.k}">${esc(i.n)}, ${dinero(i.p)}</option>`).join('')}</select><input type="number" min="1" value="1" inputmode="numeric" aria-label="Cantidad"><button type="button" class="btn sec rm" aria-label="Quitar ítem">×</button></div>`;
  const pl=()=>`<div class="ln"><select aria-label="Método de pago">${METODOS}</select><input type="number" min="0" inputmode="decimal" aria-label="Valor recibido"><select class="cu" hidden style="grid-column:1/-1" aria-label="Cuenta donde entró el pago"><option value="">Elige la cuenta donde entró</option>${cu.map(x=>`<option value="${x.id}">${esc(x.nombre)}${x.detalle?' ('+esc(x.detalle)+')':''}</option>`).join('')}</select></div>`;
  dlg.innerHTML=`<form id="df"><h2>${pre?.cita_id?'Cobrar cita':tipo==='PRODUCTOS'?'Venta de productos':tipo==='SERVICIOS'?'Venta de servicios':'Nueva venta'}</h2>
  <label for="v1">Cliente</label><select id="v1" name="cliente_id"><option value="">Cliente de paso</option>${op(cl)}</select>
@@ -80,6 +133,7 @@ async function nuevaVenta(pre,tipo='MIXTA'){
  $('#pgs').oninput=e=>{if(e.target.tagName==='INPUT')e.target.dataset.m=1};
  $('#df').oninput=ref;$('#df').onchange=ref;
  $('#ad').onclick=()=>{$('#lns').insertAdjacentHTML('beforeend',lin());ref()};
+ $('#lns').onclick=e=>{if(e.target.classList.contains('rm')){if(document.querySelectorAll('#lns .ln').length===1)return toast('La venta debe tener al menos un ítem.',true);e.target.closest('.ln').remove();ref()}};
  $('#ap').onclick=()=>{const rec=pagos().reduce((s,x)=>s+x.v,0);$('#pgs').insertAdjacentHTML('beforeend',pl());$('#pgs .ln:last-child input').value=Math.max(0,calc().t-rec)||'';ref()};ref();
  if(pre){$('#v1').value=pre.cliente_id||'';$('#v2').value=pre.barbero_id||'';const ls=()=>document.querySelectorAll('#lns .ln select');if(pre.servicio_id)ls()[0].value='s:'+pre.servicio_id;if(pre.fee&&items.some(x=>x.k==='s:'+pre.fee)){$('#ad').click();ls()[1].value='s:'+pre.fee}ref()}
  let guardando=false;
@@ -92,7 +146,7 @@ async function nuevaVenta(pre,tipo='MIXTA'){
   const{data:cajaActual,error:errorCajaActual}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
   if(errorCajaActual){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorCajaActual.message),true)}
   if(!cajaActual?.id){guardando=false;if(boton)boton.disabled=false;return toast('La caja se cerró. Abre una caja para registrar la venta.',true)}
-  if(pre?.cita_id){const{data:citaActual,error:errorCitaActual}=await sb.from('citas').select('estado').eq('negocio_id',S.perfil.negocio_id).eq('id',pre.cita_id).maybeSingle();if(errorCitaActual){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorCitaActual.message),true)}if(citaActual?.estado!=='ATENDIDA'){guardando=false;if(boton)boton.disabled=false;return toast('La cita ya no está marcada como ATENDIDA. Actualiza Ventas antes de cobrar.',true)}const{data:duplicada,error:errorDuplicada}=await sb.from('ventas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('cita_id',pre.cita_id).neq('estado_venta','ANULADA').limit(1);if(errorDuplicada){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorDuplicada.message),true)}if(duplicada?.length){guardando=false;if(boton)boton.disabled=false;return toast('Esta cita ya fue cobrada.',true)}}
+  if(pre?.cita_id){const{data:citaActual,error:errorCitaActual}=await sb.from('citas').select('estado').eq('negocio_id',S.perfil.negocio_id).eq('id',pre.cita_id).maybeSingle();if(errorCitaActual){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorCitaActual.message),true)}if(!['PENDIENTE','CONFIRMADA','ATENDIDA'].includes(citaActual?.estado)){guardando=false;if(boton)boton.disabled=false;return toast('La cita ya no está disponible para cobro.',true)}const{data:duplicada,error:errorDuplicada}=await sb.from('ventas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('cita_id',pre.cita_id).neq('estado_venta','ANULADA').limit(1);if(errorDuplicada){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorDuplicada.message),true)}if(duplicada?.length){guardando=false;if(boton)boton.disabled=false;return toast('Esta cita ya fue cobrada.',true)}}
   const bar=ba.find(x=>x.id===f.barbero_id),nid=S.perfil.negocio_id;
   const{data:v,error}=await sb.from('ventas').insert({negocio_id:nid,cliente_id:f.cliente_id||null,barbero_id:f.barbero_id||null,descuento:c.ds,metodo_pago_principal:(PG.slice().sort((a,b)=>b.v-a.v)[0]?.m)||'EFECTIVO',creado_por:S.perfil.id,cita_id:pre?.cita_id||null}).select('id').single();
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(pre?.cita_id&&error.code==='23505'?'Esta cita ya tiene una venta registrada. Actualiza la pantalla de Ventas.':traducir(error.message),true)}
@@ -105,6 +159,7 @@ async function nuevaVenta(pre,tipo='MIXTA'){
   let r=await sb.from('detalle_ventas').insert(det);
   if(!r.error&&PG.length)r=await sb.from('pagos').insert(PG.map(x=>({negocio_id:nid,venta_id:v.id,valor_pago:x.v,metodo_pago:x.m,cuenta_id:x.c,recibido_por:S.perfil.id})));
   if(r.error){const rollback=await sb.from('ventas').delete().eq('negocio_id',nid).eq('id',v.id);guardando=false;if(boton)boton.disabled=false;return toast(rollback.error?'No se completó la venta y tampoco pudo revertirse automáticamente: '+r.error.message+' / '+rollback.error.message:'No se completó la venta; se revirtió el registro inicial. '+r.error.message,true)}
+  if(pre?.cita_id){const{data:citaMarcada,error:errorCitaMarcada}=await sb.from('citas').update({estado:'ATENDIDA'}).eq('negocio_id',nid).eq('id',pre.cita_id).in('estado',['PENDIENTE','CONFIRMADA','ATENDIDA']).select('id').maybeSingle();if(errorCitaMarcada||!citaMarcada){dlg.close();toast('La venta quedó registrada, pero no se pudo actualizar la cita a ATENDIDA. Revisa la Agenda.',true);return}}
   dlg.close();toast('Venta registrada');ventas()};
 }
 async function editarVenta(v, actuales){

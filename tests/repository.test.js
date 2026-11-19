@@ -90,6 +90,10 @@ test('el módulo de ventas aplica el filtro del barbero a ventas y citas atendid
   const query = {
     select() { return this; },
     eq() { return this; },
+    gte() { return this; },
+    lt() { return this; },
+    in() { return this; },
+    neq() { return this; },
     order() { return this; },
     limit() { return Promise.resolve({ data: [], error: null }); }
   };
@@ -589,4 +593,22 @@ test('la disponibilidad y los enlaces privados de Agenda validan el negocio y se
   assert.doesNotMatch(reprogramar, /estado\s*=\s*'CONFIRMADA'/);
   assert.match(sql, /l::date <> lf::date/);
   assert.match(agenda, /async function agenda\(\)\{\s*const main=\$\('#main'\)/);
+});
+
+
+test('el cobro de citas marca ATENDIDA y permite productos y servicios adicionales', () => {
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  assert.match(ventas, /in\('estado',\['PENDIENTE','CONFIRMADA','ATENDIDA'\]\)/);
+  assert.match(ventas, /update\(\{estado:'ATENDIDA'\}\)/);
+  assert.match(ventas, /tipo==='SERVICIOS'\?x\.k\.startsWith\('s:'\):true/);
+  assert.match(ventas, /class="btn sec rm" aria-label="Quitar ítem"/);
+  assert.match(ventas, /trg_salida_inventario|tipo_item:s\?'SERVICIO':'PRODUCTO'/);
+  assert.match(ventas, /data-filtro-ventas="HOY"/);
+  assert.match(ventas, /data-filtro-ventas="SEMANA"/);
+  assert.match(ventas, /data-filtro-ventas="MES"/);
+  assert.match(ventas, /data-filtro-ventas="PERSONALIZADO"/);
+  assert.match(ventas, /gte\('fecha_hora',rango\.desde\)\.lt\('fecha_hora',rango\.hasta\)/);
+  assert.match(ventas, /Saldo pendiente:/);
+  assert.match(ventas, /Deudor:/);
+  assert.match(ventas, /Descuento:/);
 });
