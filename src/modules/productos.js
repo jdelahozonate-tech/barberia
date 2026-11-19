@@ -181,22 +181,54 @@ export function crearModuloProductos(deps) {
    const detalle=items.map(x=>({pedido_id:pedido.id,negocio_id:nid(),producto_id:x.producto.id,nombre_producto:x.producto.nombre,cantidad:x.cantidad,costo_estimado:x.costo}));
    const{error:e2}=await sb.from('detalle_pedidos_proveedores').insert(detalle);
    if(e2){await sb.from('pedidos_proveedores').delete().eq('id',pedido.id).eq('negocio_id',nid());busy=false;if(b)b.disabled=false;return error(e2)}
-   dlg.close();toast('Pedido guardado. Preparando documento PDF.');await generarPdfPedido(pedido,vs.find(v=>v.id===f.proveedor_id),items,f.observaciones);vista='pedido_proveedor';render();
+   toast('Pedido guardado. Preparando documento PDF.');const pdf=await generarPdfPedido(pedido,vs.find(v=>v.id===f.proveedor_id),items,f.observaciones);if(pdf)mostrarAccionesPdf(pdf,vs.find(v=>v.id===f.proveedor_id));else dlg.close();vista='pedido_proveedor';render();
   };
  }
  async function generarPdfPedido(pedido,proveedor,items,observaciones){
-  const cargarJsPdf=()=>new Promise((resolve,reject)=>{if(window.jspdf?.jsPDF)return resolve(window.jspdf.jsPDF);const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';sc.onload=()=>window.jspdf?.jsPDF?resolve(window.jspdf.jsPDF):reject(new Error('No se pudo cargar el generador PDF'));sc.onerror=()=>reject(new Error('No hay conexión para generar el PDF'));document.head.append(sc)});
-  const texto='Pedido para '+proveedor.nombre+' · '+new Date().toLocaleDateString('es-CO'),filas=items.map(x=>[x.producto.nombre,String(x.cantidad),dinero(x.costo),dinero(x.cantidad*x.costo)]);
+  const cargarJsPdf=async()=>{
+   if(window.jspdf?.jsPDF)return window.jspdf.jsPDF;
+   const urls=['https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js','https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js'];
+   let ultimo;
+   for(const url of urls){try{await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src=url;sc.onload=resolve;sc.onerror=()=>reject(new Error('No se pudo descargar el generador PDF'));document.head.append(sc)});if(window.jspdf?.jsPDF)return window.jspdf.jsPDF}catch(e){ultimo=e}}
+   throw ultimo||new Error('No está disponible el generador PDF');
+  };
   try{
-   const JsPDF=await cargarJsPdf(),doc=new JsPDF();doc.setFontSize(18);doc.text('PEDIDO A PROVEEDOR',14,18);doc.setFontSize(11);doc.text('Proveedor: '+proveedor.nombre,14,29);doc.text('Telefono: '+(proveedor.telefono||'No registrado'),14,36);doc.text('Fecha: '+new Date().toLocaleDateString('es-CO'),14,43);
-   let y=56;doc.setFont(undefined,'bold');doc.text('Producto',14,y);doc.text('Cant.',112,y);doc.text('Costo',137,y);doc.text('Subtotal',170,y);doc.setFont(undefined,'normal');y+=8;
-   for(const x of items){if(y>275){doc.addPage();y=20}doc.text(String(x.producto.nombre).slice(0,48),14,y);doc.text(String(x.cantidad),112,y);doc.text(dinero(x.costo),137,y);doc.text(dinero(x.cantidad*x.costo),170,y);y+=8}
-   const total=items.reduce((a,x)=>a+x.cantidad*x.costo,0);y+=6;doc.setFont(undefined,'bold');doc.text('TOTAL ESTIMADO: '+dinero(total),14,y);if(observaciones){y+=9;doc.setFont(undefined,'normal');doc.text('Observaciones: '+observaciones,14,y,{maxWidth:180})}
-   const blob=doc.output('blob'),nombre='pedido-proveedor-'+pedido.id.slice(0,8)+'.pdf',archivo=new File([blob],nombre,{type:'application/pdf'});
-   if(navigator.canShare?.({files:[archivo]})&&navigator.share){await navigator.share({files:[archivo],title:'Pedido a '+proveedor.nombre,text:texto})}
-   else{const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=nombre;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);const msg=encodeURIComponent('Hola '+proveedor.nombre+', te comparto el pedido de productos. Adjunto el PDF.');window.open('https://wa.me/'+String(proveedor.telefono||'').replace(/\D/g,'')+'?text='+msg,'_blank','noopener');toast('PDF descargado. Adjuntalo en WhatsApp para enviarlo.')}
-  }catch(e){console.error(e);toast('El pedido quedó guardado, pero no se pudo generar el PDF: '+e.message,true)}
+   if(!proveedor)throw new Error('No se encontró la información del proveedor.');
+   const JsPDF=await cargarJsPdf(),doc=new JsPDF({unit:'mm',format:'a4'}),ancho=doc.internal.pageSize.getWidth(),alto=doc.internal.pageSize.getHeight();
+   const total=items.reduce((a,x)=>a+Number(x.cantidad)*Number(x.costo),0),fechaPedido=new Date(pedido.creado_en||Date.now()).toLocaleDateString('es-CO');
+   doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('PEDIDO A PROVEEDOR',14,18);
+   doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text('Proveedor: '+String(proveedor.nombre||'').slice(0,90),14,28);doc.text('Telefono: '+String(proveedor.telefono||'No registrado').slice(0,60),14,34);doc.text('Fecha: '+fechaPedido,14,40);
+   let y=52;const encabezado=()=>{doc.setFillColor(235,239,245);doc.rect(14,y-5,ancho-28,9,'F');doc.setFont('helvetica','bold');doc.text('Producto',16,y);doc.text('Cantidad',112,y,{align:'right'});doc.text('Costo',145,y,{align:'right'});doc.text('Subtotal',ancho-16,y,{align:'right'});doc.setFont('helvetica','normal');y+=10};encabezado();
+   for(const x of items){const nombre=doc.splitTextToSize(String(x.producto?.nombre||'Producto'),88),altoFila=Math.max(7,nombre.length*5);if(y+altoFila>alto-25){doc.addPage();y=20;encabezado()}doc.text(nombre,16,y);doc.text(String(x.cantidad),112,y,{align:'right'});doc.text(dinero(x.costo),145,y,{align:'right'});doc.text(dinero(Number(x.cantidad)*Number(x.costo)),ancho-16,y,{align:'right'});y+=altoFila}
+   y+=5;if(y>alto-25){doc.addPage();y=20}doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('TOTAL ESTIMADO: '+dinero(total),ancho-16,y,{align:'right'});
+   if(observaciones){y+=10;doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('Observaciones:',14,y);y+=5;doc.setFont('helvetica','normal');for(const linea of doc.splitTextToSize(String(observaciones),ancho-28)){if(y>alto-15){doc.addPage();y=20}doc.text(linea,14,y);y+=5}}
+   return {blob:doc.output('blob'),nombre:'pedido-proveedor-'+String(pedido.id||'pedido').slice(0,8)+'.pdf'};
+  }catch(e){console.error('Error generando PDF de pedido:',e);toast('No se pudo generar el PDF: '+(e?.message||'Error desconocido')+'. Verifica la conexión e inténtalo de nuevo.',true);return null}
  }
+
+ function mostrarAccionesPdf(pdf,proveedor){
+  dlg.innerHTML='<div class="form"><h2>Pedido listo</h2><p class="info">El PDF ya está generado. Elige cómo quieres compartirlo o guardarlo.</p><div class="acts" style="flex-direction:column;align-items:stretch"><button type="button" class="btn" id="pp-enviar-wa">Enviar por WhatsApp</button><button type="button" class="btn sec" id="pp-guardar-pdf">Guardar PDF en el dispositivo</button><button type="button" class="link" id="pp-cerrar-pdf">Cerrar</button></div><small>En móviles compatibles se abrirá el menú para elegir WhatsApp. Si el navegador no permite compartir archivos, se descargará el PDF y se abrirá WhatsApp para adjuntarlo manualmente.</small></div>';
+  if(!dlg.open)dlg.showModal();
+  const guardar=()=>{const url=URL.createObjectURL(pdf.blob),a=document.createElement('a');a.href=url;a.download=pdf.nombre;a.style.display='none';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('PDF guardado en las descargas del dispositivo.')};
+  $('#pp-guardar-pdf').onclick=guardar;
+  $('#pp-enviar-wa').onclick=async()=>{
+   const archivo=new File([pdf.blob],pdf.nombre,{type:'application/pdf'});
+   try{
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[archivo]})){
+     await navigator.share({files:[archivo],title:'Pedido a proveedor',text:'Pedido para '+String(proveedor?.nombre||'proveedor')});
+     toast('Selecciona WhatsApp en el menú para completar el envío.');
+    }else{
+     guardar();
+     const tel=String(proveedor?.telefono||'').replace(/\D/g,'');
+     const texto=encodeURIComponent('Hola, te comparto el pedido. Adjunto el archivo PDF: '+pdf.nombre);
+     window.open('https://wa.me/'+tel+'?text='+texto,'_blank','noopener');
+     toast('Adjunta en WhatsApp el PDF que se acaba de descargar.');
+    }
+   }catch(e){if(e?.name==='AbortError')return;console.error('No se pudo compartir el PDF:',e);toast('No se pudo abrir el menú para compartir. Usa Guardar PDF y adjúntalo en WhatsApp.',true)}
+  };
+  $('#pp-cerrar-pdf').onclick=()=>dlg.close();
+ }
+
  async function pedidosProveedorVista(){
   const{data,error:e1}=await sb.from('pedidos_proveedores').select('*,proveedores_inventario(nombre,telefono),detalle_pedidos_proveedores(*)').eq('negocio_id',nid()).order('creado_en',{ascending:false}).limit(100);
   if(e1)return error(e1);
@@ -204,7 +236,7 @@ export function crearModuloProductos(deps) {
   $('#main').innerHTML='<div class="head"><h2>Pedidos a proveedores</h2><button class="btn" id="nuevo-pp">Preparar pedido</button></div>'+tabs()+(pedidos.length?pedidos.map(p=>'<article class="order-card"><div class="order-head"><div><strong>'+esc(p.proveedores_inventario?.nombre||'Proveedor')+'</strong><small>'+fecha(p.creado_en)+' · '+esc(p.proveedores_inventario?.telefono||'Sin teléfono')+'</small></div><span class="chip">'+esc(p.estado)+'</span></div><div class="order-items">'+(p.detalle_pedidos_proveedores||[]).map(d=>'<span>'+esc(d.nombre_producto)+' × '+d.cantidad+'</span>').join('')+'</div><div class="acts"><select data-ppestado="'+p.id+'">'+['BORRADOR','ENVIADO','RECIBIDO','CANCELADO'].map(e=>'<option value="'+e+'" '+(p.estado===e?'selected':'')+'>'+e+'</option>').join('')+'</select><button class="btn sec" data-pppdf="'+p.id+'">Generar PDF</button></div></article>').join(''):'<p class="empty">Todavía no has preparado pedidos a proveedores.</p>');
   $('#nuevo-pp').onclick=pedidoProveedorForm;document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{vista=b.dataset.tab;render()});
   document.querySelectorAll('[data-ppestado]').forEach(sel=>sel.onchange=async()=>{sel.disabled=true;const{error:e1}=await sb.from('pedidos_proveedores').update({estado:sel.value,actualizado_en:new Date().toISOString()}).eq('id',sel.dataset.ppestado).eq('negocio_id',nid());if(e1){sel.disabled=false;return error(e1)}sel.disabled=false;toast('Estado actualizado')});
-  document.querySelectorAll('[data-pppdf]').forEach(b=>b.onclick=async()=>{const p=pedidos.find(x=>x.id===b.dataset.pppdf),items=(p.detalle_pedidos_proveedores||[]).map(d=>({producto:{nombre:d.nombre_producto},cantidad:Number(d.cantidad),costo:Number(d.costo_estimado)}));await generarPdfPedido(p,p.proveedores_inventario,items,p.observaciones)});
+  document.querySelectorAll('[data-pppdf]').forEach(b=>b.onclick=async()=>{const p=pedidos.find(x=>x.id===b.dataset.pppdf),items=(p.detalle_pedidos_proveedores||[]).map(d=>({producto:{nombre:d.nombre_producto},cantidad:Number(d.cantidad),costo:Number(d.costo_estimado)}));const pdf=await generarPdfPedido(p,p.proveedores_inventario,items,p.observaciones);if(pdf)mostrarAccionesPdf(pdf,p.proveedores_inventario)});
  }
  async function pedidosVista(){
   const{data,error:e1}=await sb.from('pedidos_productos').select('*,detalle_pedidos_productos(*)').eq('negocio_id',nid()).order('creado_en',{ascending:false}).limit(100);
