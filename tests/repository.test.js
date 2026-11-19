@@ -90,6 +90,10 @@ test('el módulo de ventas aplica el filtro del barbero a ventas y citas atendid
   const query = {
     select() { return this; },
     eq() { return this; },
+    gte() { return this; },
+    lt() { return this; },
+    in() { return this; },
+    neq() { return this; },
     order() { return this; },
     limit() { return Promise.resolve({ data: [], error: null }); }
   };
