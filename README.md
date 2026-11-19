@@ -73,6 +73,7 @@ Los HTML de entrada permanecen en la raíz para conservar las URLs públicas act
 - Autenticación, perfiles e invitaciones por rol.
 - Clientes, barberos, servicios y productos.
 - Proveedores, compras de inventario, abonos, cuentas por pagar, ajustes y trazabilidad de movimientos.
+- Catálogo visual de productos con fotografías y pedidos públicos de clientes, con bandeja de atención por el equipo.
 - Horarios, agenda y citas.
 - Reservas públicas y enlaces de gestión de citas.
 - Ventas, pagos, caja y gastos.
