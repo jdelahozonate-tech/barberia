@@ -534,3 +534,19 @@ test('los perfiles de barberos permiten fotografía privada de administración y
   assert.match(sql, /barberos_fotos_insertar/);
   assert.match(sw, /barberia-v19/);
 });
+
+
+test('la reserva pública entrega un enlace privado y excluye el cargo de cita de comisiones', () => {
+  const publico = readFileSync(resolve(root, 'src/pages/reservar.js'), 'utf8');
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261122000000_agenda_publica_segura.sql'), 'utf8');
+  assert.match(publico, /const\{data,error\}=await sb\.rpc\('reservar_cita_publica'/);
+  assert.match(publico, /gestion\.searchParams\.set\('t',data\.token\)/);
+  assert.match(publico, /Ver, cancelar o cambiar mi cita/);
+  assert.match(sql, /RETURNS jsonb/);
+  assert.match(sql, /'cita_id', cita, 'token', token_privado/);
+  assert.match(sql, /AND acepta_citas/);
+  assert.match(ventas, /sv\.categoria!=='CITA'/);
+  assert.match(sql, /s\.categoria IS DISTINCT FROM 'CITA'/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.reservar_cita_publica.*TO anon, authenticated/);
+});
