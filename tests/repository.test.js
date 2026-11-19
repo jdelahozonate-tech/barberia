@@ -300,6 +300,15 @@ test('las reservas públicas toleran catálogos incompletos y filtran horarios i
 });
 
 
+test('la reserva pública entrega el enlace privado usando el token devuelto por Supabase', () => {
+  const reservar = readFileSync(resolve(root, 'src/pages/reservar.js'), 'utf8');
+  assert.match(reservar, /const\{data,error\}=await sb\.rpc\('reservar_cita_publica'/);
+  assert.match(reservar, /typeof data\?\.token==='string'/);
+  assert.match(reservar, /new URL\('cita\.html',location\.href\)/);
+  assert.match(reservar, /enlace\.searchParams\.set\('t',token\)/);
+  assert.match(reservar, /Consultar, confirmar o cambiar mi cita/);
+});
+
 test('la interfaz reserva edición administrativa de catálogos, citas, ventas y equipo', () => {
   const cfg = readFileSync(resolve(root, 'src/config/catalogos.js'), 'utf8');
   const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
