@@ -1,6 +1,6 @@
 // Módulo de agenda, creación y gestión de citas.
 export function crearModuloAgenda(deps) {
- const { $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, nuevaVenta, mio, ir } = deps;
+ const { $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, mio, ir } = deps;
  function partesNegocio(iso){
  const zona=S.negocio?.zona_horaria||'America/Bogota';
  const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:zona,year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(iso)).map(x=>[x.type,x.value]));
@@ -124,18 +124,9 @@ function editarCita(c){
   const{error}=await sb.from('citas').update(cambios).eq('negocio_id',S.perfil.negocio_id).eq('id',c.id);
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
   dlg.close();toast(cambioHorario?'Cita reprogramada':'Cita actualizada');S.dia=partesNegocio(i.toISOString()).fecha;agenda();
-  if(f.estado==='ATENDIDA'&&c.estado!=='ATENDIDA')cobrarCita(c);
+
  };
  const cf=$('#cf');if(admin&&cf)cf.onclick=async()=>{if(guardando)return;guardando=true;cf.style.pointerEvents='none';const{error}=await sb.from('citas').update({estado:'CONFIRMADA'}).eq('negocio_id',S.perfil.negocio_id).eq('id',c.id);if(error){guardando=false;cf.style.pointerEvents='';return toast(traducir(error.message),true)}dlg.close();toast('Cita confirmada');ir()};
-}
-/* ---------- Cobro de la cita y citas por confirmar ---------- */
-async function cobrarCita(c){
- const{data:ya,error:errorVenta}=await sb.from('ventas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('cita_id',c.id).limit(1);
- if(errorVenta)return toast(traducir(errorVenta.message),true);
- if(ya&&ya.length)return;
- let fee=null;
- if(Number(S.negocio.valor_cita)>0){const{data:s,error:errorServicio}=await sb.from('servicios').select('id').eq('negocio_id',S.perfil.negocio_id).eq('categoria','CITA').eq('estado','ACTIVO').limit(1);if(errorServicio)return toast(traducir(errorServicio.message),true);fee=s?.[0]?.id||null}
- nuevaVenta({cliente_id:c.cliente_id,barbero_id:c.barbero_id,servicio_id:c.servicio_id,cita_id:c.id,fee});
 }
 async function porConfirmar(){
  const{data,error}=await mio(sb.from('citas').select('*,clientes(nombre,telefono),barberos(nombre),servicios(nombre)').eq('negocio_id',S.perfil.negocio_id).eq('estado','PENDIENTE').gte('inicio',new Date().toISOString())).order('inicio').limit(10);
