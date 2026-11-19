@@ -568,7 +568,7 @@ test('los perfiles de barberos permiten fotografía privada de administración y
   const index = readFileSync(resolve(root, 'index.html'), 'utf8');
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261121000000_comisiones_perfiles_barberos.sql'), 'utf8');
   const sw = readFileSync(resolve(root, 'sw.js'), 'utf8');
-  assert.match(catalogos, /storage\.from\('barberos'\)\.upload/);
+  assert.match(catalogos, /storage\.from\(k==='clientes'\?'clientes':'barberos'\)\.upload/);
   assert.match(catalogos, /max="100"/);
   assert.match(catalogos, /n==='porcentaje_comision'\?65/);
   assert.match(equipo, /async function miPerfil\(\)/);
@@ -579,6 +579,20 @@ test('los perfiles de barberos permiten fotografía privada de administración y
   assert.match(sw, /barberia-v19/);
 });
 
+
+
+test('los clientes admiten fotografía opcional y muestran avatar cuando no existe', () => {
+  const catalogos = readFileSync(resolve(root, 'src/modules/catalogos.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261119070000_clientes_foto_opcional.sql'), 'utf8');
+  assert.match(catalogos, /\['barberos','clientes'\]\.includes\(k\)/);
+  assert.match(catalogos, /Fotografía \$\{k==='clientes'\?'del cliente':'del barbero'\} <span class="mute">\(opcional\)<\/span>/);
+  assert.match(catalogos, /name="foto_\$\{k\}"/);
+  assert.match(catalogos, /storage\.from\(k==='clientes'\?'clientes':'barberos'\)\.upload/);
+  assert.match(catalogos, /r\.foto_url\?/);
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS foto_url text/);
+  assert.match(sql, /clientes_fotos_insertar/);
+  assert.match(sql, /public\.mi_negocio\(\)/);
+});
 
 test('la disponibilidad y los enlaces privados de Agenda validan el negocio y serializan cambios', () => {
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261119050000_agenda_publica_integridad.sql'), 'utf8');
