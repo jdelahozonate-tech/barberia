@@ -219,7 +219,7 @@ export function crearModuloProductos(deps) {
      toast('Selecciona WhatsApp en el menú para completar el envío.');
     }else{
      guardar();
-     const tel=String(proveedor?.telefono||'').replace(/\\D/g,'');
+     const tel=String(proveedor?.telefono||'').replace(/\D/g,'');
      const texto=encodeURIComponent('Hola, te comparto el pedido. Adjunto el archivo PDF: '+pdf.nombre);
      window.open('https://wa.me/'+tel+'?text='+texto,'_blank','noopener');
      toast('Adjunta en WhatsApp el PDF que se acaba de descargar.');
