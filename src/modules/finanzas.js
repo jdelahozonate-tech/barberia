@@ -7,7 +7,7 @@ async function caja(){
  if(!cj){
   const{data:u,error:errorCierres}=await sb.from('cajas').select('*').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','CERRADA').order('fecha_cierre',{ascending:false}).limit(5);
   if(errorCierres)return toast(errorCierres.message,true);
-  main.innerHTML=`<div class="head"><h2>Caja</h2><button class="btn sec" id="gs">Registrar gasto</button></div><p class="info">La caja está cerrada. Ábrela al empezar el día.</p>
+  main.innerHTML=`<div class="head"><h2>Caja</h2></div><p class="info">La caja está cerrada. Ábrela al empezar el día.</p>
   <label for="si">Efectivo inicial en caja</label><input id="si" type="number" min="0" value="0" inputmode="decimal"><button class="btn block" id="ab">Abrir caja</button>
   ${u?.length?'<label>Últimos cierres</label>'+u.map(c=>fila2(fm(c.fecha_cierre)+', contó '+dinero(c.efectivo_contado),(c.diferencia>=0?'+':'')+dinero(c.diferencia))).join(''):''}`;
   $('#gs').onclick=()=>gasto(null);
@@ -33,7 +33,11 @@ async function caja(){
    const{error}=await sb.from('cajas').update({estado_caja:'CERRADA',fecha_cierre:new Date().toISOString(),usuario_cierre:S.perfil.id,efectivo_esperado:esp,efectivo_contado:n,diferencia:n-esp,observaciones:$('#co').value||null}).eq('id',cj.id).eq('negocio_id',S.perfil.negocio_id);
    if(error){cerrando=false;if(boton)boton.disabled=false;return toast(error.message,true)}dlg.close();toast('Caja cerrada');caja()}};
 }
-function gasto(cj){
+async function gasto(cj){
+ const{data:cajaActiva,error:errorCaja}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
+ if(errorCaja)return toast(errorCaja.message,true);
+ if(!cajaActiva?.id)return toast('Para registrar un gasto, primero abre la caja.',true);
+ cj=cajaActiva;
  dlg.innerHTML=`<form id="df"><h2>Registrar gasto</h2><label for="g1">Categoría</label><select id="g1" name="categoria_gasto">${['OPERATIVO','PRODUCTOS','COMISIONES','SERVICIOS_PUBLICOS','ARRIENDO','NOMINA','OTRO'].map(o=>`<option value="${o}">${bonito(o)}</option>`).join('')}</select>
  <label for="g2">Descripción</label><input id="g2" name="descripcion" required><label for="g3">Valor</label><input id="g3" name="valor" type="number" min="1" inputmode="decimal" required>
  <label for="g4">Método de pago</label><select id="g4" name="metodo_pago">${METODOS}</select><label for="g5">Proveedor</label><input id="g5" name="proveedor">
@@ -41,7 +45,10 @@ function gasto(cj){
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  let guardando=false;
  $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target)),valor=Number(f.valor);if(!Number.isFinite(valor)||valor<=0){guardando=false;if(boton)boton.disabled=false;return toast('El valor del gasto debe ser un número válido mayor que cero.',true)}
-  const{error}=await sb.from('gastos').insert({...f,valor,proveedor:f.proveedor||null,negocio_id:S.perfil.negocio_id,usuario_registro:S.perfil.id,caja_id:cj?.id||null});
+  const{data:cajaActual,error:errorCajaActual}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
+  if(errorCajaActual){guardando=false;if(boton)boton.disabled=false;return toast(errorCajaActual.message,true)}
+  if(!cajaActual?.id){guardando=false;if(boton)boton.disabled=false;return toast('La caja se cerró. Abre una caja para registrar el gasto.',true)}
+  const{error}=await sb.from('gastos').insert({...f,valor,proveedor:f.proveedor||null,negocio_id:S.perfil.negocio_id,usuario_registro:S.perfil.id,caja_id:cajaActual.id});
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(error.message,true)}dlg.close();toast('Gasto guardado');caja()};
 }
 async function comisiones(){
@@ -61,6 +68,7 @@ async function comisiones(){
   const ef=confirm('¿Se pagó en efectivo desde la caja?\nAceptar = efectivo. Cancelar = transferencia.');
   const{data:cj,error:errorCaja}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
   if(errorCaja){b.disabled=false;return toast('No fue posible verificar la caja: '+errorCaja.message,true)}
+  if(!cj?.id){b.disabled=false;return toast('Para liquidar comisiones, primero abre la caja.',true)}
   const ahora=new Date().toISOString(),{error}=await sb.from('comisiones').insert(p.L.map(x=>({negocio_id:S.perfil.negocio_id,barbero_id:b.dataset.b,detalle_id:x.id,valor_base:x.subtotal,valor_comision:x.comision_generada,estado_liquidacion:'LIQUIDADA',fecha_pago:ahora})));
   if(error){b.disabled=false;return toast(error.message,true)}
   const r=await sb.from('gastos').insert({negocio_id:S.perfil.negocio_id,categoria_gasto:'COMISIONES',descripcion:'Liquidación de comisión a '+p.n,valor:p.t,metodo_pago:ef?'EFECTIVO':'TRANSFERENCIA',usuario_registro:S.perfil.id,caja_id:cj?.id||null});
