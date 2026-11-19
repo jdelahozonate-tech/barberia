@@ -131,9 +131,11 @@ BEGIN
   OR length(regexp_replace(COALESCE(p_telefono,''),'[^0-9+]','','g')) NOT BETWEEN 7 AND 30 THEN
   RAISE EXCEPTION 'Escribe un nombre y teléfono válidos.';
  END IF;
- IF p_items IS NULL OR jsonb_typeof(p_items)<>'array'
-  OR jsonb_array_length(p_items)=0 OR jsonb_array_length(p_items)>30 THEN
-  RAISE EXCEPTION 'Agrega al menos un producto al pedido.';
+ IF p_items IS NULL OR jsonb_typeof(p_items)<>'array' THEN
+  RAISE EXCEPTION 'El formato del pedido no es válido.';
+ END IF;
+ IF jsonb_array_length(p_items)=0 OR jsonb_array_length(p_items)>30 THEN
+  RAISE EXCEPTION 'Agrega entre 1 y 30 líneas de productos.';
  END IF;
  SELECT id INTO v_negocio FROM public.negocios WHERE slug=p_slug LIMIT 1;
  IF v_negocio IS NULL THEN RAISE EXCEPTION 'No encontramos esta barbería.'; END IF;
