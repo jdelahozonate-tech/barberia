@@ -97,7 +97,8 @@ dialog::backdrop{background:rgba(16,34,63,.55)}
 .order-items{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
 .order-items span{background:#E8EDF5;border-radius:20px;padding:4px 9px;font-size:.85rem}
 .order-card label{margin-top:8px}
-\n@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+\n .notif-bell{position:relative;font-size:1.35rem;padding:4px 8px}.notif-badge{position:absolute;top:-3px;right:-2px;background:#C0272D;color:#fff;border-radius:99px;font-size:.68rem;min-width:17px;height:17px;line-height:17px;text-align:center}.notif-panel{position:fixed;z-index:30;right:12px;top:68px;width:min(370px,calc(100vw - 24px));max-height:70vh;overflow:auto;background:#fff;border:1px solid var(--line);box-shadow:0 12px 35px #10223f30;border-radius:12px;padding:12px}.notif-panel[hidden]{display:none}.notif-panel-head{display:flex;justify-content:space-between;align-items:center;padding:4px 4px 10px}.notif-item{border-top:1px solid var(--line);padding:10px 4px}.notif-item p{margin:4px 0;color:var(--mute)}.notif-item small{color:var(--mute)}.notif-item.warning{border-left:4px solid #D89B28;padding-left:9px}.notif-item.danger{border-left:4px solid var(--red);padding-left:9px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
@@ -115,6 +116,7 @@ import { crearModuloVentas } from "./src/modules/ventas.js";
 import { crearModuloFinanzas } from "./src/modules/finanzas.js";
 import { crearModuloInicio } from "./src/modules/inicio.js";
 import { crearModuloAjustes } from "./src/modules/ajustes.js";
+import { crearModuloNotificaciones } from "./src/modules/notificaciones.js";
 import { crearModuloAcceso } from "./src/modules/acceso.js";
 const $=s=>document.querySelector(s),app=$('#app'),dlg=$('#dlg');
 const S={perfil:null,negocio:null,vista:'inicio',dia:fecha(new Date())};
@@ -124,14 +126,17 @@ const fm=d=>new Date(d).toLocaleDateString('es-CO',{day:'numeric',month:'short'}
 const fila2=(a,b,c='')=>`<div class="ln2 ${c}"><span>${a}</span><span>${b}</span></div>`;
 let tt;function toast(m,err){const t=$('#toast');t.textContent=m;t.className='show'+(err?' err':'');clearTimeout(tt);tt=setTimeout(()=>t.className='',4000)}
 
+const NOTIF=crearModuloNotificaciones({ $, sb, S, esc, toast });
+
 /* ---------- Acceso ---------- */
 /* ---------- Estructura ---------- */
 const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['pedidos','Pedidos'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Productos'],['caja','Caja',1],['comisiones','Comisiones',1],['ajustes','Ajustes',2],['miscom','Mis comisiones',3]];
 const { pantallaAuth, cargar, aviso } = crearModuloAcceso({ $, app, sb, S, esc, traducir, toast, waNum, shell });
 function shell(){
- app.innerHTML=`<div class="pole"></div><div class="bar">${S.negocio.logo_url?`<img src="${esc(S.negocio.logo_url)}" alt="${esc(S.negocio.nombre)}" style="height:44px;display:block">`:`<strong>${esc(S.negocio.nombre)}</strong>`}<span><small>${esc(S.perfil.nombre)}, ${S.perfil.rol.toLowerCase()}</small> <button class="link light" id="out">Salir</button></span></div>
+ app.innerHTML=`<div class="pole"></div><div class="bar">${S.negocio.logo_url?`<img src="${esc(S.negocio.logo_url)}" alt="${esc(S.negocio.nombre)}" style="height:44px;display:block">`:`<strong>${esc(S.negocio.nombre)}</strong>`}<span><small>${esc(S.perfil.nombre)}, ${S.perfil.rol.toLowerCase()}</small> <button type="button" class="link light notif-bell" id="campana-notificaciones" aria-label="Notificaciones">♢</button> <button class="link light" id="out">Salir</button></span></div>
  <nav class="nav">${MENU.filter(m=>!m[2]||(m[2]===3?S.perfil.rol==='BARBERO':m[2]===2?ADM.includes(S.perfil.rol):ADM.includes(S.perfil.rol))).map(([k,l])=>`<button data-v="${k}">${l}</button>`).join('')}</nav><div class="wrap">${aviso()}<main id="main"></main></div>`;
- $('#out').onclick=()=>sb.auth.signOut();
+ $('#out').onclick=()=>{NOTIF.detener();sb.auth.signOut()};
+ NOTIF.iniciar();
  document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{S.vista=b.dataset.v;ir()});
  ir();
 }
@@ -141,7 +146,7 @@ function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.tog
 const ADM=['ADMINISTRADOR','SUPERVISOR'];
 const soloMio=()=>S.perfil.rol==='BARBERO'&&!!S.perfil.barbero_id,mio=q=>soloMio()?q.eq('barbero_id',S.perfil.barbero_id):q;
 const { horarios, equipo } = crearModuloEquipo({ $, dlg, sb, S, esc, bonito, toast });
-const { ajustes } = crearModuloAjustes({ $, sb, S, esc, toast, equipo, ir });
+const { ajustes } = crearModuloAjustes({ $, sb, S, esc, toast, equipo, ir, notificaciones: NOTIF });
 const CFG=crearConfigCatalogos(ADM,dinero);
 const { crud } = crearModuloCatalogos({ $, app, dlg, sb, S, CFG, esc, bonito, traducir, toast, horarios });
 const { productos, pedidos:pedidosProductos } = crearModuloProductos({ $, dlg, sb, S, esc, dinero, traducir, toast });
