@@ -13,7 +13,7 @@ async function nuevaVenta(pre){
  const{data:cajaInicial,error:errorCajaInicial}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
  if(errorCajaInicial)return toast(traducir(errorCajaInicial.message),true);
  if(!cajaInicial?.id)return toast('Para registrar una venta, primero abre la caja.',true);
- const respuestas=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre,modelo_pago,porcentaje_comision'],['servicios','id,nombre,precio'],['productos','id,nombre,precio_venta,costo_unitario'],['cuentas','id,nombre,detalle']].map(([t,campos])=>sb.from(t).select(campos).eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').order('nombre')));
+ const respuestas=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre,modelo_pago,porcentaje_comision'],['servicios','id,nombre,precio,categoria'],['productos','id,nombre,precio_venta,costo_unitario'],['cuentas','id,nombre,detalle']].map(([t,campos])=>sb.from(t).select(campos).eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').order('nombre')));
  const fallo=respuestas.find(r=>r.error);if(fallo)return toast(traducir(fallo.error.message),true);
  const[cl,ba,se,pr,cu]=respuestas.map(r=>r.data||[]);
  if(!se.length&&!pr.length)return toast('Primero crea un servicio o un producto.',true);
@@ -56,7 +56,7 @@ async function nuevaVenta(pre){
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
   const redondear=n=>Math.round((n+Number.EPSILON)*100)/100;
   const det=c.L.map(l=>{const s=l.i.k[0]==='s',id=l.i.k.slice(2),sv=s&&se.find(x=>x.id===id),pd=!s&&pr.find(x=>x.id===id);
-   const elegible=!!(sv&&bar&&bar.modelo_pago!=='ALQUILER'),porcentaje=s?(elegible?Number(bar.porcentaje_comision)||0:0):null;
+   const elegible=!!(sv&&sv.categoria!=='CITA'&&bar&&bar.modelo_pago!=='ALQUILER'),porcentaje=s?(elegible?Number(bar.porcentaje_comision)||0:0):null;
    const brutoLinea=l.i.p*l.q,base=elegible?Math.max(0,redondear(brutoLinea-(c.br>0?c.ds*brutoLinea/c.br:0))):0;
    const com=elegible?redondear(base*porcentaje/100):0;
    return{negocio_id:nid,venta_id:v.id,tipo_item:s?'SERVICIO':'PRODUCTO',servicio_id:s?id:null,producto_id:s?null:id,descripcion:l.i.n,cantidad:l.q,precio_unitario:l.i.p,costo_unitario:pd?pd.costo_unitario:0,comision_generada:com,porcentaje_comision_aplicado:porcentaje,base_comision:base}});
@@ -71,7 +71,7 @@ async function editarVenta(v, actuales){
  const respuestas=await Promise.all([
   sb.from('clientes').select('id,nombre').eq('negocio_id',S.perfil.negocio_id).order('nombre'),
   sb.from('barberos').select('id,nombre,modelo_pago,porcentaje_comision').eq('negocio_id',S.perfil.negocio_id).order('nombre'),
-  sb.from('servicios').select('id,nombre,precio').eq('negocio_id',S.perfil.negocio_id).order('nombre'),
+  sb.from('servicios').select('id,nombre,precio,categoria').eq('negocio_id',S.perfil.negocio_id).order('nombre'),
   sb.from('productos').select('id,nombre,precio_venta,costo_unitario').eq('negocio_id',S.perfil.negocio_id).order('nombre')
  ]);
  const fallo=respuestas.find(r=>r.error);if(fallo)return toast(traducir(fallo.error.message),true);
