@@ -117,7 +117,7 @@ BEGIN
    WHERE venta_id = p_venta_id AND negocio_id = v_negocio
      AND tipo_item = 'SERVICIO' AND porcentaje_comision_aplicado IS NOT NULL;
 
-  IF v_barbero_anterior IS NOT NULL AND EXISTS (
+  IF EXISTS (
     SELECT 1 FROM public.detalle_ventas
      WHERE venta_id = p_venta_id AND negocio_id = v_negocio AND tipo_item = 'SERVICIO'
        AND porcentaje_comision_aplicado IS NULL
@@ -220,7 +220,7 @@ BEGIN
              * v_porcentaje/100,2)
          ELSE 0 END,
     CASE WHEN x.tipo_item='SERVICIO' AND p_barbero_id IS NOT NULL
-              AND COALESCE(v_modelo_pago,'')<>'ALQUILER' THEN v_porcentaje ELSE NULL END,
+              AND COALESCE(v_modelo_pago,'')<>'ALQUILER' THEN v_porcentaje ELSE 0 END,
     CASE WHEN x.tipo_item='SERVICIO' AND p_barbero_id IS NOT NULL
               AND COALESCE(v_modelo_pago,'')<>'ALQUILER'
          THEN ROUND(x.cantidad*x.precio_unitario
