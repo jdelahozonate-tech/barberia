@@ -577,7 +577,7 @@ test('la disponibilidad y los enlaces privados de Agenda validan el negocio y se
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261119050000_agenda_publica_integridad.sql'), 'utf8');
   const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
   assert.match(sql, /categoria IS DISTINCT FROM 'CITA'/);
-  assert.match(sql, /h\.negocio_id = n/);
+  assert.match(sql, /FROM public\.horarios_barbero[\s\S]*?negocio_id = n/);
   assert.match(sql, /ci\.negocio_id = n/);
   assert.match(sql, /a\.negocio_id = n/);
   assert.match(sql, /FOR UPDATE/);
