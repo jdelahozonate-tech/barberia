@@ -45,7 +45,7 @@ async function formulario(k,r,despues){
    if(foto?.size){
     const ext=foto.type==='image/png'?'png':foto.type==='image/webp'?'webp':'jpg',ruta=S.perfil.negocio_id+'/'+registroId+'/'+crypto.randomUUID()+'.'+ext;
     const{error:subida}=await sb.storage.from(k==='clientes'?'clientes':'barberos').upload(ruta,foto,{contentType:foto.type,upsert:false});
-    if(subida){guardando=false;if(boton)boton.disabled=false;return toast('Los datos se guardaron, pero no se pudo subir la fotografía: '+subida.message,true)}
+    if(subida){guardando=false;dlg.close();toast((k==='clientes'?'El cliente':'Los datos')+' se guardaron, pero no se pudo subir la fotografía: '+subida.message,true);despues();return}
     const{data:publica}=sb.storage.from(k==='clientes'?'clientes':'barberos').getPublicUrl(ruta);
     const{error:fotoError}=await sb.from(k).update({foto_url:publica.publicUrl}).eq('negocio_id',S.perfil.negocio_id).eq('id',registroId);
     if(fotoError){guardando=false;if(boton)boton.disabled=false;return toast('Los datos se guardaron, pero no se pudo asociar la fotografía: '+fotoError.message,true)}
