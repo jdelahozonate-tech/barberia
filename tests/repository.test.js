@@ -123,6 +123,7 @@ test('el formulario de venta no continúa si falla la lectura de catálogos', as
     select() { return this; },
     eq() { return this; },
     order() { return this; },
+    maybeSingle() { return Promise.resolve({ data: null, error: { message: 'permiso denegado' } }); },
     then(resolve) { resolve({ data: null, error: { message: 'permiso denegado' } }); }
   };
   const modulo = crearModuloVentas({
@@ -412,16 +413,14 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(index, /crearModuloProductos/);
   assert.match(index, /productos,caja/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v15/);
+  assert.match(sw, /barberia-v16/);
 });
 
-test('los pagos de compras en efectivo requieren una caja abierta en interfaz y base de datos', () => {
+test('los pagos de compras requieren caja abierta en interfaz y base de datos', () => {
   const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
-  const sql = readFileSync(resolve(root, 'supabase/migrations/20261119010000_validar_caja_pagos_compras.sql'), 'utf8');
-  assert.match(productos, /pagado>0&&f\.metodo_pago==='EFECTIVO'&&!caja\?\.id/);
-  assert.match(productos, /f\.metodo==='EFECTIVO'&&!caja\?\.id/);
-  assert.match(sql, /NEW\.metodo_pago = 'EFECTIVO' AND NEW\.caja_id IS NULL/);
-  assert.match(sql, /NEW\.caja_id IS NOT NULL AND NOT EXISTS/);
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261119020000_exigir_caja_abierta_operaciones.sql'), 'utf8');
+  assert.match(productos, /Para registrar un abono al proveedor, primero abre la caja/);
+  assert.match(sql, /NEW\.caja_id IS NULL OR NOT EXISTS/);
   assert.match(sql, /BEFORE INSERT OR UPDATE OF metodo_pago, caja_id, negocio_id/);
 });
 
