@@ -414,7 +414,7 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(index, /crearModuloProductos/);
   assert.match(index, /productos,pedidos:pedidosProductos,caja/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v17/);
+  assert.match(sw, /barberia-v18/);
 });
 
 test('los pagos de compras requieren caja abierta en interfaz y base de datos', () => {
