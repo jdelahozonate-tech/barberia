@@ -47,6 +47,6 @@ async function horas(){
   if(accionEnCurso||!confirm('¿Cambiar tu cita a '+cuando(b.dataset.t)+'?'))return;
   accionEnCurso=true;document.querySelectorAll('.h').forEach(x=>x.disabled=true);
   const{error}=await sb.rpc('reprogramar_cita_publica',{p_token:tk,p_inicio:b.dataset.t});
-  if(error){accionEnCurso=false;document.querySelectorAll('.h').forEach(x=>x.disabled=false);toast(error.message);return horas()}toast('Tu cita cambió y quedó confirmada.');await cargar();accionEnCurso=false});
+  if(error){accionEnCurso=false;document.querySelectorAll('.h').forEach(x=>x.disabled=false);toast(error.message);return horas()}toast('Tu cita fue reprogramada.');await cargar();accionEnCurso=false});
 }
 cargar();
