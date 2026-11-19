@@ -581,8 +581,9 @@ test('la disponibilidad y los enlaces privados de Agenda validan el negocio y se
   assert.match(sql, /ci\.negocio_id = n/);
   assert.match(sql, /a\.negocio_id = n/);
   assert.match(sql, /FOR UPDATE/);
-  assert.match(sql, /SET inicio = p_inicio,[\s\S]*?fin = p_inicio \+ make_interval/);
-  assert.doesNotMatch(sql, /SET inicio = p_inicio,[\s\S]*?estado = 'CONFIRMADA'/);
+  const reprogramar = sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION public.reprogramar_cita_publica'), sql.indexOf('CREATE OR REPLACE FUNCTION public.responder_cita_publica'));
+  assert.match(reprogramar, /SET inicio = p_inicio,[\s\S]*?fin = p_inicio \+ make_interval/);
+  assert.doesNotMatch(reprogramar, /estado\s*=\s*'CONFIRMADA'/);
   assert.match(sql, /l::date <> lf::date/);
   assert.match(agenda, /async function agenda\(\)\{\s*const main=\$\('#main'\)/);
 });
