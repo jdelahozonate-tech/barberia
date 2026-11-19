@@ -77,13 +77,13 @@ function crearModuloInicioCompleto(deps) {
    const rank=o=>Object.entries(o).map(([nombre,valor])=>({nombre,valor})).sort((a,b)=>b.valor-a.valor).slice(0,5),topBarberos=rank(barber),topServicios=rank(serv);
    const estados=['PENDIENTE','CONFIRMADA','ATENDIDA','CANCELADA','NO_ASISTIO'].map(k=>({nombre:bonitoSeguro(k),valor:C.filter(x=>x.estado===k).length})),maxEstado=Math.max(1,...estados.map(x=>x.valor));
    const citasHtml=estados.map(x=>'<div class="dp-status"><span>'+esc(x.nombre)+'</span><div class="dp-track"><i style="width:'+100*x.valor/maxEstado+'%"></i></div><b>'+x.valor+'</b></div>').join('');
-   const dias={};const dia=k=>dias[k]||(dias[k]={fecha:k,ventas:0,gastos:0,recaudo:0,citas:0,operaciones:0,utilidad:0});
+   const dias={};const dia=k=>dias[k]||(dias[k]={fecha:k,ventas:0,gastos:0,costos:0,recaudo:0,citas:0,operaciones:0,utilidad:0});
    V.forEach(x=>{const d=dia(localFecha(new Date(x.fecha_hora)));d.ventas+=Number(x.total_venta||0);d.operaciones++});
-   D.forEach(x=>{const d=dia(localFecha(new Date(x.ventas.fecha_hora)));if(x.tipo_item==='PRODUCTO')d.gastos+=Number(x.costo_unitario||0)*Number(x.cantidad||0);d.utilidad-=Number(x.comision_generada||0)});
+   D.forEach(x=>{const d=dia(localFecha(new Date(x.ventas.fecha_hora)));if(x.tipo_item==='PRODUCTO')d.costos+=Number(x.costo_unitario||0)*Number(x.cantidad||0);d.utilidad-=Number(x.comision_generada||0)});
    P.forEach(x=>{dia(localFecha(new Date(x.fecha_hora))).recaudo+=Number(x.valor_pago||0)});
    G.forEach(x=>{dia(localFecha(new Date(x.fecha_hora))).gastos+=Number(x.valor||0)});
    C.forEach(x=>{dia(localFecha(new Date(x.inicio))).citas++});
-   Object.values(dias).forEach(d=>{d.utilidad+=d.ventas-d.gastos});
+   Object.values(dias).forEach(d=>{d.utilidad+=d.ventas-d.gastos-d.costos});
    const serie=Object.values(dias).sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(-31),periodo=RG.find(x=>x[0]===rg)?.[1]||'Periodo personalizado';
    const opts='<option value="todos">Todo el equipo</option>'+B0.filter(x=>x.estado==='ACTIVO').map(x=>'<option value="'+esc(x.id)+'"'+(x.id===sel?' selected':'')+'>'+esc(x.nombre)+'</option>').join('');
    const kpi=(key,title,value,note)=>'<button type="button" class="dp-kpi'+(key==='ingresos'?' active':'')+'" data-metric="'+key+'" aria-pressed="'+(key==='ingresos')+'"><small>'+title+'</small><strong>'+value+'</strong><em>'+note+'</em></button>';
