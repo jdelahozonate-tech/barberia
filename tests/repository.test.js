@@ -15,6 +15,7 @@ const sourceFiles = [
   'src/modules/acceso.js',
   'src/modules/agenda.js',
   'src/modules/ajustes.js',
+  'src/modules/notificaciones.js',
   'src/modules/catalogos.js',
   'src/modules/productos.js',
   'src/modules/equipo.js',
@@ -458,4 +459,43 @@ test('el catálogo de productos incorpora imágenes y pedidos públicos sin move
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.crear_pedido_producto_publico.*TO anon,authenticated/);
   assert.match(sql, /imagen_url/);
   assert.match(index, /\.product-grid/);
+});
+
+
+test('pedidos a proveedores no se confunden con compras ni modifican stock', () => {
+  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261120000000_pedidos_proveedores_notificaciones.sql'), 'utf8');
+  assert.match(productos, /async function pedidoProveedorForm/);
+  assert.match(productos, /from\('pedidos_proveedores'\)/);
+  assert.match(productos, /generarPdfPedido/);
+  assert.match(productos, /navigator\.share/);
+  assert.match(productos, /Stock ideal/);
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.pedidos_proveedores/);
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.detalle_pedidos_proveedores/);
+  assert.match(sql, /estado IN \('BORRADOR','ENVIADO','RECIBIDO','CANCELADO'\)/);
+});
+
+test('proveedores solo solicitan nombre y teléfono desde el formulario', () => {
+  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+  const form = productos.slice(productos.indexOf('async function proveedorForm'), productos.indexOf('async function compraForm'));
+  assert.match(form, /name="nombre"/);
+  assert.match(form, /name="telefono"/);
+  assert.doesNotMatch(form, /name="correo"|name="documento"|name="direccion"/);
+});
+
+test('preferencias y centro de notificaciones están integrados y cacheados', () => {
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  const ajustes = readFileSync(resolve(root, 'src/modules/ajustes.js'), 'utf8');
+  const notif = readFileSync(resolve(root, 'src/modules/notificaciones.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261120000000_pedidos_proveedores_notificaciones.sql'), 'utf8');
+  const sw = readFileSync(resolve(root, 'sw.js'), 'utf8');
+  assert.match(index, /crearModuloNotificaciones/);
+  assert.match(index, /campana-notificaciones/);
+  assert.match(ajustes, /citas_30m/);
+  assert.match(ajustes, /stock_agotado/);
+  assert.match(notif, /setInterval\(revisar,60000\)/);
+  assert.match(notif, /from\('citas'\)/);
+  assert.match(notif, /from\('stock_actual'\)/);
+  assert.match(sql, /preferencias_notificaciones/);
+  assert.match(sw, /src\/modules\/notificaciones\.js/);
 });
