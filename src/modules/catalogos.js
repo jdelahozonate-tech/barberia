@@ -26,18 +26,23 @@ async function formulario(k,r,despues){
   return `<label for="${id}">${l}</label>${el}`};
  dlg.innerHTML=`<form id="df"><h2>${r?'Editar':'Nuevo'} ${c.uno}</h2>${c.f.map(campo).join('')}${k==='barberos'?`<label for="foto_barbero">Fotografía del barbero</label><div class="product-photo-preview" id="foto_preview">${r?.foto_url?`<img src="${esc(r.foto_url)}" alt="Fotografía de ${esc(r.nombre)}">`:'<span>Sin fotografía</span>'}</div><input id="foto_barbero" name="foto_barbero" type="file" accept="image/jpeg,image/png,image/webp"><small class="mute">JPG, PNG o WEBP · máximo 5 MB. La fotografía será visible en el perfil del barbero.</small>`:''}<div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Guardar</button></div>${r&&k==='barberos'?'<button type="button" class="btn sec block" id="hr">Horario de atención</button>':''}${r&&k==='productos'?'<button type="button" class="btn sec block" id="st">Registrar entrada de stock</button>':''}${r?`<button type="button" class="btn sec block" id="tg">${r.estado==='ACTIVO'?'Desactivar':'Reactivar'} ${c.uno}</button>`:''}</form>`;
  dlg.showModal();
+ if(k==='barberos'){
+  const foto=$('#foto_barbero');if(foto)foto.onchange=()=>{const f=foto.files?.[0];if(!f)return;if(!['image/jpeg','image/png','image/webp'].includes(f.type)||f.size>5242880){foto.value='';return toast('La fotografía debe ser JPG, PNG o WEBP y pesar máximo 5 MB.',true)}const url=URL.createObjectURL(f);$('#foto_preview').innerHTML='<img src="'+url+'" alt="Vista previa de la fotografía">'};
+ }
  $('#cx').onclick=()=>dlg.close();
  let guardando=false;
  $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const fd=new FormData(e.target),o={};
   for(const[n,,t]of c.f){const v=fd.get(n);o[n]=t==='bool'?!!v:t==='number'?(v===''?0:Number(v)):(v===''?(r?null:undefined):v)}
+  if(k==='barberos'&&(!Number.isFinite(o.porcentaje_comision)||o.porcentaje_comision<0||o.porcentaje_comision>100)){guardando=false;if(boton)boton.disabled=false;return toast('El porcentaje de comisión debe estar entre 0 y 100.',true)}
+  const fotoSeleccionada=k==='barberos'?fd.get('foto_barbero'):null;
+  if(fotoSeleccionada?.size&&(!['image/jpeg','image/png','image/webp'].includes(fotoSeleccionada.type)||fotoSeleccionada.size>5242880)){guardando=false;if(boton)boton.disabled=false;return toast('La fotografía debe ser JPG, PNG o WEBP y pesar máximo 5 MB.',true)}
   let barberoId=r?.id;
   const op=r?sb.from(k).update(o).eq('negocio_id',S.perfil.negocio_id).eq('id',r.id):sb.from(k).insert({...o,negocio_id:S.perfil.negocio_id}).select('id').single();
   const{data,error}=await op;if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
   if(k==='barberos'){
    if(!barberoId)barberoId=data?.id;
-   const foto=fd.get('foto_barbero');
+   const foto=fotoSeleccionada;
    if(foto?.size){
-    if(!['image/jpeg','image/png','image/webp'].includes(foto.type)||foto.size>5242880){guardando=false;if(boton)boton.disabled=false;return toast('La fotografía debe ser JPG, PNG o WEBP y pesar máximo 5 MB.',true)}
     const ext=foto.type==='image/png'?'png':foto.type==='image/webp'?'webp':'jpg',ruta=S.perfil.negocio_id+'/'+barberoId+'/'+crypto.randomUUID()+'.'+ext;
     const{error:subida}=await sb.storage.from('barberos').upload(ruta,foto,{contentType:foto.type,upsert:true});
     if(subida){guardando=false;if(boton)boton.disabled=false;return toast('Los datos se guardaron, pero no se pudo subir la fotografía: '+subida.message,true)}
