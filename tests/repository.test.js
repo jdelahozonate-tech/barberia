@@ -211,7 +211,7 @@ test('equipo, agenda y cierres limitan operaciones al negocio y bloquean escritu
   assert.match(equipo, /Cada día marcado debe tener al menos un horario/);
   assert.match(equipo, /if\(b\.disabled\)return;b\.disabled=true/);
   assert.match(agenda, /from\('citas'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
-  assert.match(agenda, /update\(\{estado:f\.estado[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
+  assert.match(agenda, /const cambios=\{estado:f\.estado[\s\S]*?update\(cambios\)\.eq\('negocio_id',S\.perfil\.negocio_id\)/);
   assert.match(finanzas, /let cerrando=false/);
 });
 
@@ -300,6 +300,17 @@ test('las reservas públicas toleran catálogos incompletos y filtran horarios i
 });
 
 
+test('Agenda administrativa valida turnos, ausencias y cruces antes de crear o reprogramar', () => {
+  const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
+  assert.match(agenda, /async function validarDisponibilidad/);
+  assert.match(agenda, /from\('horarios_barbero'\)[\s\S]*?dia_semana/);
+  assert.match(agenda, /from\('ausencias_barbero'\)[\s\S]*?\.lt\('desde',fin\)\.gt\('hasta',inicio\)/);
+  assert.match(agenda, /\.in\('estado',\['PENDIENTE','CONFIRMADA'\]\)/);
+  assert.match(agenda, /from\('citas'\)[\s\S]*?eq\('cliente_id',cliente\)/);
+  assert.match(agenda, /instanteNegocio\(f\.inicio\)/);
+  assert.match(agenda, /cambios\.inicio=i\.toISOString\(\);cambios\.fin=fin\.toISOString\(\)/);
+  assert.match(agenda, /cambioHorario\?'Cita reprogramada'/);
+});
 test('las RPC públicas de Agenda no quedan ejecutables por el rol PUBLIC', () => {
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261119040000_agenda_publica_permisos.sql'), 'utf8');
   for (const fn of ['cita_publica', 'horas_libres_publicas', 'reprogramar_cita_publica', 'reservar_cita_publica', 'responder_cita_publica']) {
