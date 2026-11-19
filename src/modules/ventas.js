@@ -30,7 +30,7 @@ async function nuevaVenta(pre){
  <label>Pagos recibidos</label><div id="pgs">${pl()}</div><button type="button" class="link" id="ap">Agregar otro método de pago</button><p class="mute" id="fl"></p>
  <div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Cobrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
- const calc=()=>{const L=[...document.querySelectorAll('#lns .ln')].map(l=>({i:items.find(x=>x.k===l.querySelector('select').value),q:Number(l.querySelector('input').value)}));const br=L.reduce((s,l)=>s+(l.i?l.i.p*l.q:NaN),0),ds=Number($('#v3').value);return{L,ds,t:br-ds}};
+ const calc=()=>{const L=[...document.querySelectorAll('#lns .ln')].map(l=>({i:items.find(x=>x.k===l.querySelector('select').value),q:Number(l.querySelector('input').value)}));const br=L.reduce((s,l)=>s+(l.i?l.i.p*l.q:NaN),0),ds=Number($('#v3').value);return{L,br,ds,t:br-ds}};
  const pagos=()=>[...document.querySelectorAll('#pgs .ln')].map(l=>({m:l.querySelector('select').value,v:Number(l.querySelector('input').value)||0,c:l.querySelector('.cu').value||null})).filter(x=>x.v>0);
  $('#pgs').onchange=e=>{if(e.target.tagName==='SELECT'&&!e.target.classList.contains('cu'))e.target.closest('.ln').querySelector('.cu').hidden=e.target.value==='EFECTIVO'||!cu.length};
  const ref=()=>{const c=calc(),f=$('#pgs .ln input');$('#tt').textContent='Total: '+dinero(c.t);
@@ -56,7 +56,7 @@ async function nuevaVenta(pre){
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
   const redondear=n=>Math.round((n+Number.EPSILON)*100)/100;
   const det=c.L.map(l=>{const s=l.i.k[0]==='s',id=l.i.k.slice(2),sv=s&&se.find(x=>x.id===id),pd=!s&&pr.find(x=>x.id===id);
-   const elegible=!!(sv&&bar&&bar.modelo_pago!=='ALQUILER'),porcentaje=elegible?Number(bar.porcentaje_comision)||0:null;
+   const elegible=!!(sv&&bar&&bar.modelo_pago!=='ALQUILER'),porcentaje=s?(elegible?Number(bar.porcentaje_comision)||0:0):null;
    const brutoLinea=l.i.p*l.q,base=elegible?Math.max(0,redondear(brutoLinea-(c.br>0?c.ds*brutoLinea/c.br:0))):0;
    const com=elegible?redondear(base*porcentaje/100):0;
    return{negocio_id:nid,venta_id:v.id,tipo_item:s?'SERVICIO':'PRODUCTO',servicio_id:s?id:null,producto_id:s?null:id,descripcion:l.i.n,cantidad:l.q,precio_unitario:l.i.p,costo_unitario:pd?pd.costo_unitario:0,comision_generada:com,porcentaje_comision_aplicado:porcentaje,base_comision:base}});
