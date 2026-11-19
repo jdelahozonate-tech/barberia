@@ -413,7 +413,7 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(index, /crearModuloProductos/);
   assert.match(index, /productos,caja/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v16/);
+  assert.match(sw, /barberia-v17/);
 });
 
 test('los pagos de compras requieren caja abierta en interfaz y base de datos', () => {
@@ -441,4 +441,21 @@ test('ventas, compras, gastos y pagos requieren caja abierta en interfaz y Supab
   }
   assert.match(sql, /estado_caja = 'ABIERTA'/);
   assert.match(sql, /NEW\.caja_id IS NULL/);
+});
+
+test('el catálogo de productos incorpora imágenes y pedidos públicos sin mover inventario', () => {
+  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+  const publico = readFileSync(resolve(root, 'src/pages/reservar.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261119030000_catalogo_visual_pedidos_productos.sql'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  assert.match(productos, /storage\.from\('productos'\)\.upload/);
+  assert.match(productos, /data-tab="pedidos"/);
+  assert.match(productos, /pedidos_productos/);
+  assert.match(publico, /catalogo_productos_publico/);
+  assert.match(publico, /crear_pedido_producto_publico/);
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.pedidos_productos/);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.crear_pedido_producto_publico/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.crear_pedido_producto_publico.*TO anon,authenticated/);
+  assert.match(sql, /imagen_url/);
+  assert.match(index, /\.product-grid/);
 });
