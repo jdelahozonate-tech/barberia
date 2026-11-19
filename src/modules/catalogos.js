@@ -17,21 +17,41 @@ export function crearModuloCatalogos(deps) {
 async function formulario(k,r,despues){
  const c=CFG[k],refs={};
  for(const[,,t]of c.f)if(t.startsWith('ref:')){const tb=t.slice(4),{data,error}=await sb.from(tb).select('id,nombre').eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').order('nombre');if(error)return toast('No fue posible cargar las opciones de '+tb+': '+traducir(error.message),true);refs[tb]=data||[]}
- const campo=([n,l,t,req])=>{const v=r?r[n]??'':(n==='duracion_minutos'?30:'');const id='c_'+n;let el;
+ const campo=([n,l,t,req])=>{const v=r?r[n]??'':(n==='duracion_minutos'?30:n==='porcentaje_comision'?65:n==='modelo_pago'?'COMISION':'');const id='c_'+n;let el;
   if(t==='bool')return `<label class="chk"><input type="checkbox" name="${n}"${(r?r[n]:true)?' checked':''}> ${l}</label>`;
   if(t==='area')el=`<textarea id="${id}" name="${n}" rows="3">${esc(v)}</textarea>`;
   else if(t.startsWith('sel:'))el=`<select id="${id}" name="${n}">${t.slice(4).split(',').map(o=>`<option value="${o}"${o===v?' selected':''}>${bonito(o)}</option>`).join('')}</select>`;
   else if(t.startsWith('ref:'))el=`<select id="${id}" name="${n}"><option value="">Sin asignar</option>${refs[t.slice(4)].map(o=>`<option value="${o.id}"${o.id===v?' selected':''}>${esc(o.nombre)}</option>`).join('')}</select>`;
-  else el=`<input id="${id}" name="${n}" type="${t}"${t==='number'?' step="any" min="0" inputmode="decimal"':''} value="${esc(v)}"${req?' required':''}>`;
+  else el=`<input id="${id}" name="${n}" type="${t}"${t==='number'?' step="any" min="0"'+(n==='porcentaje_comision'?' max="100"':'')+' inputmode="decimal"':''} value="${esc(v)}"${req?' required':''}>`;
   return `<label for="${id}">${l}</label>${el}`};
- dlg.innerHTML=`<form id="df"><h2>${r?'Editar':'Nuevo'} ${c.uno}</h2>${c.f.map(campo).join('')}<div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Guardar</button></div>${r&&k==='barberos'?'<button type="button" class="btn sec block" id="hr">Horario de atención</button>':''}${r&&k==='productos'?'<button type="button" class="btn sec block" id="st">Registrar entrada de stock</button>':''}${r?`<button type="button" class="btn sec block" id="tg">${r.estado==='ACTIVO'?'Desactivar':'Reactivar'} ${c.uno}</button>`:''}</form>`;
+ dlg.innerHTML=`<form id="df"><h2>${r?'Editar':'Nuevo'} ${c.uno}</h2>${c.f.map(campo).join('')}${k==='barberos'?`<label for="foto_barbero">Fotografía del barbero</label><div class="product-photo-preview" id="foto_preview">${r?.foto_url?`<img src="${esc(r.foto_url)}" alt="Fotografía de ${esc(r.nombre)}">`:'<span>Sin fotografía</span>'}</div><input id="foto_barbero" name="foto_barbero" type="file" accept="image/jpeg,image/png,image/webp"><small class="mute">JPG, PNG o WEBP · máximo 5 MB. La fotografía será visible en el perfil del barbero.</small>`:''}<div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Guardar</button></div>${r&&k==='barberos'?'<button type="button" class="btn sec block" id="hr">Horario de atención</button>':''}${r&&k==='productos'?'<button type="button" class="btn sec block" id="st">Registrar entrada de stock</button>':''}${r?`<button type="button" class="btn sec block" id="tg">${r.estado==='ACTIVO'?'Desactivar':'Reactivar'} ${c.uno}</button>`:''}</form>`;
  dlg.showModal();
+ if(k==='barberos'){
+  const foto=$('#foto_barbero');if(foto)foto.onchange=()=>{const f=foto.files?.[0];if(!f)return;if(!['image/jpeg','image/png','image/webp'].includes(f.type)||f.size>5242880){foto.value='';return toast('La fotografía debe ser JPG, PNG o WEBP y pesar máximo 5 MB.',true)}const url=URL.createObjectURL(f);$('#foto_preview').innerHTML='<img src="'+url+'" alt="Vista previa de la fotografía">'};
+ }
  $('#cx').onclick=()=>dlg.close();
  let guardando=false;
  $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const fd=new FormData(e.target),o={};
   for(const[n,,t]of c.f){const v=fd.get(n);o[n]=t==='bool'?!!v:t==='number'?(v===''?0:Number(v)):(v===''?(r?null:undefined):v)}
-  const op=r?sb.from(k).update(o).eq('negocio_id',S.perfil.negocio_id).eq('id',r.id):sb.from(k).insert({...o,negocio_id:S.perfil.negocio_id});
-  const{error}=await op;if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}dlg.close();toast('Guardado');despues()};
+  if(k==='barberos'&&(!Number.isFinite(o.porcentaje_comision)||o.porcentaje_comision<0||o.porcentaje_comision>100)){guardando=false;if(boton)boton.disabled=false;return toast('El porcentaje de comisión debe estar entre 0 y 100.',true)}
+  const fotoSeleccionada=k==='barberos'?fd.get('foto_barbero'):null;
+  if(fotoSeleccionada?.size&&(!['image/jpeg','image/png','image/webp'].includes(fotoSeleccionada.type)||fotoSeleccionada.size>5242880)){guardando=false;if(boton)boton.disabled=false;return toast('La fotografía debe ser JPG, PNG o WEBP y pesar máximo 5 MB.',true)}
+  let barberoId=r?.id;
+  const op=r?sb.from(k).update(o).eq('negocio_id',S.perfil.negocio_id).eq('id',r.id):sb.from(k).insert({...o,negocio_id:S.perfil.negocio_id}).select('id').single();
+  const{data,error}=await op;if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
+  if(k==='barberos'){
+   if(!barberoId)barberoId=data?.id;
+   const foto=fotoSeleccionada;
+   if(foto?.size){
+    const ext=foto.type==='image/png'?'png':foto.type==='image/webp'?'webp':'jpg',ruta=S.perfil.negocio_id+'/'+barberoId+'/'+crypto.randomUUID()+'.'+ext;
+    const{error:subida}=await sb.storage.from('barberos').upload(ruta,foto,{contentType:foto.type,upsert:true});
+    if(subida){guardando=false;if(boton)boton.disabled=false;return toast('Los datos se guardaron, pero no se pudo subir la fotografía: '+subida.message,true)}
+    const{data:publica}=sb.storage.from('barberos').getPublicUrl(ruta);
+    const{error:fotoError}=await sb.from('barberos').update({foto_url:publica.publicUrl}).eq('negocio_id',S.perfil.negocio_id).eq('id',barberoId);
+    if(fotoError){guardando=false;if(boton)boton.disabled=false;return toast('Los datos se guardaron, pero no se pudo asociar la fotografía: '+fotoError.message,true)}
+   }
+  }
+  dlg.close();toast('Guardado');despues()};
  if(r&&k==='barberos')$('#hr').onclick=()=>horarios(r);
  if(r&&k==='productos')$('#st').onclick=async()=>{const n=Number(prompt('¿Cuántas unidades entraron?'));if(!Number.isFinite(n)||n<=0)return toast('La cantidad debe ser un número válido mayor que cero.',true);const b=$('#st');if(b.disabled)return;b.disabled=true;
   const{error}=await sb.from('movimientos_inventario').insert({negocio_id:S.perfil.negocio_id,producto_id:r.id,tipo_movimiento:'ENTRADA',cantidad:n,costo_unitario:r.costo_unitario,motivo:'Compra',usuario_responsable:S.perfil.id});

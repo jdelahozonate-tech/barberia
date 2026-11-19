@@ -130,7 +130,7 @@ const NOTIF=crearModuloNotificaciones({ $, sb, S, esc, toast });
 
 /* ---------- Acceso ---------- */
 /* ---------- Estructura ---------- */
-const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['pedidos','Pedidos'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Productos'],['caja','Caja',1],['comisiones','Comisiones',1],['ajustes','Ajustes',2],['miscom','Mis comisiones',3]];
+const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['pedidos','Pedidos'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Productos'],['caja','Caja',1],['comisiones','Comisiones',1],['ajustes','Ajustes',2],['miscom','Mis comisiones',3],['miperfil','Mi perfil',3]];
 const { pantallaAuth, cargar, aviso } = crearModuloAcceso({ $, app, sb, S, esc, traducir, toast, waNum, shell });
 function shell(){
  app.innerHTML=`<div class="pole"></div><div class="bar">${S.negocio.logo_url?`<img src="${esc(S.negocio.logo_url)}" alt="${esc(S.negocio.nombre)}" style="height:44px;display:block">`:`<strong>${esc(S.negocio.nombre)}</strong>`}<span><small>${esc(S.perfil.nombre)}, ${S.perfil.rol.toLowerCase()}</small> <button type="button" class="link light notif-bell" id="campana-notificaciones" aria-label="Notificaciones">♢</button> <button class="link light" id="out">Salir</button></span></div>
@@ -140,12 +140,12 @@ function shell(){
  document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{S.vista=b.dataset.v;ir()});
  ir();
 }
-function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.vista));({inicio,agenda,ventas,productos,pedidos:pedidosProductos,caja,comisiones,ajustes,miscom:misComisiones}[S.vista]||(()=>crud(S.vista)))()}
+function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.vista));({inicio,agenda,ventas,productos,pedidos:pedidosProductos,caja,comisiones,ajustes,miscom:misComisiones,miperfil:miPerfil}[S.vista]||(()=>crud(S.vista)))()}
 
 /* ---------- Clientes, barberos y servicios ---------- */
 const ADM=['ADMINISTRADOR','SUPERVISOR'];
 const soloMio=()=>S.perfil.rol==='BARBERO'&&!!S.perfil.barbero_id,mio=q=>soloMio()?q.eq('barbero_id',S.perfil.barbero_id):q;
-const { horarios, equipo } = crearModuloEquipo({ $, dlg, sb, S, esc, bonito, toast });
+const { horarios, equipo, miPerfil } = crearModuloEquipo({ $, dlg, sb, S, esc, bonito, toast });
 const { ajustes } = crearModuloAjustes({ $, sb, S, esc, toast, equipo, ir, notificaciones: NOTIF });
 const CFG=crearConfigCatalogos(ADM,dinero);
 const { crud } = crearModuloCatalogos({ $, app, dlg, sb, S, CFG, esc, bonito, traducir, toast, horarios });

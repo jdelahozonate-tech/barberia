@@ -414,7 +414,7 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(index, /crearModuloProductos/);
   assert.match(index, /productos,pedidos:pedidosProductos,caja/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v18/);
+  assert.match(sw, /barberia-v19/);
 });
 
 test('los pagos de compras requieren caja abierta en interfaz y base de datos', () => {
@@ -498,4 +498,39 @@ test('preferencias y centro de notificaciones están integrados y cacheados', ()
   assert.match(notif, /from\('stock_actual'\)/);
   assert.match(sql, /preferencias_notificaciones/);
   assert.match(sw, /src\/modules\/notificaciones\.js/);
+});
+
+
+test('las comisiones nuevas guardan porcentaje y base neta, sin comisión en productos', () => {
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261121000000_comisiones_perfiles_barberos.sql'), 'utf8');
+  assert.match(ventas, /porcentaje_comision_aplicado:porcentaje/);
+  assert.match(ventas, /base_comision:base/);
+  assert.match(ventas, /const brutoLinea=l\.i\.p\*l\.q/);
+  assert.match(ventas, /c\.ds\*brutoLinea\/c\.br/);
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS porcentaje_comision_aplicado/);
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS base_comision/);
+  assert.match(sql, /UPDATE public\.barberos SET porcentaje_comision = 65/);
+  assert.match(sql, /SET DEFAULT 65/);
+  assert.match(sql, /No se puede editar: esta venta tiene comisiones liquidadas/);
+  assert.match(sql, /No se puede editar para evitar cambiar retroactivamente su comisión/);
+  assert.match(finanzas, /valor_base:x\.base_comision\?\?x\.subtotal/);
+});
+
+test('los perfiles de barberos permiten fotografía privada de administración y lectura propia', () => {
+  const catalogos = readFileSync(resolve(root, 'src/modules/catalogos.js'), 'utf8');
+  const equipo = readFileSync(resolve(root, 'src/modules/equipo.js'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261121000000_comisiones_perfiles_barberos.sql'), 'utf8');
+  const sw = readFileSync(resolve(root, 'sw.js'), 'utf8');
+  assert.match(catalogos, /storage\.from\('barberos'\)\.upload/);
+  assert.match(catalogos, /max="100"/);
+  assert.match(catalogos, /n==='porcentaje_comision'\?65/);
+  assert.match(equipo, /async function miPerfil\(\)/);
+  assert.match(equipo, /S\.perfil\.barbero_id/);
+  assert.match(index, /miperfil:miPerfil/);
+  assert.match(sql, /CREATE POLICY barberos_perfil_propio/);
+  assert.match(sql, /barberos_fotos_insertar/);
+  assert.match(sw, /barberia-v19/);
 });
