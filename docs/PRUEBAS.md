@@ -101,3 +101,20 @@ Pruebas funcionales con datos de prueba:
 13. Repetir en móvil y escritorio, y probar doble clic en los formularios.
 
 Las compras de inventario no se registran como gastos operativos para no duplicar el costo de los productos cuando se venden. Los pagos a proveedores sí se consideran salidas de efectivo de la caja cuando se asocian a una caja abierta. Las compras registradas sin caja abierta quedan en el historial de pagos, pero no se asignan retrospectivamente a un cierre.
+
+
+## Catálogo visual y pedidos públicos de productos
+
+Antes de habilitar esta parte, ejecutar en Supabase SQL Editor la migración
+`supabase/migrations/20261119030000_catalogo_visual_pedidos_productos.sql`.
+
+1. Crear un producto con fotografía JPG, PNG y WEBP; comprobar la vista previa y la tarjeta del catálogo.
+2. Intentar cargar un archivo mayor de 5 MB o un formato no permitido; la interfaz debe rechazarlo.
+3. Verificar que la fotografía se almacena en el bucket público `productos`, bajo una carpeta con el ID del negocio.
+4. Abrir el enlace público `reservar.html?n=<slug>`; comprobar que aparecen los productos activos con precio e imagen, incluso si la barbería no tiene servicios de reserva configurados.
+5. Enviar un pedido como cliente sin iniciar sesión; comprobar que se solicita nombre y teléfono y que el pedido aparece en la bandeja interna.
+6. Confirmar que el pedido no crea una venta, no registra pagos, no mueve caja y no descuenta inventario.
+7. Atender el pedido desde el rol administrador, supervisor y barbero; cambiar los estados Nuevo, En preparación, Listo, Entregado y Cancelado.
+8. Intentar enviar cantidades superiores al stock; Supabase debe rechazar el pedido.
+9. Probar con otro negocio y confirmar que ningún usuario puede consultar pedidos ajenos ni cargar imágenes en carpetas de otro negocio.
+10. Confirmar que una venta real de producto sigue usando el flujo de ventas y descuenta el inventario según las reglas existentes.
