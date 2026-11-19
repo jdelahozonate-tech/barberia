@@ -641,3 +641,24 @@ test('ventas permite filtrar por tipo y distingue visualmente productos, servici
   assert.match(ventas, /border-left:4px solid/);
   assert.match(ventas, /etiquetasTipo\[tipo\]/);
 });
+
+test('el catálogo de servicios presenta tarjetas, métricas y filtros sin cambiar su CRUD', () => {
+  const catalogos = readFileSync(resolve(root, 'src/modules/catalogos.js'), 'utf8');
+  const config = readFileSync(resolve(root, 'src/config/catalogos.js'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  assert.match(catalogos, /services-shell/);
+  assert.match(catalogos, /service-stats/);
+  assert.match(catalogos, /service-category/);
+  assert.match(catalogos, /service-card-description/);
+  assert.match(catalogos, /service-duration/);
+  assert.match(catalogos, /Mostrar inactivos/);
+  assert.match(catalogos, /from\('servicios'\)/);
+  assert.match(catalogos, /insert\(\{\.\.\.o,negocio_id:S\.perfil\.negocio_id\}\)/);
+  assert.match(catalogos, /update\(o\)\.eq\('negocio_id',S\.perfil\.negocio_id\)/);
+  assert.match(config, /servicios:\{t:'Servicios'/);
+  assert.match(config, /\['precio','Precio','number',1\]/);
+  assert.match(config, /\['duracion_minutos','Duración \(minutos\)','number',1\]/);
+  assert.match(index, /\.services-grid/);
+  assert.match(index, /\.service-form-grid/);
+  assert.match(index, /@media\(max-width:700px\)[\s\S]*?\.services-grid/);
+});
