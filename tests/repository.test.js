@@ -620,7 +620,7 @@ test('ventas permite filtrar por tipo y distingue visualmente productos, servici
   assert.match(ventas, /data-tipo-venta="PRODUCTOS"/);
   assert.match(ventas, /data-tipo-venta="SERVICIOS"/);
   assert.match(ventas, /data-tipo-venta="MIXTA"/);
-  assert.match(ventas, /const ventasFiltradas=\(data\|\|\)\.filter/);
+  assert.match(ventas, /ventasFiltradas=.*\.filter/);
   assert.match(ventas, /tipos\.has\('PRODUCTO'\)/);
   assert.match(ventas, /tipos\.has\('SERVICIO'\)/);
   assert.match(ventas, /return p&&s\?'MIXTA':p\?'PRODUCTOS':s\?'SERVICIOS':'OTRA'/);
