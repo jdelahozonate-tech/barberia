@@ -77,7 +77,27 @@ dialog::backdrop{background:rgba(16,34,63,.55)}
 .hd{margin-top:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .hr2{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;align-items:center}
 .hr2 input{padding:8px 6px}.hr2 small{color:var(--mute)}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.product-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 0 12px;margin-bottom:12px}
+.product-tabs .btn{white-space:nowrap;flex:0 0 auto}
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-top:14px}
+.product-card{padding:0;overflow:hidden;text-align:left;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);display:flex;flex-direction:column;min-width:0}
+.product-card-image{height:150px;background:#E8EDF5;display:flex;align-items:center;justify-content:center;color:var(--mute);font-size:.85rem}
+.product-card-image img{width:100%;height:100%;object-fit:cover}
+.product-card-body{padding:12px;display:flex;flex-direction:column;gap:6px}
+.product-card-body>strong{font-size:1.05rem}
+.product-category{font-size:.78rem;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+.product-price{font-weight:800;font-size:1.12rem}
+.product-card-body small{color:var(--mute)}
+.product-photo-preview{height:150px;border-radius:10px;background:#E8EDF5;display:flex;align-items:center;justify-content:center;color:var(--mute);overflow:hidden}
+.product-photo-preview img{width:100%;height:100%;object-fit:contain}
+.order-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0}
+.order-head{display:flex;justify-content:space-between;gap:12px}
+.order-head small{display:block;color:var(--mute);margin-top:3px}
+.order-items{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.order-items span{background:#E8EDF5;border-radius:20px;padding:4px 9px;font-size:.85rem}
+.order-card label{margin-top:8px}
+\n@media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
