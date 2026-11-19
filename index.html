@@ -146,7 +146,7 @@ function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.tog
 const ADM=['ADMINISTRADOR','SUPERVISOR'];
 const soloMio=()=>S.perfil.rol==='BARBERO'&&!!S.perfil.barbero_id,mio=q=>soloMio()?q.eq('barbero_id',S.perfil.barbero_id):q;
 const { horarios, equipo } = crearModuloEquipo({ $, dlg, sb, S, esc, bonito, toast });
-const { ajustes } = crearModuloAjustes({ $, sb, S, esc, toast, equipo, ir });
+const { ajustes } = crearModuloAjustes({ $, sb, S, esc, toast, equipo, ir, notificaciones: NOTIF });
 const CFG=crearConfigCatalogos(ADM,dinero);
 const { crud } = crearModuloCatalogos({ $, app, dlg, sb, S, CFG, esc, bonito, traducir, toast, horarios });
 const { productos, pedidos:pedidosProductos } = crearModuloProductos({ $, dlg, sb, S, esc, dinero, traducir, toast });
