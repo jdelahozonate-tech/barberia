@@ -43,18 +43,35 @@ function wa(c,conf){
 
 
 async function agenda(){
- const main=$('#main'),d0=new Date(S.dia+'T00:00:00'),d1=new Date(d0);d1.setDate(d1.getDate()+1);
- const{data,error}=await mio(sb.from('citas').select('*,clientes(nombre,telefono),barberos(nombre),servicios(nombre,duracion_minutos)').eq('negocio_id',S.perfil.negocio_id).gte('inicio',d0.toISOString()).lt('inicio',d1.toISOString())).order('inicio');
- if(error)return toast(error.message,true);
- main.innerHTML=`<div class="head"><h2>Agenda</h2><button class="btn" id="nv">Nueva cita</button></div>
- <div class="dia"><button class="btn sec" id="pv" aria-label="Día anterior">‹</button><input type="date" id="dd" value="${S.dia}" aria-label="Fecha"><button class="btn sec" id="nx" aria-label="Día siguiente">›</button></div>
- <p class="mute cap">${d0.toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long'})}</p>
- ${data.length?data.map(c=>`<button class="row" data-id="${c.id}"><span><strong>${hora(c.inicio)} a ${hora(c.fin)}</strong><br>${esc(c.clientes?.nombre)}<br><small>${esc(c.servicios?.nombre)} con ${esc(c.barberos?.nombre)}</small></span><span class="chip ${c.estado}">${bonito(c.estado)}</span></button>`).join(''):'<p class="empty">No hay citas este día. Toca “Nueva cita” para agendar.</p>'}`;
- const mover=n=>{const d=new Date(d0);d.setDate(d.getDate()+n);S.dia=fecha(d);agenda()};
- $('#pv').onclick=()=>mover(-1);$('#nx').onclick=()=>mover(1);
+ const vista=S.vistaAgenda||'dia',base=new Date(S.dia+'T12:00:00Z'),p=n=>String(n).padStart(2,'0'),fmt=d=>d.getUTCFullYear()+'-'+p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate()),sum=(d,n)=>{const x=new Date(d);x.setUTCDate(x.getUTCDate()+n);return x};
+ let primero=new Date(base),ultimo;
+ if(vista==='semana'){const offset=(base.getUTCDay()+6)%7;primero=sum(base,-offset);ultimo=sum(primero,7)}
+ else if(vista==='mes'){primero=new Date(Date.UTC(base.getUTCFullYear(),base.getUTCMonth(),1));primero=sum(primero,-((primero.getUTCDay()+6)%7));ultimo=sum(primero,42)}
+ else{primero=new Date(Date.UTC(base.getUTCFullYear(),base.getUTCMonth(),base.getUTCDate()));ultimo=sum(primero,1)}
+ const desde=instanteNegocio(fmt(primero)+'T00:00').toISOString(),hasta=instanteNegocio(fmt(ultimo)+'T00:00').toISOString();
+ let consulta=sb.from('citas').select('*,clientes(nombre,telefono),barberos(nombre),servicios(nombre,duracion_minutos)').eq('negocio_id',S.perfil.negocio_id).gte('inicio',desde).lt('inicio',hasta).order('inicio');
+ if(S.barberoAgenda)consulta=consulta.eq('barbero_id',S.barberoAgenda);
+ const [rCitas,rBarberos]=await Promise.all([mio(consulta),sb.from('barberos').select('id,nombre').eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').order('nombre')]);
+ if(rCitas.error)return toast(rCitas.error.message,true);
+ if(rBarberos.error)return toast(rBarberos.error.message,true);
+ const data=rCitas.data||[],barberos=rBarberos.data||[],dias=[];
+ for(let d=new Date(primero);d<ultimo;d=sum(d,1))dias.push(fmt(d));
+ const etiqueta=d=>new Date(d+'T12:00:00Z').toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'});
+ const citasDia=d=>data.filter(c=>partesNegocio(c.inicio).fecha===d);
+ const fila=c=>'<button class="row" data-id="'+c.id+'"><span><strong>'+hora(c.inicio)+' a '+hora(c.fin)+'</strong><br>'+esc(c.clientes?.nombre)+'<br><small>'+esc(c.servicios?.nombre)+' con '+esc(c.barberos?.nombre)+'</small></span><span class="chip '+c.estado+'">'+bonito(c.estado)+'</span></button>';
+ let contenido='';
+ if(vista==='dia'){const xs=citasDia(fmt(base));contenido=xs.length?xs.map(fila).join(''):'<p class="empty">No hay citas este día. Toca “Nueva cita” para agendar.</p>';}
+ else if(vista==='semana'){contenido='<div class="agenda-semana">'+dias.map(d=>'<section class="card"><strong>'+esc(etiqueta(d))+'</strong>'+(citasDia(d).map(fila).join('')||'<p class="mute">Sin citas</p>')+'</section>').join('')+'</div>';}
+ else{contenido='<div class="agenda-mes" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px"><div class="mute">Lun</div><div class="mute">Mar</div><div class="mute">Mié</div><div class="mute">Jue</div><div class="mute">Vie</div><div class="mute">Sáb</div><div class="mute">Dom</div>'+dias.map(d=>'<section class="card" style="padding:6px;min-width:0;opacity:'+(d.slice(0,7)===S.dia.slice(0,7)?'1':'.55')+'"><strong>'+Number(d.slice(8,10))+'</strong>'+(citasDia(d).map(c=>'<button class="btn sec" style="display:block;width:100%;padding:4px 2px;margin:3px 0;font-size:11px;white-space:normal" data-id="'+c.id+'">'+hora(c.inicio)+' '+esc(c.clientes?.nombre)+'</button>').join('')||'')+'</section>').join('')+'</div>';}
+ const anterior=vista==='mes'?-1:vista==='semana'?-7:-1,siguiente=-anterior;
+ const rango=vista==='mes'?new Date(base).toLocaleDateString('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}):vista==='semana'?etiqueta(fmt(primero))+' – '+etiqueta(fmt(sum(ultimo,-1))):etiqueta(fmt(base));
+ main.innerHTML='<div class="head"><h2>Agenda</h2><button class="btn" id="nv">Nueva cita</button></div><div class="dia"><button class="btn sec" id="pv" aria-label="Periodo anterior">‹</button><input type="date" id="dd" value="'+S.dia+'" aria-label="Fecha"><button class="btn sec" id="nx" aria-label="Periodo siguiente">›</button></div><div class="dia"><label>Vista <select id="va"><option value="dia"'+(vista==='dia'?' selected':'')+'>Día</option><option value="semana"'+(vista==='semana'?' selected':'')+'>Semana</option><option value="mes"'+(vista==='mes'?' selected':'')+'>Mes</option></select></label><label>Barbero <select id="fb"><option value="">Todos</option>'+barberos.map(b=>'<option value="'+b.id+'"'+(S.barberoAgenda===b.id?' selected':'')+'>'+esc(b.nombre)+'</option>').join('')+'</select></label></div><p class="mute cap">'+esc(rango)+'</p>'+contenido;
+ const mover=n=>{const d=vista==='mes'?new Date(Date.UTC(base.getUTCFullYear(),base.getUTCMonth()+n,1)):sum(base,n);S.dia=fmt(d);agenda()};
+ $('#pv').onclick=()=>mover(anterior);$('#nx').onclick=()=>mover(siguiente);
  $('#dd').onchange=e=>{if(e.target.value){S.dia=e.target.value;agenda()}};
+ $('#va').onchange=e=>{S.vistaAgenda=e.target.value;agenda()};$('#fb').onchange=e=>{S.barberoAgenda=e.target.value;agenda()};
  $('#nv').onclick=nuevaCita;
- document.querySelectorAll('.row').forEach(b=>b.onclick=()=>editarCita(data.find(c=>c.id===b.dataset.id)));
+ document.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>editarCita(data.find(x=>x.id===b.dataset.id)));
 }
 async function nuevaCita(){
  const rs=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre'],['servicios','id,nombre,duracion_minutos']].map(([t,s])=>sb.from(t).select(s).eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').order('nombre')));
