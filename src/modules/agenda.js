@@ -96,7 +96,7 @@ async function nuevaCita(){
   if(disponibilidad){guardando=false;if(boton)boton.disabled=false;return toast(disponibilidad,true)}
   const{error}=await sb.from('citas').insert({cliente_id:f.cliente_id,servicio_id:f.servicio_id,barbero_id:f.barbero_id,observaciones:f.observaciones||null,inicio:i.toISOString(),fin:fin.toISOString(),negocio_id:S.perfil.negocio_id,creado_por:S.perfil.id,origen:'APP'});
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
-  dlg.close();toast('Cita agendada');S.dia=fecha(i);agenda()};
+  dlg.close();toast('Cita agendada');S.dia=partesNegocio(i.toISOString()).fecha;agenda()};
 }
 function editarCita(c){
  const admin=['ADMINISTRADOR','SUPERVISOR'].includes(S.perfil.rol);
