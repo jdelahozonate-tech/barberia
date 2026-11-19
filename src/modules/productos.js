@@ -185,17 +185,67 @@ export function crearModuloProductos(deps) {
   };
  }
  async function generarPdfPedido(pedido,proveedor,items,observaciones){
-  const cargarJsPdf=()=>new Promise((resolve,reject)=>{if(window.jspdf?.jsPDF)return resolve(window.jspdf.jsPDF);const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';sc.onload=()=>window.jspdf?.jsPDF?resolve(window.jspdf.jsPDF):reject(new Error('No se pudo cargar el generador PDF'));sc.onerror=()=>reject(new Error('No hay conexión para generar el PDF'));document.head.append(sc)});
-  const texto='Pedido para '+proveedor.nombre+' · '+new Date().toLocaleDateString('es-CO'),filas=items.map(x=>[x.producto.nombre,String(x.cantidad),dinero(x.costo),dinero(x.cantidad*x.costo)]);
+  const cargarJsPdf=async()=>{
+   if(window.jspdf?.jsPDF)return window.jspdf.jsPDF;
+   const urls=[
+    'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js'
+   ];
+   let ultimo;
+   for(const url of urls){
+    try{
+     await new Promise((resolve,reject)=>{
+      const sc=document.createElement('script');sc.src=url;sc.onload=resolve;sc.onerror=()=>reject(new Error('No se pudo descargar el generador PDF'));document.head.append(sc);
+     });
+     if(window.jspdf?.jsPDF)return window.jspdf.jsPDF;
+    }catch(e){ultimo=e}
+   }
+   throw ultimo||new Error('No está disponible el generador PDF');
+  };
   try{
-   const JsPDF=await cargarJsPdf(),doc=new JsPDF();doc.setFontSize(18);doc.text('PEDIDO A PROVEEDOR',14,18);doc.setFontSize(11);doc.text('Proveedor: '+proveedor.nombre,14,29);doc.text('Telefono: '+(proveedor.telefono||'No registrado'),14,36);doc.text('Fecha: '+new Date().toLocaleDateString('es-CO'),14,43);
-   let y=56;doc.setFont(undefined,'bold');doc.text('Producto',14,y);doc.text('Cant.',112,y);doc.text('Costo',137,y);doc.text('Subtotal',170,y);doc.setFont(undefined,'normal');y+=8;
-   for(const x of items){if(y>275){doc.addPage();y=20}doc.text(String(x.producto.nombre).slice(0,48),14,y);doc.text(String(x.cantidad),112,y);doc.text(dinero(x.costo),137,y);doc.text(dinero(x.cantidad*x.costo),170,y);y+=8}
-   const total=items.reduce((a,x)=>a+x.cantidad*x.costo,0);y+=6;doc.setFont(undefined,'bold');doc.text('TOTAL ESTIMADO: '+dinero(total),14,y);if(observaciones){y+=9;doc.setFont(undefined,'normal');doc.text('Observaciones: '+observaciones,14,y,{maxWidth:180})}
-   const blob=doc.output('blob'),nombre='pedido-proveedor-'+pedido.id.slice(0,8)+'.pdf',archivo=new File([blob],nombre,{type:'application/pdf'});
-   if(navigator.canShare?.({files:[archivo]})&&navigator.share){await navigator.share({files:[archivo],title:'Pedido a '+proveedor.nombre,text:texto})}
-   else{const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=nombre;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);const msg=encodeURIComponent('Hola '+proveedor.nombre+', te comparto el pedido de productos. Adjunto el PDF.');window.open('https://wa.me/'+String(proveedor.telefono||'').replace(/\D/g,'')+'?text='+msg,'_blank','noopener');toast('PDF descargado. Adjuntalo en WhatsApp para enviarlo.')}
-  }catch(e){console.error(e);toast('El pedido quedó guardado, pero no se pudo generar el PDF: '+e.message,true)}
+   if(!proveedor)throw new Error('No se encontró la información del proveedor. Actualiza la lista e inténtalo de nuevo.');
+   const JsPDF=await cargarJsPdf(),doc=new JsPDF({unit:'mm',format:'a4'});
+   const ancho=doc.internal.pageSize.getWidth(),alto=doc.internal.pageSize.getHeight();
+   const total=items.reduce((a,x)=>a+Number(x.cantidad)*Number(x.costo),0);
+   const fechaPedido=new Date(pedido.creado_en||Date.now()).toLocaleDateString('es-CO');
+   doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('PEDIDO A PROVEEDOR',14,18);
+   doc.setFont('helvetica','normal');doc.setFontSize(10);
+   doc.text('Proveedor: '+String(proveedor.nombre||'').slice(0,90),14,28);
+   doc.text('Telefono: '+String(proveedor.telefono||'No registrado').slice(0,60),14,34);
+   doc.text('Fecha: '+fechaPedido,14,40);
+   let y=52;
+   const encabezado=()=>{doc.setFillColor(235,239,245);doc.rect(14,y-5,ancho-28,9,'F');doc.setFont('helvetica','bold');doc.text('Producto',16,y);doc.text('Cantidad',112,y,{align:'right'});doc.text('Costo',145,y,{align:'right'});doc.text('Subtotal',ancho-16,y,{align:'right'});doc.setFont('helvetica','normal');y+=10};
+   encabezado();
+   for(const x of items){
+    const nombre=doc.splitTextToSize(String(x.producto?.nombre||'Producto'),88);
+    const altoFila=Math.max(7,nombre.length*5);
+    if(y+altoFila>alto-25){doc.addPage();y=20;encabezado()}
+    doc.text(nombre,16,y);
+    doc.text(String(x.cantidad),112,y,{align:'right'});
+    doc.text(dinero(x.costo),145,y,{align:'right'});
+    doc.text(dinero(Number(x.cantidad)*Number(x.costo)),ancho-16,y,{align:'right'});
+    y+=altoFila;
+   }
+   y+=5;if(y>alto-25){doc.addPage();y=20}
+   doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('TOTAL ESTIMADO: '+dinero(total),ancho-16,y,{align:'right'});
+   if(observaciones){
+    y+=10;doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('Observaciones:',14,y);
+    y+=5;doc.setFont('helvetica','normal');
+    const lineas=doc.splitTextToSize(String(observaciones),ancho-28);
+    for(const linea of lineas){if(y>alto-15){doc.addPage();y=20}doc.text(linea,14,y);y+=5}
+   }
+   const nombre='pedido-proveedor-'+String(pedido.id||'pedido').slice(0,8)+'.pdf';
+   const blob=doc.output('blob');
+   const url=URL.createObjectURL(blob),a=document.createElement('a');
+   a.href=url;a.download=nombre;a.style.display='none';document.body.append(a);a.click();a.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),60000);
+   toast('PDF generado y descargado. Ya puedes adjuntarlo en WhatsApp.');
+   return true;
+  }catch(e){
+   console.error('Error generando PDF de pedido:',e);
+   toast('No se pudo generar el PDF: '+(e?.message||'Error desconocido')+'. Verifica la conexión e inténtalo de nuevo.',true);
+   return false;
+  }
  }
  async function pedidosProveedorVista(){
   const{data,error:e1}=await sb.from('pedidos_proveedores').select('*,proveedores_inventario(nombre,telefono),detalle_pedidos_proveedores(*)').eq('negocio_id',nid()).order('creado_en',{ascending:false}).limit(100);
