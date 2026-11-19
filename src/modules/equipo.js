@@ -31,6 +31,15 @@ async function horarios(b){
 }
 
 
+async function miPerfil(){
+ const main=$('#main'),barberoId=S.perfil.barbero_id;
+ if(S.perfil.rol!=='BARBERO'||!barberoId)return main.innerHTML='<div class="head"><h2>Mi perfil</h2></div><p class="empty">Tu usuario no está vinculado a un registro de barbero. Solicita a la administración que lo configure.</p>';
+ const{data:b,error}=await sb.from('barberos').select('id,nombre,telefono,correo,fecha_ingreso,modelo_pago,porcentaje_comision,foto_url,observaciones').eq('negocio_id',S.perfil.negocio_id).eq('id',barberoId).maybeSingle();
+ if(error)return toast('No fue posible cargar tu perfil: '+error.message,true);
+ if(!b)return main.innerHTML='<div class="head"><h2>Mi perfil</h2></div><p class="empty">No encontramos tu ficha de barbero. Contacta a la administración.</p>';
+ main.innerHTML=`<div class="head"><h2>Mi perfil</h2></div><section class="card" style="text-align:center;padding:24px"><div style="width:132px;height:132px;border-radius:50%;overflow:hidden;margin:0 auto 16px;background:var(--soft,#eee);display:grid;place-items:center">${b.foto_url?`<img src="${esc(b.foto_url)}" alt="Fotografía de ${esc(b.nombre)}" style="width:100%;height:100%;object-fit:cover">`:'<span style="font-size:48px">👤</span>'}</div><h2>${esc(b.nombre)}</h2><p class="mute">Perfil de barbero</p></section><section class="card" style="margin-top:14px">${[['Teléfono',b.telefono],['Correo',b.correo],['Fecha de ingreso',b.fecha_ingreso],['Modelo de pago',bonito(b.modelo_pago)],['Comisión por servicio',b.modelo_pago==='ALQUILER'?'No aplica':Number(b.porcentaje_comision||0)+'%'],['Observaciones',b.observaciones]].filter(x=>x[1]).map(x=>`<div class="row"><span>${esc(x[0])}</span><strong>${esc(String(x[1]))}</strong></div>`).join('')}</section>`;
+}
+
 async function equipo(){
  if(!ADM.includes(S.perfil.rol))return toast('Solo administración puede gestionar el equipo.',true);
  const{data,error}=await sb.from('perfiles').select('id,nombre,rol,estado').eq('negocio_id',S.perfil.negocio_id).order('creado_en');
@@ -57,5 +66,5 @@ async function invitar(){
 }
 
 
- return { horarios, equipo };
+ return { horarios, equipo, miPerfil };
 }
