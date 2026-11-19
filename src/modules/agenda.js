@@ -22,7 +22,16 @@ async function validarDisponibilidad({barbero,cliente,inicio,fin,excluir=null}){
  if((cc.data||[]).some(x=>x.id!==excluir))return 'El cliente ya tiene otra cita en ese horario.';
  return null;
 }
-function valorLocal(iso){const d=new Date(iso),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes())+';}
+function valorLocal(iso){
+ const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:S.negocio?.zona_horaria||'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(iso)).map(x=>[x.type,x.value]));
+ return p.year+'-'+p.month+'-'+p.day+'T'+p.hour+':'+p.minute;
+}
+function instanteNegocio(local){
+ const [y,m,d,h,mi]=local.match(/\d+/g).map(Number),zona=S.negocio?.zona_horaria||'America/Bogota';
+ let ms=Date.UTC(y,m-1,d,h,mi);
+ for(let n=0;n<3;n++){const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:zona,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(ms)).map(x=>[x.type,x.value]));const real=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute);const diff=Date.UTC(y,m-1,d,h,mi)-real;if(!diff)break;ms+=diff}
+ return new Date(ms);
+}
 function wa(c,conf){
  const tel=String(c.clientes?.telefono||'').replace(/\D/g,'');
  if(tel.length<7)return '<p class="mute">Este cliente no tiene teléfono guardado, no se puede enviar el recordatorio.</p>';
@@ -52,7 +61,7 @@ async function nuevaCita(){
  const fallo=rs.find(r=>r.error);if(fallo)return toast(traducir(fallo.error.message),true);
  const[cl,ba,se]=rs.map(r=>r.data||[]);
  if(!cl.length||!ba.length||!se.length)return toast('Antes de agendar crea al menos un cliente, un barbero y un servicio.',true);
- const ini=new Date(S.dia+'T09:00:00'),loc=new Date(ini.getTime()-ini.getTimezoneOffset()*6e4).toISOString().slice(0,16);
+ const loc=S.dia+'T09:00';
  const op=a=>a.map(o=>`<option value="${o.id}">${esc(o.nombre)}</option>`).join('');
  dlg.innerHTML=`<form id="df"><h2>Nueva cita</h2>
  <label for="a1">Cliente</label><select id="a1" name="cliente_id" required>${op(cl)}</select>
@@ -64,7 +73,7 @@ async function nuevaCita(){
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  let guardando=false;
  $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
-  const i=new Date(f.inicio),dur=Number(se.find(s=>s.id===f.servicio_id)?.duracion_minutos||0),fin=new Date(i.getTime()+dur*6e4);
+  const i=instanteNegocio(f.inicio),dur=Number(se.find(s=>s.id===f.servicio_id)?.duracion_minutos||0),fin=new Date(i.getTime()+dur*6e4);
   if(!Number.isFinite(i.getTime())||!dur){guardando=false;if(boton)boton.disabled=false;return toast('La fecha o duración del servicio no es válida.',true)}
   const disponibilidad=await validarDisponibilidad({barbero:f.barbero_id,cliente:f.cliente_id,inicio:i.toISOString(),fin:fin.toISOString()});
   if(disponibilidad){guardando=false;if(boton)boton.disabled=false;return toast(disponibilidad,true)}
@@ -85,7 +94,7 @@ function editarCita(c){
  if(admin)$('#df').onsubmit=async e=>{
   e.preventDefault();if(guardando)return;guardando=true;
   const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;
-  const f=Object.fromEntries(new FormData(e.target)),i=new Date(f.inicio);
+  const f=Object.fromEntries(new FormData(e.target)),i=instanteNegocio(f.inicio);
   if(!Number.isFinite(i.getTime())||!dur){guardando=false;if(boton)boton.disabled=false;return toast('La fecha o duración de la cita no es válida.',true)}
   const fin=new Date(i.getTime()+dur*60000),cambioHorario=i.toISOString()!==new Date(c.inicio).toISOString();
   if(['PENDIENTE','CONFIRMADA'].includes(f.estado)){
