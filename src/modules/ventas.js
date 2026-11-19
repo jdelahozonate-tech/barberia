@@ -8,7 +8,7 @@ async function ventas(){
  if(errorCitas)return toast(traducir(errorCitas.message),true);
  const ids=(citas||[]).map(c=>c.id),cobradas=new Set();
  if(ids.length){
-  const{data:rel,error:errorRel}=await sb.from('ventas').select('cita_id').eq('negocio_id',S.perfil.negocio_id).in('cita_id',ids);
+  const{data:rel,error:errorRel}=await sb.from('ventas').select('cita_id,estado_venta').eq('negocio_id',S.perfil.negocio_id).neq('estado_venta','ANULADA').in('cita_id',ids);
   if(errorRel)return toast(traducir(errorRel.message),true);
   (rel||[]).forEach(x=>cobradas.add(x.cita_id));
  }
@@ -28,7 +28,7 @@ async function ventas(){
 }
 async function cobrarCitaPendiente(c){
  if(!c)return;
- const{data:ya,error:errorVenta}=await sb.from('ventas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('cita_id',c.id).limit(1);
+ const{data:ya,error:errorVenta}=await sb.from('ventas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('cita_id',c.id).neq('estado_venta','ANULADA').limit(1);
  if(errorVenta)return toast(traducir(errorVenta.message),true);
  if(ya?.length)return toast('Esta cita ya tiene una venta asociada.',true);
  let fee=null;
@@ -44,7 +44,7 @@ async function nuevaVenta(pre,tipo='MIXTA'){
   const{data:cita,error:errorCita}=await sb.from('citas').select('estado').eq('negocio_id',S.perfil.negocio_id).eq('id',pre.cita_id).maybeSingle();
   if(errorCita)return toast(traducir(errorCita.message),true);
   if(cita?.estado!=='ATENDIDA')return toast('Solo se puede cobrar una cita que esté marcada como ATENDIDA.',true);
-  const{data:existente,error:errorExistente}=await sb.from('ventas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('cita_id',pre.cita_id).limit(1);
+  const{data:existente,error:errorExistente}=await sb.from('ventas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('cita_id',pre.cita_id).neq('estado_venta','ANULADA').limit(1);
   if(errorExistente)return toast(traducir(errorExistente.message),true);
   if(existente?.length)return toast('Esta cita ya tiene una venta asociada.',true);
  }
@@ -92,10 +92,10 @@ async function nuevaVenta(pre,tipo='MIXTA'){
   const{data:cajaActual,error:errorCajaActual}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
   if(errorCajaActual){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorCajaActual.message),true)}
   if(!cajaActual?.id){guardando=false;if(boton)boton.disabled=false;return toast('La caja se cerró. Abre una caja para registrar la venta.',true)}
-  if(pre?.cita_id){const{data:duplicada,error:errorDuplicada}=await sb.from('ventas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('cita_id',pre.cita_id).limit(1);if(errorDuplicada){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorDuplicada.message),true)}if(duplicada?.length){guardando=false;if(boton)boton.disabled=false;return toast('Esta cita ya fue cobrada.',true)}}
+  if(pre?.cita_id){const{data:citaActual,error:errorCitaActual}=await sb.from('citas').select('estado').eq('negocio_id',S.perfil.negocio_id).eq('id',pre.cita_id).maybeSingle();if(errorCitaActual){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorCitaActual.message),true)}if(citaActual?.estado!=='ATENDIDA'){guardando=false;if(boton)boton.disabled=false;return toast('La cita ya no está marcada como ATENDIDA. Actualiza Ventas antes de cobrar.',true)}const{data:duplicada,error:errorDuplicada}=await sb.from('ventas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('cita_id',pre.cita_id).limit(1);if(errorDuplicada){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorDuplicada.message),true)}if(duplicada?.length){guardando=false;if(boton)boton.disabled=false;return toast('Esta cita ya fue cobrada.',true)}}
   const bar=ba.find(x=>x.id===f.barbero_id),nid=S.perfil.negocio_id;
   const{data:v,error}=await sb.from('ventas').insert({negocio_id:nid,cliente_id:f.cliente_id||null,barbero_id:f.barbero_id||null,descuento:c.ds,metodo_pago_principal:(PG.slice().sort((a,b)=>b.v-a.v)[0]?.m)||'EFECTIVO',creado_por:S.perfil.id,cita_id:pre?.cita_id||null}).select('id').single();
-  if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
+  if(error){guardando=false;if(boton)boton.disabled=false;return toast(pre?.cita_id&&error.code==='23505'?'Esta cita ya tiene una venta registrada. Actualiza la pantalla de Ventas.':traducir(error.message),true)}
   const redondear=n=>Math.round((n+Number.EPSILON)*100)/100;
   const det=c.L.map(l=>{const s=l.i.k[0]==='s',id=l.i.k.slice(2),sv=s&&se.find(x=>x.id===id),pd=!s&&pr.find(x=>x.id===id);
    const elegible=!!(sv&&bar&&bar.modelo_pago!=='ALQUILER'),porcentaje=s?(elegible?Number(bar.porcentaje_comision)||0:0):null;
