@@ -300,6 +300,14 @@ test('las reservas públicas toleran catálogos incompletos y filtran horarios i
 });
 
 
+test('las RPC públicas de Agenda no quedan ejecutables por el rol PUBLIC', () => {
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261119040000_agenda_publica_permisos.sql'), 'utf8');
+  for (const fn of ['cita_publica', 'horas_libres_publicas', 'reprogramar_cita_publica', 'reservar_cita_publica', 'responder_cita_publica']) {
+    assert.match(sql, new RegExp('REVOKE ALL ON FUNCTION public\\.' + fn + '\\('));
+    assert.match(sql, new RegExp('GRANT EXECUTE ON FUNCTION public\\.' + fn + '.*TO anon, authenticated, service_role'));
+  }
+});
+
 test('la reserva pública entrega el enlace privado usando el token devuelto por Supabase', () => {
   const reservar = readFileSync(resolve(root, 'src/pages/reservar.js'), 'utf8');
   assert.match(reservar, /const\{data,error\}=await sb\.rpc\('reservar_cita_publica'/);
