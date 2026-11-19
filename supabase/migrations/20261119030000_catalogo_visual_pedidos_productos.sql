@@ -38,14 +38,14 @@ DROP POLICY IF EXISTS pedidos_productos_admin ON public.pedidos_productos;
 CREATE POLICY pedidos_productos_admin ON public.pedidos_productos
  FOR SELECT TO authenticated
  USING (negocio_id = public.mi_negocio()
-   AND COALESCE(public.mi_rol(),'') IN ('ADMINISTRADOR','SUPERVISOR'));
+   AND COALESCE(public.mi_rol(),'') IN ('ADMINISTRADOR','SUPERVISOR','BARBERO'));
 DROP POLICY IF EXISTS pedidos_productos_actualizar ON public.pedidos_productos;
 CREATE POLICY pedidos_productos_actualizar ON public.pedidos_productos
  FOR UPDATE TO authenticated
  USING (negocio_id = public.mi_negocio()
    AND COALESCE(public.mi_rol(),'') IN ('ADMINISTRADOR','SUPERVISOR'))
  WITH CHECK (negocio_id = public.mi_negocio()
-   AND COALESCE(public.mi_rol(),'') IN ('ADMINISTRADOR','SUPERVISOR'));
+   AND COALESCE(public.mi_rol(),'') IN ('ADMINISTRADOR','SUPERVISOR','BARBERO'));
 DROP POLICY IF EXISTS detalle_pedidos_productos_admin ON public.detalle_pedidos_productos;
 CREATE POLICY detalle_pedidos_productos_admin ON public.detalle_pedidos_productos
  FOR SELECT TO authenticated
@@ -177,3 +177,22 @@ REVOKE ALL ON FUNCTION public.catalogo_productos_publico(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.crear_pedido_producto_publico(text,text,text,jsonb,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.catalogo_productos_publico(text) TO anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.crear_pedido_producto_publico(text,text,text,jsonb,text) TO anon,authenticated;
+
+-- Permite usar el enlace de productos aunque la barbería no tenga activadas las reservas.
+CREATE OR REPLACE FUNCTION public.negocio_productos_publico(p_slug text)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path=public,pg_temp
+AS $$
+ SELECT CASE WHEN n.id IS NULL THEN NULL ELSE jsonb_build_object(
+  'negocio',jsonb_build_object('nombre',n.nombre,'logo_url',n.logo_url,
+   'direccion',n.direccion,'telefono',n.telefono,'valor_cita',n.valor_cita),
+  'servicios','[]'::jsonb,'barberos','[]'::jsonb
+ ) END
+ FROM (SELECT id,nombre,logo_url,direccion,telefono,valor_cita
+       FROM public.negocios WHERE slug=p_slug LIMIT 1) n;
+$$;
+REVOKE ALL ON FUNCTION public.negocio_productos_publico(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.negocio_productos_publico(text) TO anon,authenticated;
