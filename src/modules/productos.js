@@ -181,7 +181,7 @@ export function crearModuloProductos(deps) {
    const detalle=items.map(x=>({pedido_id:pedido.id,negocio_id:nid(),producto_id:x.producto.id,nombre_producto:x.producto.nombre,cantidad:x.cantidad,costo_estimado:x.costo}));
    const{error:e2}=await sb.from('detalle_pedidos_proveedores').insert(detalle);
    if(e2){await sb.from('pedidos_proveedores').delete().eq('id',pedido.id).eq('negocio_id',nid());busy=false;if(b)b.disabled=false;return error(e2)}
-   dlg.close();toast('Pedido guardado. Preparando documento PDF.');await generarPdfPedido(pedido,vs.find(v=>v.id===f.proveedor_id),items,f.observaciones);vista='pedido_proveedor';render();
+   toast('Pedido guardado. Preparando documento PDF.');const pdf=await generarPdfPedido(pedido,vs.find(v=>v.id===f.proveedor_id),items,f.observaciones);if(pdf)mostrarAccionesPdf(pdf,vs.find(v=>v.id===f.proveedor_id));else dlg.close();vista='pedido_proveedor';render();
   };
  }
  async function generarPdfPedido(pedido,proveedor,items,observaciones){
@@ -205,6 +205,30 @@ export function crearModuloProductos(deps) {
    return {blob:doc.output('blob'),nombre:'pedido-proveedor-'+String(pedido.id||'pedido').slice(0,8)+'.pdf'};
   }catch(e){console.error('Error generando PDF de pedido:',e);toast('No se pudo generar el PDF: '+(e?.message||'Error desconocido')+'. Verifica la conexión e inténtalo de nuevo.',true);return null}
  }
+
+ function mostrarAccionesPdf(pdf,proveedor){
+  dlg.innerHTML='<div class="form"><h2>Pedido listo</h2><p class="info">El PDF ya está generado. Elige cómo quieres compartirlo o guardarlo.</p><div class="acts" style="flex-direction:column;align-items:stretch"><button type="button" class="btn" id="pp-enviar-wa">Enviar por WhatsApp</button><button type="button" class="btn sec" id="pp-guardar-pdf">Guardar PDF en el dispositivo</button><button type="button" class="link" id="pp-cerrar-pdf">Cerrar</button></div><small>En móviles compatibles se abrirá el menú para elegir WhatsApp. Si el navegador no permite compartir archivos, se descargará el PDF y se abrirá WhatsApp para adjuntarlo manualmente.</small></div>';
+  if(!dlg.open)dlg.showModal();
+  const guardar=()=>{const url=URL.createObjectURL(pdf.blob),a=document.createElement('a');a.href=url;a.download=pdf.nombre;a.style.display='none';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('PDF guardado en las descargas del dispositivo.')};
+  $('#pp-guardar-pdf').onclick=guardar;
+  $('#pp-enviar-wa').onclick=async()=>{
+   const archivo=new File([pdf.blob],pdf.nombre,{type:'application/pdf'});
+   try{
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[archivo]})){
+     await navigator.share({files:[archivo],title:'Pedido a proveedor',text:'Pedido para '+String(proveedor?.nombre||'proveedor')});
+     toast('Selecciona WhatsApp en el menú para completar el envío.');
+    }else{
+     guardar();
+     const tel=String(proveedor?.telefono||'').replace(/\\D/g,'');
+     const texto=encodeURIComponent('Hola, te comparto el pedido. Adjunto el archivo PDF: '+pdf.nombre);
+     window.open('https://wa.me/'+tel+'?text='+texto,'_blank','noopener');
+     toast('Adjunta en WhatsApp el PDF que se acaba de descargar.');
+    }
+   }catch(e){if(e?.name==='AbortError')return;console.error('No se pudo compartir el PDF:',e);toast('No se pudo abrir el menú para compartir. Usa Guardar PDF y adjúntalo en WhatsApp.',true)}
+  };
+  $('#pp-cerrar-pdf').onclick=()=>dlg.close();
+ }
+
  async function pedidosProveedorVista(){
   const{data,error:e1}=await sb.from('pedidos_proveedores').select('*,proveedores_inventario(nombre,telefono),detalle_pedidos_proveedores(*)').eq('negocio_id',nid()).order('creado_en',{ascending:false}).limit(100);
   if(e1)return error(e1);
@@ -212,7 +236,7 @@ export function crearModuloProductos(deps) {
   $('#main').innerHTML='<div class="head"><h2>Pedidos a proveedores</h2><button class="btn" id="nuevo-pp">Preparar pedido</button></div>'+tabs()+(pedidos.length?pedidos.map(p=>'<article class="order-card"><div class="order-head"><div><strong>'+esc(p.proveedores_inventario?.nombre||'Proveedor')+'</strong><small>'+fecha(p.creado_en)+' · '+esc(p.proveedores_inventario?.telefono||'Sin teléfono')+'</small></div><span class="chip">'+esc(p.estado)+'</span></div><div class="order-items">'+(p.detalle_pedidos_proveedores||[]).map(d=>'<span>'+esc(d.nombre_producto)+' × '+d.cantidad+'</span>').join('')+'</div><div class="acts"><select data-ppestado="'+p.id+'">'+['BORRADOR','ENVIADO','RECIBIDO','CANCELADO'].map(e=>'<option value="'+e+'" '+(p.estado===e?'selected':'')+'>'+e+'</option>').join('')+'</select><button class="btn sec" data-pppdf="'+p.id+'">Generar PDF</button></div></article>').join(''):'<p class="empty">Todavía no has preparado pedidos a proveedores.</p>');
   $('#nuevo-pp').onclick=pedidoProveedorForm;document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{vista=b.dataset.tab;render()});
   document.querySelectorAll('[data-ppestado]').forEach(sel=>sel.onchange=async()=>{sel.disabled=true;const{error:e1}=await sb.from('pedidos_proveedores').update({estado:sel.value,actualizado_en:new Date().toISOString()}).eq('id',sel.dataset.ppestado).eq('negocio_id',nid());if(e1){sel.disabled=false;return error(e1)}sel.disabled=false;toast('Estado actualizado')});
-  document.querySelectorAll('[data-pppdf]').forEach(b=>b.onclick=async()=>{const p=pedidos.find(x=>x.id===b.dataset.pppdf),items=(p.detalle_pedidos_proveedores||[]).map(d=>({producto:{nombre:d.nombre_producto},cantidad:Number(d.cantidad),costo:Number(d.costo_estimado)}));await generarPdfPedido(p,p.proveedores_inventario,items,p.observaciones)});
+  document.querySelectorAll('[data-pppdf]').forEach(b=>b.onclick=async()=>{const p=pedidos.find(x=>x.id===b.dataset.pppdf),items=(p.detalle_pedidos_proveedores||[]).map(d=>({producto:{nombre:d.nombre_producto},cantidad:Number(d.cantidad),costo:Number(d.costo_estimado)}));const pdf=await generarPdfPedido(p,p.proveedores_inventario,items,p.observaciones);if(pdf)mostrarAccionesPdf(pdf,p.proveedores_inventario)});
  }
  async function pedidosVista(){
   const{data,error:e1}=await sb.from('pedidos_productos').select('*,detalle_pedidos_productos(*)').eq('negocio_id',nid()).order('creado_en',{ascending:false}).limit(100);
