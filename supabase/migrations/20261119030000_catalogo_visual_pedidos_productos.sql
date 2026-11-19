@@ -43,14 +43,14 @@ DROP POLICY IF EXISTS pedidos_productos_actualizar ON public.pedidos_productos;
 CREATE POLICY pedidos_productos_actualizar ON public.pedidos_productos
  FOR UPDATE TO authenticated
  USING (negocio_id = public.mi_negocio()
-   AND COALESCE(public.mi_rol(),'') IN ('ADMINISTRADOR','SUPERVISOR'))
+   AND COALESCE(public.mi_rol(),'') IN ('ADMINISTRADOR','SUPERVISOR','BARBERO'))
  WITH CHECK (negocio_id = public.mi_negocio()
    AND COALESCE(public.mi_rol(),'') IN ('ADMINISTRADOR','SUPERVISOR','BARBERO'));
 DROP POLICY IF EXISTS detalle_pedidos_productos_admin ON public.detalle_pedidos_productos;
 CREATE POLICY detalle_pedidos_productos_admin ON public.detalle_pedidos_productos
  FOR SELECT TO authenticated
  USING (negocio_id = public.mi_negocio()
-   AND COALESCE(public.mi_rol(),'') IN ('ADMINISTRADOR','SUPERVISOR'));
+   AND COALESCE(public.mi_rol(),'') IN ('ADMINISTRADOR','SUPERVISOR','BARBERO'));
 
 GRANT SELECT, UPDATE ON public.pedidos_productos TO authenticated;
 GRANT SELECT ON public.detalle_pedidos_productos TO authenticated;
