@@ -55,6 +55,15 @@ async function ventas(){
   if(errorDetalles)return toast(traducir(errorDetalles.message),true);
   (detalles||[]).forEach(x=>(detallesPorVenta[x.venta_id]??=[]).push(x));
  }
+ const tipoVenta=v=>{
+  const tipos=new Set((detallesPorVenta[v.id]||[]).map(x=>String(x.tipo_item||'').toUpperCase()));
+  const p=tipos.has('PRODUCTO'),s=tipos.has('SERVICIO')||tipos.has('SERVICIOS');
+  return p&&s?'MIXTA':p?'PRODUCTOS':s?'SERVICIOS':'OTRA';
+ };
+ const tipoFiltro=S.filtroTipoVenta||'TODOS';
+ const ventasFiltradas=(data||[]).filter(v=>tipoFiltro==='TODOS'||tipoVenta(v)===tipoFiltro);
+ const etiquetasTipo={PRODUCTOS:'Productos',SERVICIOS:'Servicios',MIXTA:'Mixta',OTRA:'Sin clasificar'};
+ const coloresTipo={PRODUCTOS:'background:#e8f5ec;color:#176b36;border:1px solid #b9e1c5',SERVICIOS:'background:#eaf1ff;color:#2454a6;border:1px solid #c5d6fb',MIXTA:'background:#fff3df;color:#8a5200;border:1px solid #f0d4a3',OTRA:'background:#f1f2f4;color:#555;border:1px solid #ddd'};
  const activa=k=>filtro===k?'':'sec';
  $('#main').innerHTML=`<div class="head"><h2>Ventas</h2><button class="btn" id="nv">Nueva venta</button></div>
  <div class="product-tabs"><button class="btn sec" id="vp">Venta de productos</button><button class="btn sec" id="vs">Venta de servicios</button><button class="btn sec" id="vm">Venta mixta</button></div>
@@ -64,16 +73,18 @@ async function ventas(){
  </section>
  <section><h3>Citas pendientes de cobro (${pendientes.length})</h3>
  ${pendientes.length?pendientes.map(c=>`<div class="row"><span><strong>${esc(c.clientes?.nombre||'Cliente')}</strong><br><small>${esc(c.servicios?.nombre||'Servicio')} · ${esc(c.barberos?.nombre||'Sin barbero')} · ${new Date(c.inicio).toLocaleString('es-CO',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</small><br><strong>${dinero(c.servicios?.precio||0)}</strong></span><button class="btn" data-cobrar-cita="${c.id}">Cobrar cita</button></div>`).join(''):'<p class="empty">No hay citas pendientes de cobro.</p>'}
- </section><section><h3>Ventas del período (${data.length})</h3>
- ${data.length?data.map(v=>{
+ </section><section><h3>Ventas del período (${ventasFiltradas.length})</h3>
+ ${ventasFiltradas.length?ventasFiltradas.map(v=>{
   const items=detallesPorVenta[v.id]||[],conceptos=items.map(x=>esc(x.descripcion)+(Number(x.cantidad)!==1?' × '+x.cantidad:'')).join(' · ');
   const saldo=Number(v.saldo_pendiente)>0&&v.estado_venta!=='ANULADA';
-  return `<button class="row" data-id="${v.id}"><span><strong>${esc(v.clientes?.nombre||'Cliente de paso')}</strong><br><small>${new Date(v.fecha_hora).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})} · Cobrado: ${dinero(v.total_pagado)}</small><br><small>${conceptos||'Sin detalle'}</small>${Number(v.descuento)>0?'<br><small>Descuento: '+dinero(v.descuento)+'</small>':''}${saldo?'<br><small>Saldo pendiente: '+dinero(v.saldo_pendiente)+' · Deudor: '+esc(v.clientes?.nombre||'Cliente de paso')+'</small>':''}</span><strong>${dinero(v.total_venta)}</strong></button>`;
+  const tipo=tipoVenta(v),estilo=coloresTipo[tipo]||coloresTipo.OTRA;
+  return `<button class="row" data-id="${v.id}" style="border-left:4px solid ${tipo==='PRODUCTOS'?'#299653':tipo==='SERVICIOS'?'#4779d1':tipo==='MIXTA'?'#d99a35':'#999'};padding-left:12px"><span><strong>${esc(v.clientes?.nombre||'Cliente de paso')}</strong> <span style="display:inline-block;margin:3px 0;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${estilo}">${etiquetasTipo[tipo]||'Sin clasificar'}</span><br><small>${new Date(v.fecha_hora).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})} · Cobrado: ${dinero(v.total_pagado)}</small><br><small>${conceptos||'Sin detalle'}</small>${Number(v.descuento)>0?'<br><small>Descuento: '+dinero(v.descuento)+'</small>':''}${saldo?'<br><small>Saldo pendiente: '+dinero(v.saldo_pendiente)+' · Deudor: '+esc(v.clientes?.nombre||'Cliente de paso')+'</small>':''}</span><strong>${dinero(v.total_venta)}</strong></button>`;
  }).join(''):'<p class="empty">No hay ventas en el período seleccionado.</p>'}</section>`;
  $('#nv').onclick=()=>nuevaVenta();
  $('#vp').onclick=()=>nuevaVenta(null,'PRODUCTOS');
  $('#vs').onclick=()=>nuevaVenta(null,'SERVICIOS');
  $('#vm').onclick=()=>nuevaVenta(null,'MIXTA');
+ document.querySelectorAll('[data-tipo-venta]').forEach(b=>b.onclick=()=>{S.filtroTipoVenta=b.dataset.tipoVenta;ventas()});
  document.querySelectorAll('[data-filtro-ventas]').forEach(b=>b.onclick=()=>{S.filtroVentas=b.dataset.filtroVentas;ventas()});
  const aplicar=$('#aplicar-rango');if(aplicar)aplicar.onclick=()=>{const a=$('#ventas-desde').value,b=$('#ventas-hasta').value;if(!a||!b||a>b)return toast('Selecciona un rango de fechas válido.',true);S.ventasDesde=a;S.ventasHasta=b;S.filtroVentas='PERSONALIZADO';ventas()};
  document.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>detalleVenta(data.find(v=>v.id===b.dataset.id)));
