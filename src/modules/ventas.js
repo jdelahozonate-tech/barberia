@@ -70,10 +70,10 @@ async function ventas(){
  <section><h3>Filtros</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;align-items:end;max-width:680px">
  <label for="filtro-periodo" style="display:grid;gap:5px">Período
  <select id="filtro-periodo" style="width:100%;min-width:0;padding:10px;border:1px solid var(--borde,#ccc);border-radius:8px;background:var(--panel,#fff);color:inherit">
- <option value="HOY" ${filtro==='HOY'?'selected':''}>Hoy</option><option value="SEMANA" ${filtro==='SEMANA'?'selected':''}>Esta semana</option><option value="MES" ${filtro==='MES'?'selected':''}>Este mes</option><option value="PERSONALIZADO" ${filtro==='PERSONALIZADO'?'selected':''}>Personalizado</option></select></label>
+ <option value="HOY" data-filtro-ventas="HOY" ${filtro==='HOY'?'selected':''}>Hoy</option><option value="SEMANA" ${filtro==='SEMANA'?'selected':''}>Esta semana</option><option value="MES" ${filtro==='MES'?'selected':''}>Este mes</option><option value="PERSONALIZADO" ${filtro==='PERSONALIZADO'?'selected':''}>Personalizado</option></select></label>
  <label for="filtro-tipo-venta" style="display:grid;gap:5px">Tipo de venta
  <select id="filtro-tipo-venta" aria-label="Filtrar por tipo de venta" style="width:100%;min-width:0;padding:10px;border:1px solid var(--borde,#ccc);border-radius:8px;background:var(--panel,#fff);color:inherit">
- <option value="TODOS" ${tipoFiltro==='TODOS'?'selected':''}>Todas</option><option value="PRODUCTOS" ${tipoFiltro==='PRODUCTOS'?'selected':''}>Productos</option><option value="SERVICIOS" ${tipoFiltro==='SERVICIOS'?'selected':''}>Servicios</option><option value="MIXTA" ${tipoFiltro==='MIXTA'?'selected':''}>Mixtas</option></select></label>
+ <option value="TODOS" data-tipo-venta="TODOS" ${tipoFiltro==='TODOS'?'selected':''}>Todas</option><option value="PRODUCTOS" ${tipoFiltro==='PRODUCTOS'?'selected':''}>Productos</option><option value="SERVICIOS" ${tipoFiltro==='SERVICIOS'?'selected':''}>Servicios</option><option value="MIXTA" ${tipoFiltro==='MIXTA'?'selected':''}>Mixtas</option></select></label>
  </div>
  <div class="dia" id="rango-personalizado" style="${filtro==='PERSONALIZADO'?'':'display:none'};margin-top:10px"><label>Desde <input type="date" id="ventas-desde" value="${esc(desde)}"></label><label>Hasta <input type="date" id="ventas-hasta" value="${esc(hasta)}"></label><button class="btn" id="aplicar-rango">Aplicar</button></div>
  </section>
