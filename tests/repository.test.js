@@ -211,7 +211,7 @@ test('equipo, agenda y cierres limitan operaciones al negocio y bloquean escritu
   assert.match(equipo, /Cada día marcado debe tener al menos un horario/);
   assert.match(equipo, /if\(b\.disabled\)return;b\.disabled=true/);
   assert.match(agenda, /from\('citas'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
-  assert.match(agenda, /update\(\{estado:f\.estado[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
+  assert.match(agenda, /const cambios=\{estado:f\.estado[\s\S]*?update\(cambios\)\.eq\('negocio_id',S\.perfil\.negocio_id\)/);
   assert.match(finanzas, /let cerrando=false/);
 });
 
@@ -299,6 +299,43 @@ test('las reservas públicas toleran catálogos incompletos y filtran horarios i
   assert.match(cita, /data-t="\$\{esc\(x\.inicio\)\}"/);
 });
 
+
+test('Agenda ofrece vistas de día, semana y mes y filtro por barbero', () => {
+  const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
+  assert.match(agenda, /option value="dia"/);
+  assert.match(agenda, /option value="semana"/);
+  assert.match(agenda, /option value="mes"/);
+  assert.match(agenda, /id="fb"/);
+  assert.match(agenda, /eq\('barbero_id',S\.barberoAgenda\)/);
+  assert.match(agenda, /agenda-mes/);
+});
+test('Agenda administrativa valida turnos, ausencias y cruces antes de crear o reprogramar', () => {
+  const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
+  assert.match(agenda, /async function validarDisponibilidad/);
+  assert.match(agenda, /from\('horarios_barbero'\)[\s\S]*?dia_semana/);
+  assert.match(agenda, /from\('ausencias_barbero'\)[\s\S]*?\.lt\('desde',fin\)\.gt\('hasta',inicio\)/);
+  assert.match(agenda, /\.in\('estado',\['PENDIENTE','CONFIRMADA'\]\)/);
+  assert.match(agenda, /from\('citas'\)[\s\S]*?eq\('cliente_id',cliente\)/);
+  assert.match(agenda, /instanteNegocio\(f\.inicio\)/);
+  assert.match(agenda, /cambios\.inicio=i\.toISOString\(\);cambios\.fin=fin\.toISOString\(\)/);
+  assert.match(agenda, /cambioHorario\?'Cita reprogramada'/);
+});
+test('las RPC públicas de Agenda no quedan ejecutables por el rol PUBLIC', () => {
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261119040000_agenda_publica_permisos.sql'), 'utf8');
+  for (const fn of ['cita_publica', 'horas_libres_publicas', 'reprogramar_cita_publica', 'reservar_cita_publica', 'responder_cita_publica']) {
+    assert.match(sql, new RegExp('REVOKE ALL ON FUNCTION public\\.' + fn + '\\('));
+    assert.match(sql, new RegExp('GRANT EXECUTE ON FUNCTION public\\.' + fn + '.*TO anon, authenticated, service_role'));
+  }
+});
+
+test('la reserva pública entrega el enlace privado usando el token devuelto por Supabase', () => {
+  const reservar = readFileSync(resolve(root, 'src/pages/reservar.js'), 'utf8');
+  assert.match(reservar, /const\{data,error\}=await sb\.rpc\('reservar_cita_publica'/);
+  assert.match(reservar, /typeof data\?\.token==='string'/);
+  assert.match(reservar, /new URL\('cita\.html',location\.href\)/);
+  assert.match(reservar, /enlace\.searchParams\.set\('t',token\)/);
+  assert.match(reservar, /Consultar, confirmar o cambiar mi cita/);
+});
 
 test('la interfaz reserva edición administrativa de catálogos, citas, ventas y equipo', () => {
   const cfg = readFileSync(resolve(root, 'src/config/catalogos.js'), 'utf8');
@@ -533,4 +570,20 @@ test('los perfiles de barberos permiten fotografía privada de administración y
   assert.match(sql, /CREATE POLICY barberos_perfil_propio/);
   assert.match(sql, /barberos_fotos_insertar/);
   assert.match(sw, /barberia-v19/);
+});
+
+
+test('la disponibilidad y los enlaces privados de Agenda validan el negocio y serializan cambios', () => {
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261119050000_agenda_publica_integridad.sql'), 'utf8');
+  const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
+  assert.match(sql, /categoria IS DISTINCT FROM 'CITA'/);
+  assert.match(sql, /FROM public\.horarios_barbero[\s\S]*?negocio_id = n/);
+  assert.match(sql, /ci\.negocio_id = n/);
+  assert.match(sql, /a\.negocio_id = n/);
+  assert.match(sql, /FOR UPDATE/);
+  const reprogramar = sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION public.reprogramar_cita_publica'), sql.indexOf('CREATE OR REPLACE FUNCTION public.responder_cita_publica'));
+  assert.match(reprogramar, /SET inicio = p_inicio,[\s\S]*?fin = p_inicio \+ make_interval/);
+  assert.doesNotMatch(reprogramar, /estado\s*=\s*'CONFIRMADA'/);
+  assert.match(sql, /l::date <> lf::date/);
+  assert.match(agenda, /async function agenda\(\)\{\s*const main=\$\('#main'\)/);
 });
