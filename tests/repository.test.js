@@ -424,3 +424,22 @@ test('los pagos de compras en efectivo requieren una caja abierta en interfaz y 
   assert.match(sql, /NEW\.caja_id IS NOT NULL AND NOT EXISTS/);
   assert.match(sql, /BEFORE INSERT OR UPDATE OF metodo_pago, caja_id, negocio_id/);
 });
+
+
+test('ventas, compras, gastos y pagos requieren caja abierta en interfaz y Supabase', () => {
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+  const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261119020000_exigir_caja_abierta_operaciones.sql'), 'utf8');
+  assert.match(ventas, /Para registrar una venta, primero abre la caja/);
+  assert.match(ventas, /La caja se cerró\. Abre una caja para registrar la venta/);
+  assert.match(productos, /Para registrar una compra, primero abre la caja/);
+  assert.match(productos, /Para registrar un abono al proveedor, primero abre la caja/);
+  assert.match(finanzas, /Para registrar un gasto, primero abre la caja/);
+  assert.match(finanzas, /Para liquidar comisiones, primero abre la caja/);
+  for (const table of ['ventas', 'pagos', 'compras_inventario', 'gastos', 'pagos_compras_inventario']) {
+    assert.match(sql, new RegExp('ON public\\.' + table));
+  }
+  assert.match(sql, /estado_caja = 'ABIERTA'/);
+  assert.match(sql, /NEW\.caja_id IS NULL/);
+});
