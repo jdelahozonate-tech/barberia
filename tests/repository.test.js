@@ -612,3 +612,18 @@ test('el cobro de citas marca ATENDIDA y permite productos y servicios adicional
   assert.match(ventas, /Deudor:/);
   assert.match(ventas, /Descuento:/);
 });
+
+
+test('ventas permite filtrar por tipo y distingue visualmente productos, servicios y mixtas', () => {
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  assert.match(ventas, /data-tipo-venta="TODOS"/);
+  assert.match(ventas, /data-tipo-venta="PRODUCTOS"/);
+  assert.match(ventas, /data-tipo-venta="SERVICIOS"/);
+  assert.match(ventas, /data-tipo-venta="MIXTA"/);
+  assert.match(ventas, /const ventasFiltradas=\(data\|\|\)\.filter/);
+  assert.match(ventas, /tipos\.has\('PRODUCTO'\)/);
+  assert.match(ventas, /tipos\.has\('SERVICIO'\)/);
+  assert.match(ventas, /return p&&s\?'MIXTA':p\?'PRODUCTOS':s\?'SERVICIOS':'OTRA'/);
+  assert.match(ventas, /border-left:4px solid/);
+  assert.match(ventas, /etiquetasTipo\[tipo\]/);
+});
