@@ -10,6 +10,9 @@ async function ventas(){
  document.querySelectorAll('.row').forEach(b=>b.onclick=()=>detalleVenta(data.find(v=>v.id===b.dataset.id)));
 }
 async function nuevaVenta(pre){
+ const{data:cajaInicial,error:errorCajaInicial}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
+ if(errorCajaInicial)return toast(traducir(errorCajaInicial.message),true);
+ if(!cajaInicial?.id)return toast('Para registrar una venta, primero abre la caja.',true);
  const respuestas=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre,modelo_pago,porcentaje_comision'],['servicios','id,nombre,precio'],['productos','id,nombre,precio_venta,costo_unitario'],['cuentas','id,nombre,detalle']].map(([t,campos])=>sb.from(t).select(campos).eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').order('nombre')));
  const fallo=respuestas.find(r=>r.error);if(fallo)return toast(traducir(fallo.error.message),true);
  const[cl,ba,se,pr,cu]=respuestas.map(r=>r.data||[]);
@@ -45,6 +48,9 @@ async function nuevaVenta(pre){
   if(pago>c.t){guardando=false;if(boton)boton.disabled=false;return toast('El pago no puede superar el total.',true)}
   if(pago<c.t&&!S.negocio.permitir_saldos){guardando=false;if(boton)boton.disabled=false;return toast('Esta barbería no permite saldos pendientes. Recibe el pago completo.',true)}
   if(cu.length&&PG.some(x=>x.m!=='EFECTIVO'&&!x.c)){guardando=false;if(boton)boton.disabled=false;return toast('Elige la cuenta donde entró cada pago que no es en efectivo.',true)}
+  const{data:cajaActual,error:errorCajaActual}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
+  if(errorCajaActual){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorCajaActual.message),true)}
+  if(!cajaActual?.id){guardando=false;if(boton)boton.disabled=false;return toast('La caja se cerró. Abre una caja para registrar la venta.',true)}
   const bar=ba.find(x=>x.id===f.barbero_id),nid=S.perfil.negocio_id;
   const{data:v,error}=await sb.from('ventas').insert({negocio_id:nid,cliente_id:f.cliente_id||null,barbero_id:f.barbero_id||null,descuento:c.ds,metodo_pago_principal:(PG.slice().sort((a,b)=>b.v-a.v)[0]?.m)||'EFECTIVO',creado_por:S.perfil.id,cita_id:pre?.cita_id||null}).select('id').single();
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
