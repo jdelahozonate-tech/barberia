@@ -245,3 +245,30 @@ $$;
 
 REVOKE ALL ON FUNCTION public.editar_venta(uuid, uuid, uuid, numeric, jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.editar_venta(uuid, uuid, uuid, numeric, jsonb) TO authenticated;
+
+-- El barbero autenticado puede leer exclusivamente su propia ficha para mostrar su perfil.
+DROP POLICY IF EXISTS barberos_perfil_propio ON public.barberos;
+CREATE POLICY barberos_perfil_propio ON public.barberos
+  FOR SELECT TO authenticated
+  USING (
+    negocio_id = public.mi_negocio()
+    AND id = (
+      SELECT p.barbero_id FROM public.perfiles p
+       WHERE p.id = auth.uid() AND p.negocio_id = public.mi_negocio()
+    )
+    AND public.mi_rol() = 'BARBERO'
+  );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='detalle_ventas_porcentaje_comision_rango') THEN
+    ALTER TABLE public.detalle_ventas
+      ADD CONSTRAINT detalle_ventas_porcentaje_comision_rango
+      CHECK (porcentaje_comision_aplicado IS NULL OR porcentaje_comision_aplicado BETWEEN 0 AND 100);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='detalle_ventas_base_comision_no_negativa') THEN
+    ALTER TABLE public.detalle_ventas
+      ADD CONSTRAINT detalle_ventas_base_comision_no_negativa
+      CHECK (base_comision IS NULL OR base_comision >= 0);
+  END IF;
+END $$;
