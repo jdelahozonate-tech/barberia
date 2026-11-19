@@ -122,7 +122,7 @@ function editarCita(c){
   if(cambioHorario){cambios.inicio=i.toISOString();cambios.fin=fin.toISOString()}
   const{error}=await sb.from('citas').update(cambios).eq('negocio_id',S.perfil.negocio_id).eq('id',c.id);
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
-  dlg.close();toast(cambioHorario?'Cita reprogramada':'Cita actualizada');S.dia=fecha(i);agenda();
+  dlg.close();toast(cambioHorario?'Cita reprogramada':'Cita actualizada');S.dia=partesNegocio(i.toISOString()).fecha;agenda();
   if(f.estado==='ATENDIDA'&&c.estado!=='ATENDIDA')cobrarCita(c);
  };
  const cf=$('#cf');if(admin&&cf)cf.onclick=async()=>{if(guardando)return;guardando=true;cf.style.pointerEvents='none';const{error}=await sb.from('citas').update({estado:'CONFIRMADA'}).eq('negocio_id',S.perfil.negocio_id).eq('id',c.id);if(error){guardando=false;cf.style.pointerEvents='';return toast(traducir(error.message),true)}dlg.close();toast('Cita confirmada');ir()};
