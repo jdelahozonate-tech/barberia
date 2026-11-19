@@ -138,8 +138,8 @@ BEGIN
  SELECT id INTO v_negocio FROM public.negocios WHERE slug=p_slug LIMIT 1;
  IF v_negocio IS NULL THEN RAISE EXCEPTION 'No encontramos esta barbería.'; END IF;
 
- FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items)
-  AS x(producto_id uuid,cantidad integer)
+ FOR v_item IN SELECT producto_id,sum(cantidad)::integer AS cantidad FROM jsonb_to_recordset(p_items)
+  AS x(producto_id uuid,cantidad integer) GROUP BY producto_id
  LOOP
   IF v_item.producto_id IS NULL OR v_item.cantidad IS NULL
    OR v_item.cantidad<1 OR v_item.cantidad>99 THEN
