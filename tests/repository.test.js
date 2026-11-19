@@ -414,3 +414,13 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(sw, /src\/modules\/productos\.js/);
   assert.match(sw, /barberia-v15/);
 });
+
+test('los pagos de compras en efectivo requieren una caja abierta en interfaz y base de datos', () => {
+  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261119010000_validar_caja_pagos_compras.sql'), 'utf8');
+  assert.match(productos, /pagado>0&&f\.metodo_pago==='EFECTIVO'&&!caja\?\.id/);
+  assert.match(productos, /f\.metodo==='EFECTIVO'&&!caja\?\.id/);
+  assert.match(sql, /NEW\.metodo_pago = 'EFECTIVO' AND NEW\.caja_id IS NULL/);
+  assert.match(sql, /NEW\.caja_id IS NOT NULL AND NOT EXISTS/);
+  assert.match(sql, /BEFORE INSERT OR UPDATE OF metodo_pago, caja_id, negocio_id/);
+});
