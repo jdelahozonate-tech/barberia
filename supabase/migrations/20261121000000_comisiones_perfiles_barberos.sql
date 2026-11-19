@@ -7,6 +7,12 @@ ALTER TABLE public.detalle_ventas
 ALTER TABLE public.barberos
   ADD COLUMN IF NOT EXISTS foto_url text;
 
+-- Regla aprobada: 65 % para barberos bajo esquema de comisión o mixto.
+-- No modifica importes ni snapshots de facturas anteriores.
+ALTER TABLE public.barberos ALTER COLUMN porcentaje_comision SET DEFAULT 65;
+UPDATE public.barberos SET porcentaje_comision = 65
+ WHERE modelo_pago IN ('COMISION','MIXTO') AND COALESCE(porcentaje_comision,0) <> 65;
+
 COMMENT ON COLUMN public.detalle_ventas.porcentaje_comision_aplicado IS
   'Porcentaje de comisión congelado al registrar la venta; NULL identifica registros históricos anteriores a esta mejora.';
 COMMENT ON COLUMN public.detalle_ventas.base_comision IS
