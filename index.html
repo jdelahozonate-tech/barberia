@@ -135,7 +135,7 @@ const { pantallaAuth, cargar, aviso } = crearModuloAcceso({ $, app, sb, S, esc, 
 function shell(){
  app.innerHTML=`<div class="pole"></div><div class="bar">${S.negocio.logo_url?`<img src="${esc(S.negocio.logo_url)}" alt="${esc(S.negocio.nombre)}" style="height:44px;display:block">`:`<strong>${esc(S.negocio.nombre)}</strong>`}<span><small>${esc(S.perfil.nombre)}, ${S.perfil.rol.toLowerCase()}</small> <button type="button" class="link light notif-bell" id="campana-notificaciones" aria-label="Notificaciones">♢</button> <button class="link light" id="out">Salir</button></span></div>
  <nav class="nav">${MENU.filter(m=>!m[2]||(m[2]===3?S.perfil.rol==='BARBERO':m[2]===2?ADM.includes(S.perfil.rol):ADM.includes(S.perfil.rol))).map(([k,l])=>`<button data-v="${k}">${l}</button>`).join('')}</nav><div class="wrap">${aviso()}<main id="main"></main></div>`;
- $('#out').onclick=()=>sb.auth.signOut();
+ $('#out').onclick=()=>{NOTIF.detener();sb.auth.signOut()};
  NOTIF.iniciar();
  document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{S.vista=b.dataset.v;ir()});
  ir();
