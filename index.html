@@ -126,7 +126,7 @@ let tt;function toast(m,err){const t=$('#toast');t.textContent=m;t.className='sh
 
 /* ---------- Acceso ---------- */
 /* ---------- Estructura ---------- */
-const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Productos'],['caja','Caja',1],['comisiones','Comisiones',1],['ajustes','Ajustes',2],['miscom','Mis comisiones',3]];
+const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['pedidos','Pedidos'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Productos'],['caja','Caja',1],['comisiones','Comisiones',1],['ajustes','Ajustes',2],['miscom','Mis comisiones',3]];
 const { pantallaAuth, cargar, aviso } = crearModuloAcceso({ $, app, sb, S, esc, traducir, toast, waNum, shell });
 function shell(){
  app.innerHTML=`<div class="pole"></div><div class="bar">${S.negocio.logo_url?`<img src="${esc(S.negocio.logo_url)}" alt="${esc(S.negocio.nombre)}" style="height:44px;display:block">`:`<strong>${esc(S.negocio.nombre)}</strong>`}<span><small>${esc(S.perfil.nombre)}, ${S.perfil.rol.toLowerCase()}</small> <button class="link light" id="out">Salir</button></span></div>
@@ -135,7 +135,7 @@ function shell(){
  document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{S.vista=b.dataset.v;ir()});
  ir();
 }
-function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.vista));({inicio,agenda,ventas,productos,caja,comisiones,ajustes,miscom:misComisiones}[S.vista]||(()=>crud(S.vista)))()}
+function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.vista));({inicio,agenda,ventas,productos,pedidos:pedidosProductos,caja,comisiones,ajustes,miscom:misComisiones}[S.vista]||(()=>crud(S.vista)))()}
 
 /* ---------- Clientes, barberos y servicios ---------- */
 const ADM=['ADMINISTRADOR','SUPERVISOR'];
@@ -144,7 +144,7 @@ const { horarios, equipo } = crearModuloEquipo({ $, dlg, sb, S, esc, bonito, toa
 const { ajustes } = crearModuloAjustes({ $, sb, S, esc, toast, equipo, ir });
 const CFG=crearConfigCatalogos(ADM,dinero);
 const { crud } = crearModuloCatalogos({ $, app, dlg, sb, S, CFG, esc, bonito, traducir, toast, horarios });
-const { productos } = crearModuloProductos({ $, dlg, sb, S, esc, dinero, traducir, toast });
+const { productos, pedidos:pedidosProductos } = crearModuloProductos({ $, dlg, sb, S, esc, dinero, traducir, toast });
 const { ventas, nuevaVenta } = crearModuloVentas({ $, dlg, sb, S, esc, dinero, hora, bonito, traducir, toast, ADM, METODOS, mio });
 const { caja, comisiones, misComisiones } = crearModuloFinanzas({ $, dlg, sb, S, esc, dinero, hora, bonito, toast, METODOS, fila2, fm });
 const { agenda, porConfirmar } = crearModuloAgenda({ $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, nuevaVenta, mio, ir });
