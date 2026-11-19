@@ -11,7 +11,7 @@ function sumarFecha(fecha,dias){
  return x.getUTCFullYear()+'-'+String(x.getUTCMonth()+1).padStart(2,'0')+'-'+String(x.getUTCDate()).padStart(2,'0');
 }
 function instanteZona(local){
- const [y,m,d,h,mi]=local.match(/\\d+/g).map(Number),zona=S.negocio?.zona_horaria||'America/Bogota';
+ const [y,m,d,h,mi]=local.match(/\d+/g).map(Number),zona=S.negocio?.zona_horaria||'America/Bogota';
  let ms=Date.UTC(y,m-1,d,h,mi);
  for(let n=0;n<3;n++){
   const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:zona,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(ms)).map(x=>[x.type,x.value]));
@@ -60,7 +60,7 @@ async function ventas(){
  <div class="product-tabs"><button class="btn sec" id="vp">Venta de productos</button><button class="btn sec" id="vs">Venta de servicios</button><button class="btn sec" id="vm">Venta mixta</button></div>
  <section><h3>Filtrar ventas</h3><div class="product-tabs">
  <button class="btn ${activa('HOY')}" data-filtro-ventas="HOY">Hoy</button><button class="btn ${activa('SEMANA')}" data-filtro-ventas="SEMANA">Esta semana</button><button class="btn ${activa('MES')}" data-filtro-ventas="MES">Este mes</button><button class="btn ${activa('PERSONALIZADO')}" data-filtro-ventas="PERSONALIZADO">Personalizado</button></div>
- <div class="dia" id="rango-personalizado" ${filtro==='PERSONALIZADO'?'':'hidden'}><label>Desde <input type="date" id="ventas-desde" value="${esc(desde)}"></label><label>Hasta <input type="date" id="ventas-hasta" value="${esc(hasta)}"></label><button class="btn" id="aplicar-rango">Aplicar</button></div>
+ <div class="dia" id="rango-personalizado" style="${filtro==='PERSONALIZADO'?'':'display:none'}"><label>Desde <input type="date" id="ventas-desde" value="${esc(desde)}"></label><label>Hasta <input type="date" id="ventas-hasta" value="${esc(hasta)}"></label><button class="btn" id="aplicar-rango">Aplicar</button></div>
  </section>
  <section><h3>Citas pendientes de cobro (${pendientes.length})</h3>
  ${pendientes.length?pendientes.map(c=>`<div class="row"><span><strong>${esc(c.clientes?.nombre||'Cliente')}</strong><br><small>${esc(c.servicios?.nombre||'Servicio')} · ${esc(c.barberos?.nombre||'Sin barbero')} · ${new Date(c.inicio).toLocaleString('es-CO',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</small><br><strong>${dinero(c.servicios?.precio||0)}</strong></span><button class="btn" data-cobrar-cita="${c.id}">Cobrar cita</button></div>`).join(''):'<p class="empty">No hay citas pendientes de cobro.</p>'}
