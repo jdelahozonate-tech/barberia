@@ -97,7 +97,7 @@ function editarCita(c){
   const f=Object.fromEntries(new FormData(e.target)),i=instanteNegocio(f.inicio);
   if(!Number.isFinite(i.getTime())||!dur){guardando=false;if(boton)boton.disabled=false;return toast('La fecha o duración de la cita no es válida.',true)}
   const fin=new Date(i.getTime()+dur*60000),cambioHorario=i.toISOString()!==new Date(c.inicio).toISOString();
-  if(['PENDIENTE','CONFIRMADA'].includes(f.estado)){
+  if(['PENDIENTE','CONFIRMADA'].includes(f.estado)&&(cambioHorario||!['PENDIENTE','CONFIRMADA'].includes(c.estado))){
    const disponibilidad=await validarDisponibilidad({barbero:c.barbero_id,cliente:c.cliente_id,inicio:i.toISOString(),fin:fin.toISOString(),excluir:c.id});
    if(disponibilidad){guardando=false;if(boton)boton.disabled=false;return toast(disponibilidad,true)}
   }
