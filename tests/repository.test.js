@@ -411,7 +411,7 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(productos, /data-tab="movimientos"/);
   assert.match(productos, /data-tab="proveedores"/);
   assert.match(index, /crearModuloProductos/);
-  assert.match(index, /productos,caja/);
+  assert.match(index, /productos,pedidos:pedidosProductos,caja/);
   assert.match(sw, /src\/modules\/productos\.js/);
   assert.match(sw, /barberia-v17/);
 });
