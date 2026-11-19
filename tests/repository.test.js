@@ -300,6 +300,15 @@ test('las reservas públicas toleran catálogos incompletos y filtran horarios i
 });
 
 
+test('Agenda ofrece vistas de día, semana y mes y filtro por barbero', () => {
+  const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
+  assert.match(agenda, /option value="dia"/);
+  assert.match(agenda, /option value="semana"/);
+  assert.match(agenda, /option value="mes"/);
+  assert.match(agenda, /id="fb"/);
+  assert.match(agenda, /eq\('barbero_id',S\.barberoAgenda\)/);
+  assert.match(agenda, /agenda-mes/);
+});
 test('Agenda administrativa valida turnos, ausencias y cruces antes de crear o reprogramar', () => {
   const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
   assert.match(agenda, /async function validarDisponibilidad/);
