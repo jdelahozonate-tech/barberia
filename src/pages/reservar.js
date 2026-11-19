@@ -8,9 +8,8 @@ const hh=t=>new Date(t).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-dig
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.className='show';clearTimeout(tt);tt=setTimeout(()=>t.className='',4500)}
 let C,T=null,consultaHoras=0,productosPublicos=[],carritoProductos=new Map();
 (async()=>{
- const{data,error}=await sb.rpc('catalogo_publico',{p_slug:slug});
- if(error)return app.innerHTML='<h1>No pudimos cargar las reservas</h1><p class="mute">'+esc(error.message)+'</p>';
- if(!data||!data.negocio)return app.innerHTML='<h1>Reservas no disponibles</h1><p class="mute">Este enlace no es válido o la barbería no recibe reservas en línea.</p>';
+ let{data,error}=await sb.rpc('catalogo_publico',{p_slug:slug});
+ if(error||!data||!data.negocio){const alterno=await sb.rpc('negocio_productos_publico',{p_slug:slug});if(alterno.error||!alterno.data?.negocio)return app.innerHTML='<h1>Enlace no disponible</h1><p class="mute">No encontramos esta barbería o su catálogo público no está disponible.</p>';data=alterno.data;}
  C=data;
  C.servicios=Array.isArray(C.servicios)?C.servicios:[];C.barberos=Array.isArray(C.barberos)?C.barberos:[];
  const hoy=f2(new Date());
