@@ -185,25 +185,69 @@ export function crearModuloProductos(deps) {
   };
  }
  async function generarPdfPedido(pedido,proveedor,items,observaciones){
-  const cargarJsPdf=async()=>{
-   if(window.jspdf?.jsPDF)return window.jspdf.jsPDF;
-   const urls=['https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js','https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js'];
-   let ultimo;
-   for(const url of urls){try{await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src=url;sc.onload=resolve;sc.onerror=()=>reject(new Error('No se pudo descargar el generador PDF'));document.head.append(sc)});if(window.jspdf?.jsPDF)return window.jspdf.jsPDF}catch(e){ultimo=e}}
-   throw ultimo||new Error('No está disponible el generador PDF');
-  };
   try{
    if(!proveedor)throw new Error('No se encontró la información del proveedor.');
-   const JsPDF=await cargarJsPdf(),doc=new JsPDF({unit:'mm',format:'a4'}),ancho=doc.internal.pageSize.getWidth(),alto=doc.internal.pageSize.getHeight();
-   const total=items.reduce((a,x)=>a+Number(x.cantidad)*Number(x.costo),0),fechaPedido=new Date(pedido.creado_en||Date.now()).toLocaleDateString('es-CO');
-   doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('PEDIDO A PROVEEDOR',14,18);
-   doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text('Proveedor: '+String(proveedor.nombre||'').slice(0,90),14,28);doc.text('Telefono: '+String(proveedor.telefono||'No registrado').slice(0,60),14,34);doc.text('Fecha: '+fechaPedido,14,40);
-   let y=52;const encabezado=()=>{doc.setFillColor(235,239,245);doc.rect(14,y-5,ancho-28,9,'F');doc.setFont('helvetica','bold');doc.text('Producto',16,y);doc.text('Cantidad',112,y,{align:'right'});doc.text('Costo',145,y,{align:'right'});doc.text('Subtotal',ancho-16,y,{align:'right'});doc.setFont('helvetica','normal');y+=10};encabezado();
-   for(const x of items){const nombre=doc.splitTextToSize(String(x.producto?.nombre||'Producto'),88),altoFila=Math.max(7,nombre.length*5);if(y+altoFila>alto-25){doc.addPage();y=20;encabezado()}doc.text(nombre,16,y);doc.text(String(x.cantidad),112,y,{align:'right'});doc.text(dinero(x.costo),145,y,{align:'right'});doc.text(dinero(Number(x.cantidad)*Number(x.costo)),ancho-16,y,{align:'right'});y+=altoFila}
-   y+=5;if(y>alto-25){doc.addPage();y=20}doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('TOTAL ESTIMADO: '+dinero(total),ancho-16,y,{align:'right'});
-   if(observaciones){y+=10;doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('Observaciones:',14,y);y+=5;doc.setFont('helvetica','normal');for(const linea of doc.splitTextToSize(String(observaciones),ancho-28)){if(y>alto-15){doc.addPage();y=20}doc.text(linea,14,y);y+=5}}
-   return {blob:doc.output('blob'),nombre:'pedido-proveedor-'+String(pedido.id||'pedido').slice(0,8)+'.pdf'};
-  }catch(e){console.error('Error generando PDF de pedido:',e);toast('No se pudo generar el PDF: '+(e?.message||'Error desconocido')+'. Verifica la conexión e inténtalo de nuevo.',true);return null}
+   // PDF nativo: no depende de bibliotecas CDN ni de conexión a servidores externos.
+   const limpiar=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,'');
+   const envolver=(valor,max=76)=>{
+    const palabras=limpiar(valor).split(/\s+/);const salida=[];let linea='';
+    for(const palabra of palabras){
+     if(!palabra)continue;
+     if((linea+' '+palabra).trim().length>max&&linea){salida.push(linea);linea=palabra}
+     else linea=(linea+' '+palabra).trim();
+    }
+    if(linea)salida.push(linea);return salida.length?salida:[''];
+   };
+   const lineas=[{t:'PEDIDO A PROVEEDOR',b:true,size:18},{t:''},
+    {t:'Proveedor: '+(proveedor.nombre||'')},{t:'Telefono: '+(proveedor.telefono||'No registrado')},
+    {t:'Fecha: '+new Date(pedido.creado_en||Date.now()).toLocaleDateString('es-CO')},{t:''},
+    {t:'PRODUCTO                         CANT.       COSTO       SUBTOTAL',b:true},
+    {t:'----------------------------------------------------------------------------'}];
+   let total=0;
+   for(const x of items){
+    const cantidad=Number(x.cantidad)||0,costo=Number(x.costo)||0,subtotal=cantidad*costo;total+=subtotal;
+    const nombre=limpiar(x.producto?.nombre||'Producto');
+    const nombreLineas=envolver(nombre,32);
+    lineas.push({t:nombreLineas[0].padEnd(34).slice(0,34)+String(cantidad).padStart(8)+'  '+limpiar(dinero(costo)).padStart(11)+'  '+limpiar(dinero(subtotal)).padStart(12)});
+    for(const extra of nombreLineas.slice(1))lineas.push({t:'  '+extra});
+   }
+   lineas.push({t:'----------------------------------------------------------------------------'});
+   lineas.push({t:'TOTAL ESTIMADO: '+limpiar(dinero(total)),b:true,size:12});
+   if(observaciones){lineas.push({t:''},{t:'OBSERVACIONES',b:true});for(const l of envolver(observaciones,76))lineas.push({t:l})}
+   const porPagina=48,paginas=[];
+   for(let i=0;i<lineas.length;i+=porPagina)paginas.push(lineas.slice(i,i+porPagina));
+   const escapar=v=>limpiar(v).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
+   const objetos=[];
+   objetos[1]='<< /Type /Catalog /Pages 2 0 R >>';
+   objetos[2]='';objetos[3]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+   objetos[4]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>';
+   const kids=[];
+   paginas.forEach((pagina,i)=>{
+    const pageId=5+i*2,streamId=pageId+1;kids.push(pageId+' 0 R');
+    let y=800,contenido='';
+    for(const l of pagina){
+     if(!l.t){y-=9;continue}
+     const fuente=l.b?'/F2':'/F1',tam=l.size||9;
+     contenido+='BT '+fuente+' '+tam+' Tf 42 '+y+' Td ('+escapar(l.t)+') Tj ET\n';
+     y-=l.size?25:14;
+    }
+    const largo=new TextEncoder().encode(contenido).length;
+    objetos[pageId]='<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents '+streamId+' 0 R >>';
+    objetos[streamId]='<< /Length '+largo+' >>\nstream\n'+contenido+'endstream';
+   });
+   objetos[2]='<< /Type /Pages /Kids ['+kids.join(' ')+'] /Count '+paginas.length+' >>';
+   let pdf='%PDF-1.4\n%PDFBARBERIA\n',offsets=[0];
+   for(let i=1;i<objetos.length;i++){offsets[i]=new TextEncoder().encode(pdf).length;pdf+=i+' 0 obj\n'+objetos[i]+'\nendobj\n'}
+   const xref=new TextEncoder().encode(pdf).length;
+   pdf+='xref\n0 '+objetos.length+'\n0000000000 65535 f \n';
+   for(let i=1;i<objetos.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+   pdf+='trailer\n<< /Size '+objetos.length+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF';
+   return {blob:new Blob([pdf],{type:'application/pdf'}),nombre:'pedido-proveedor-'+String(pedido.id||'pedido').slice(0,8)+'.pdf'};
+  }catch(e){
+   console.error('Error generando PDF de pedido:',e);
+   toast('No se pudo generar el PDF: '+(e?.message||'Error desconocido')+'.',true);
+   return null;
+  }
  }
 
  function mostrarAccionesPdf(pdf,proveedor){
