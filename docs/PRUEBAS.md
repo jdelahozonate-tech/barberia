@@ -77,3 +77,44 @@ La rama solo debe integrarse cuando:
 - Los flujos manuales anteriores estén revisados.
 - Las rutas públicas y la PWA se hayan probado.
 - El diff final se haya revisado y no incluya cambios no relacionados.
+
+
+## Productos, proveedores y compras de inventario
+
+Antes de habilitar la nueva pantalla, aplicar en Supabase SQL Editor la migración
+`supabase/migrations/20261119000000_compras_proveedores_inventario.sql`. La migración crea tablas nuevas para proveedores, compras, detalle y pagos; agrega `compra_id` a movimientos de inventario y `caja_id` a pagos de compras. No altera productos, ventas, pagos de clientes ni movimientos existentes.
+
+Pruebas funcionales con datos de prueba:
+
+1. Crear, editar, desactivar y reactivar un proveedor.
+2. Crear y editar un producto; comprobar costo, precio, control de stock y stock mínimo.
+3. Registrar una compra con varios productos, cantidades y costos distintos, número de factura y fecha de vencimiento.
+4. Confirmar que se crea una compra, sus detalles y movimientos `ENTRADA` relacionados por `compra_id`.
+5. Confirmar que `stock_actual` aumenta una sola vez y que el costo de referencia se actualiza por promedio ponderado.
+6. Registrar compra pagada, compra a crédito y compra con abono parcial; comprobar total, pagado y saldo.
+7. Registrar abonos adicionales y comprobar que no se puede superar el saldo.
+8. Pagar una compra en efectivo con caja abierta y verificar que el efectivo esperado disminuye al cerrar caja; pagos por transferencia/tarjeta no deben reducir el efectivo esperado.
+9. Anular una compra sin pagos y verificar el movimiento inverso; comprobar que no se puede anular si ya hay pagos o si el stock disponible no alcanza.
+10. Verificar historial de movimientos, proveedor, referencia, fechas y permisos por negocio.
+11. Intentar llamar las RPC como BARBERO y con IDs de otro negocio; todas deben rechazarse.
+12. Registrar ajustes de entrada y salida con motivo; comprobar que una salida superior al stock se rechaza.
+13. Repetir en móvil y escritorio, y probar doble clic en los formularios.
+
+Las compras de inventario no se registran como gastos operativos para no duplicar el costo de los productos cuando se venden. Los pagos a proveedores sí se consideran salidas de efectivo de la caja cuando se asocian a una caja abierta. Las compras registradas sin caja abierta quedan en el historial de pagos, pero no se asignan retrospectivamente a un cierre.
+
+
+## Catálogo visual y pedidos públicos de productos
+
+Antes de habilitar esta parte, ejecutar en Supabase SQL Editor la migración
+`supabase/migrations/20261119030000_catalogo_visual_pedidos_productos.sql`.
+
+1. Crear un producto con fotografía JPG, PNG y WEBP; comprobar la vista previa y la tarjeta del catálogo.
+2. Intentar cargar un archivo mayor de 5 MB o un formato no permitido; la interfaz debe rechazarlo.
+3. Verificar que la fotografía se almacena en el bucket público `productos`, bajo una carpeta con el ID del negocio.
+4. Abrir el enlace público `reservar.html?n=<slug>`; comprobar que aparecen los productos activos con precio e imagen, incluso si la barbería no tiene servicios de reserva configurados.
+5. Enviar un pedido como cliente sin iniciar sesión; comprobar que se solicita nombre y teléfono y que el pedido aparece en la bandeja interna.
+6. Confirmar que el pedido no crea una venta, no registra pagos, no mueve caja y no descuenta inventario.
+7. Atender el pedido desde el rol administrador, supervisor y barbero; cambiar los estados Nuevo, En preparación, Listo, Entregado y Cancelado.
+8. Intentar enviar cantidades superiores al stock; Supabase debe rechazar el pedido.
+9. Probar con otro negocio y confirmar que ningún usuario puede consultar pedidos ajenos ni cargar imágenes en carpetas de otro negocio.
+10. Confirmar que una venta real de producto sigue usando el flujo de ventas y descuenta el inventario según las reglas existentes.

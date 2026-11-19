@@ -16,6 +16,7 @@ const sourceFiles = [
   'src/modules/agenda.js',
   'src/modules/ajustes.js',
   'src/modules/catalogos.js',
+  'src/modules/productos.js',
   'src/modules/equipo.js',
   'src/modules/finanzas.js',
   'src/modules/inicio.js',
@@ -122,6 +123,7 @@ test('el formulario de venta no continúa si falla la lectura de catálogos', as
     select() { return this; },
     eq() { return this; },
     order() { return this; },
+    maybeSingle() { return Promise.resolve({ data: null, error: { message: 'permiso denegado' } }); },
     then(resolve) { resolve({ data: null, error: { message: 'permiso denegado' } }); }
   };
   const modulo = crearModuloVentas({
@@ -373,4 +375,87 @@ test('las tarjetas del dashboard actualizan la gráfica seleccionada sin recarga
   assert.match(inicio, /aria-pressed="true"/);
   assert.match(inicio, /graficaIndicador\(serie,m\.campo,m\.moneda\)/);
   assert.match(inicio, /S\.rg=x\.target\.value/);
+});
+
+
+test('el módulo de productos integra proveedores, compras, pagos e historial de inventario', () => {
+  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261119000000_compras_proveedores_inventario.sql'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  const sw = readFileSync(resolve(root, 'sw.js'), 'utf8');
+  const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
+  for (const table of ['proveedores_inventario', 'compras_inventario', 'detalle_compras_inventario', 'pagos_compras_inventario']) {
+    assert.ok(sql.includes('public.' + table), 'Falta tabla ' + table);
+  }
+  for (const rpc of ['registrar_compra_inventario', 'registrar_pago_compra_inventario', 'anular_compra_inventario', 'ajustar_inventario_producto']) {
+    assert.ok(sql.includes('FUNCTION public.' + rpc), 'Falta RPC ' + rpc);
+    assert.ok(productos.includes("rpc('" + rpc + "'"), 'La interfaz no llama ' + rpc);
+  }
+  assert.match(sql, /SECURITY DEFINER/);
+  assert.match(sql, /mi_negocio\(\)/);
+  assert.match(sql, /mi_rol\(\)/);
+  assert.match(sql, /FOR UPDATE/);
+  assert.match(sql, /compra_id/);
+  assert.match(sql, /stock_actual/);
+  assert.match(sql, /No hay existencias suficientes para revertir esta compra/);
+  assert.match(sql, /promedio ponderado/);
+  assert.match(sql, /fecha_vencimiento/);
+  assert.match(sql, /numero_factura/);
+  assert.match(productos, /Ajuste de inventario/);
+  assert.match(sql, /caja_id/);
+  assert.equal((sql.match(/La caja indicada no existe/g) || []).length, 2);
+  assert.match(sql, /COALESCE\(st\.existencias,0\) \* COALESCE\(p\.costo_unitario,0\) > r\.costo_total/);
+  assert.match(finanzas, /pagos_compras_inventario/);
+  assert.match(finanzas, /Compras pagadas en efectivo/);
+  assert.match(productos, /eq\('negocio_id',nid\(\)\)/);
+  assert.match(productos, /data-tab="movimientos"/);
+  assert.match(productos, /data-tab="proveedores"/);
+  assert.match(index, /crearModuloProductos/);
+  assert.match(index, /productos,pedidos:pedidosProductos,caja/);
+  assert.match(sw, /src\/modules\/productos\.js/);
+  assert.match(sw, /barberia-v17/);
+});
+
+test('los pagos de compras requieren caja abierta en interfaz y base de datos', () => {
+  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261119020000_exigir_caja_abierta_operaciones.sql'), 'utf8');
+  assert.match(productos, /Para registrar un abono al proveedor, primero abre la caja/);
+  assert.match(sql, /NEW\.caja_id IS NULL OR NOT EXISTS/);
+  assert.match(sql, /BEFORE INSERT OR UPDATE OF metodo_pago, caja_id, negocio_id/);
+});
+
+
+test('ventas, compras, gastos y pagos requieren caja abierta en interfaz y Supabase', () => {
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+  const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261119020000_exigir_caja_abierta_operaciones.sql'), 'utf8');
+  assert.match(ventas, /Para registrar una venta, primero abre la caja/);
+  assert.match(ventas, /La caja se cerró\. Abre una caja para registrar la venta/);
+  assert.match(productos, /Para registrar una compra, primero abre la caja/);
+  assert.match(productos, /Para registrar un abono al proveedor, primero abre la caja/);
+  assert.match(finanzas, /Para registrar un gasto, primero abre la caja/);
+  assert.match(finanzas, /Para liquidar comisiones, primero abre la caja/);
+  for (const table of ['ventas', 'pagos', 'compras_inventario', 'gastos', 'pagos_compras_inventario']) {
+    assert.match(sql, new RegExp('ON public\\.' + table));
+  }
+  assert.match(sql, /estado_caja = 'ABIERTA'/);
+  assert.match(sql, /NEW\.caja_id IS NULL/);
+});
+
+test('el catálogo de productos incorpora imágenes y pedidos públicos sin mover inventario', () => {
+  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+  const publico = readFileSync(resolve(root, 'src/pages/reservar.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261119030000_catalogo_visual_pedidos_productos.sql'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  assert.match(productos, /storage\.from\('productos'\)\.upload/);
+  assert.match(productos, /data-tab="pedidos"/);
+  assert.match(productos, /pedidos_productos/);
+  assert.match(publico, /catalogo_productos_publico/);
+  assert.match(publico, /crear_pedido_producto_publico/);
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.pedidos_productos/);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.crear_pedido_producto_publico/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.crear_pedido_producto_publico.*TO anon,authenticated/);
+  assert.match(sql, /imagen_url/);
+  assert.match(index, /\.product-grid/);
 });

@@ -77,7 +77,27 @@ dialog::backdrop{background:rgba(16,34,63,.55)}
 .hd{margin-top:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .hr2{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;align-items:center}
 .hr2 input{padding:8px 6px}.hr2 small{color:var(--mute)}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.product-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 0 12px;margin-bottom:12px}
+.product-tabs .btn{white-space:nowrap;flex:0 0 auto}
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-top:14px}
+.product-card{padding:0;overflow:hidden;text-align:left;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);display:flex;flex-direction:column;min-width:0}
+.product-card-image{height:150px;background:#E8EDF5;display:flex;align-items:center;justify-content:center;color:var(--mute);font-size:.85rem}
+.product-card-image img{width:100%;height:100%;object-fit:cover}
+.product-card-body{padding:12px;display:flex;flex-direction:column;gap:6px}
+.product-card-body>strong{font-size:1.05rem}
+.product-category{font-size:.78rem;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+.product-price{font-weight:800;font-size:1.12rem}
+.product-card-body small{color:var(--mute)}
+.product-photo-preview{height:150px;border-radius:10px;background:#E8EDF5;display:flex;align-items:center;justify-content:center;color:var(--mute);overflow:hidden}
+.product-photo-preview img{width:100%;height:100%;object-fit:contain}
+.order-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0}
+.order-head{display:flex;justify-content:space-between;gap:12px}
+.order-head small{display:block;color:var(--mute);margin-top:3px}
+.order-items{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.order-items span{background:#E8EDF5;border-radius:20px;padding:4px 9px;font-size:.85rem}
+.order-card label{margin-top:8px}
+\n@media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
@@ -88,6 +108,7 @@ import { sb } from "./src/lib/supabase.js";
 import { esc, fecha, hora, bonito, traducir, waNum } from "./src/shared/utils.js";
 import { crearConfigCatalogos } from "./src/config/catalogos.js";
 import { crearModuloCatalogos } from "./src/modules/catalogos.js";
+import { crearModuloProductos } from "./src/modules/productos.js";
 import { crearModuloAgenda } from "./src/modules/agenda.js";
 import { crearModuloEquipo } from "./src/modules/equipo.js";
 import { crearModuloVentas } from "./src/modules/ventas.js";
@@ -105,7 +126,7 @@ let tt;function toast(m,err){const t=$('#toast');t.textContent=m;t.className='sh
 
 /* ---------- Acceso ---------- */
 /* ---------- Estructura ---------- */
-const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Productos'],['caja','Caja',1],['comisiones','Comisiones',1],['ajustes','Ajustes',2],['miscom','Mis comisiones',3]];
+const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['pedidos','Pedidos'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Productos'],['caja','Caja',1],['comisiones','Comisiones',1],['ajustes','Ajustes',2],['miscom','Mis comisiones',3]];
 const { pantallaAuth, cargar, aviso } = crearModuloAcceso({ $, app, sb, S, esc, traducir, toast, waNum, shell });
 function shell(){
  app.innerHTML=`<div class="pole"></div><div class="bar">${S.negocio.logo_url?`<img src="${esc(S.negocio.logo_url)}" alt="${esc(S.negocio.nombre)}" style="height:44px;display:block">`:`<strong>${esc(S.negocio.nombre)}</strong>`}<span><small>${esc(S.perfil.nombre)}, ${S.perfil.rol.toLowerCase()}</small> <button class="link light" id="out">Salir</button></span></div>
@@ -114,7 +135,7 @@ function shell(){
  document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{S.vista=b.dataset.v;ir()});
  ir();
 }
-function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.vista));({inicio,agenda,ventas,caja,comisiones,ajustes,miscom:misComisiones}[S.vista]||(()=>crud(S.vista)))()}
+function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.vista));({inicio,agenda,ventas,productos,pedidos:pedidosProductos,caja,comisiones,ajustes,miscom:misComisiones}[S.vista]||(()=>crud(S.vista)))()}
 
 /* ---------- Clientes, barberos y servicios ---------- */
 const ADM=['ADMINISTRADOR','SUPERVISOR'];
@@ -123,6 +144,7 @@ const { horarios, equipo } = crearModuloEquipo({ $, dlg, sb, S, esc, bonito, toa
 const { ajustes } = crearModuloAjustes({ $, sb, S, esc, toast, equipo, ir });
 const CFG=crearConfigCatalogos(ADM,dinero);
 const { crud } = crearModuloCatalogos({ $, app, dlg, sb, S, CFG, esc, bonito, traducir, toast, horarios });
+const { productos, pedidos:pedidosProductos } = crearModuloProductos({ $, dlg, sb, S, esc, dinero, traducir, toast });
 const { ventas, nuevaVenta } = crearModuloVentas({ $, dlg, sb, S, esc, dinero, hora, bonito, traducir, toast, ADM, METODOS, mio });
 const { caja, comisiones, misComisiones } = crearModuloFinanzas({ $, dlg, sb, S, esc, dinero, hora, bonito, toast, METODOS, fila2, fm });
 const { agenda, porConfirmar } = crearModuloAgenda({ $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, nuevaVenta, mio, ir });
