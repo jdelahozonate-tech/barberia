@@ -511,6 +511,8 @@ test('las comisiones nuevas guardan porcentaje y base neta, sin comisión en pro
   assert.match(ventas, /c\.ds\*brutoLinea\/c\.br/);
   assert.match(sql, /ADD COLUMN IF NOT EXISTS porcentaje_comision_aplicado/);
   assert.match(sql, /ADD COLUMN IF NOT EXISTS base_comision/);
+  assert.match(sql, /UPDATE public\.barberos SET porcentaje_comision = 65/);
+  assert.match(sql, /SET DEFAULT 65/);
   assert.match(sql, /No se puede editar: esta venta tiene comisiones liquidadas/);
   assert.match(sql, /No se puede editar para evitar cambiar retroactivamente su comisión/);
   assert.match(finanzas, /valor_base:x\.base_comision\?\?x\.subtotal/);
