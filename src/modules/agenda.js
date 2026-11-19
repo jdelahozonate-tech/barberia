@@ -1,7 +1,29 @@
 // Módulo de agenda, creación y gestión de citas.
 export function crearModuloAgenda(deps) {
  const { $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, nuevaVenta, mio, ir } = deps;
- function wa(c,conf){
+ function partesNegocio(iso){
+ const zona=S.negocio?.zona_horaria||'America/Bogota';
+ const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:zona,year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(iso)).map(x=>[x.type,x.value]));
+ return {fecha:p.year+'-'+p.month+'-'+p.day,dia:{Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[p.weekday],minutos:Number(p.hour)*60+Number(p.minute)};
+}
+async function validarDisponibilidad({barbero,cliente,inicio,fin,excluir=null}){
+ const pi=partesNegocio(inicio),pf=partesNegocio(fin);
+ if(pi.fecha!==pf.fecha)return 'La cita debe terminar dentro del mismo día de atención.';
+ const [hr,au,cb,cc]=await Promise.all([
+  sb.from('horarios_barbero').select('hora_inicio,hora_fin').eq('negocio_id',S.perfil.negocio_id).eq('barbero_id',barbero).eq('dia_semana',pi.dia),
+  sb.from('ausencias_barbero').select('id').eq('negocio_id',S.perfil.negocio_id).eq('barbero_id',barbero).lt('desde',fin).gt('hasta',inicio).limit(1),
+  sb.from('citas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('barbero_id',barbero).in('estado',['PENDIENTE','CONFIRMADA']).lt('inicio',fin).gt('fin',inicio),
+  sb.from('citas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('cliente_id',cliente).in('estado',['PENDIENTE','CONFIRMADA']).lt('inicio',fin).gt('fin',inicio)
+ ]);
+ const err=[hr,au,cb,cc].find(x=>x.error);if(err)return 'No se pudo verificar la disponibilidad: '+err.error.message;
+ if(!(hr.data||[]).some(h=>{const a=Number(String(h.hora_inicio).slice(0,2))*60+Number(String(h.hora_inicio).slice(3,5)),b=Number(String(h.hora_fin).slice(0,2))*60+Number(String(h.hora_fin).slice(3,5));return pi.minutos>=a&&pf.minutos<=b}))return 'El horario está fuera de los turnos configurados para este barbero.';
+ if(au.data?.length)return 'El barbero tiene una ausencia registrada en ese horario.';
+ if((cb.data||[]).some(x=>x.id!==excluir))return 'El barbero ya tiene otra cita en ese horario.';
+ if((cc.data||[]).some(x=>x.id!==excluir))return 'El cliente ya tiene otra cita en ese horario.';
+ return null;
+}
+function valorLocal(iso){const d=new Date(iso),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes())+';}
+function wa(c,conf){
  const tel=String(c.clientes?.telefono||'').replace(/\D/g,'');
  if(tel.length<7)return '<p class="mute">Este cliente no tiene teléfono guardado, no se puede enviar el recordatorio.</p>';
  const num=tel.length===10?'57'+tel:tel,url=location.origin+location.pathname.replace(/[^/]*$/,'')+'cita.html?t='+c.token;
@@ -13,7 +35,7 @@ export function crearModuloAgenda(deps) {
 
 async function agenda(){
  const main=$('#main'),d0=new Date(S.dia+'T00:00:00'),d1=new Date(d0);d1.setDate(d1.getDate()+1);
- const{data,error}=await mio(sb.from('citas').select('*,clientes(nombre,telefono),barberos(nombre),servicios(nombre)').eq('negocio_id',S.perfil.negocio_id).gte('inicio',d0.toISOString()).lt('inicio',d1.toISOString())).order('inicio');
+ const{data,error}=await mio(sb.from('citas').select('*,clientes(nombre,telefono),barberos(nombre),servicios(nombre,duracion_minutos)').eq('negocio_id',S.perfil.negocio_id).gte('inicio',d0.toISOString()).lt('inicio',d1.toISOString())).order('inicio');
  if(error)return toast(error.message,true);
  main.innerHTML=`<div class="head"><h2>Agenda</h2><button class="btn" id="nv">Nueva cita</button></div>
  <div class="dia"><button class="btn sec" id="pv" aria-label="Día anterior">‹</button><input type="date" id="dd" value="${S.dia}" aria-label="Fecha"><button class="btn sec" id="nx" aria-label="Día siguiente">›</button></div>
@@ -42,26 +64,43 @@ async function nuevaCita(){
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  let guardando=false;
  $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
-  const i=new Date(f.inicio),dur=se.find(s=>s.id===f.servicio_id).duracion_minutos;
-  const{error}=await sb.from('citas').insert({cliente_id:f.cliente_id,servicio_id:f.servicio_id,barbero_id:f.barbero_id,observaciones:f.observaciones||null,inicio:i.toISOString(),fin:new Date(i.getTime()+dur*6e4).toISOString(),negocio_id:S.perfil.negocio_id,creado_por:S.perfil.id,origen:'APP'});
+  const i=new Date(f.inicio),dur=Number(se.find(s=>s.id===f.servicio_id)?.duracion_minutos||0),fin=new Date(i.getTime()+dur*6e4);
+  if(!Number.isFinite(i.getTime())||!dur){guardando=false;if(boton)boton.disabled=false;return toast('La fecha o duración del servicio no es válida.',true)}
+  const disponibilidad=await validarDisponibilidad({barbero:f.barbero_id,cliente:f.cliente_id,inicio:i.toISOString(),fin:fin.toISOString()});
+  if(disponibilidad){guardando=false;if(boton)boton.disabled=false;return toast(disponibilidad,true)}
+  const{error}=await sb.from('citas').insert({cliente_id:f.cliente_id,servicio_id:f.servicio_id,barbero_id:f.barbero_id,observaciones:f.observaciones||null,inicio:i.toISOString(),fin:fin.toISOString(),negocio_id:S.perfil.negocio_id,creado_por:S.perfil.id,origen:'APP'});
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
   dlg.close();toast('Cita agendada');S.dia=fecha(i);agenda()};
 }
 function editarCita(c){
  const admin=['ADMINISTRADOR','SUPERVISOR'].includes(S.perfil.rol);
  const E=['PENDIENTE','CONFIRMADA','ATENDIDA','CANCELADA','NO_ASISTIO'];
- dlg.innerHTML=`<form id="df"><h2>${esc(c.clientes?.nombre)}</h2><p class="mute">${hora(c.inicio)} a ${hora(c.fin)}, ${esc(c.servicios?.nombre)} con ${esc(c.barberos?.nombre)}. Para cambiar la hora, cancela esta cita y agenda otra.</p>
- ${admin?`<label for="e1">Estado</label><select id="e1" name="estado">${E.map(o=>`<option value="${o}"${o===c.estado?' selected':''}>${bonito(o)}</option>`).join('')}</select>
- <label for="e2">Observaciones</label><textarea id="e2" name="observaciones" rows="3">${esc(c.observaciones||'')}</textarea>${wa(c,c.estado==='PENDIENTE')}`:`<p class="info">Vista de solo lectura. Solo un administrador o supervisor puede modificar esta cita.</p>`}<div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button>${admin?'<button class="btn">Guardar</button>':''}</div></form>`;
+ const dur=Number(c.servicios?.duracion_minutos||Math.max(0,(new Date(c.fin)-new Date(c.inicio))/60000));
+ const local=valorLocal(c.inicio);
+ dlg.innerHTML='<form id="df"><h2>'+esc(c.clientes?.nombre)+'</h2><p class="mute">'+esc(c.servicios?.nombre)+' con '+esc(c.barberos?.nombre)+'.</p>'+
+ (admin?'<label for="e3">Nueva fecha y hora</label><input id="e3" name="inicio" type="datetime-local" value="'+local+'" required><label for="e1">Estado</label><select id="e1" name="estado">'+E.map(o=>'<option value="'+o+'"'+(o===c.estado?' selected':'')+'>'+bonito(o)+'</option>').join('')+'</select><label for="e2">Observaciones</label><textarea id="e2" name="observaciones" rows="3">'+esc(c.observaciones||'')+'</textarea>'+wa(c,c.estado==='PENDIENTE'): '<p class="info">Vista de solo lectura. Solo un administrador o supervisor puede modificar esta cita.</p>')+
+ '<div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button>'+(admin?'<button class="btn">Guardar cambios</button>':'')+'</div></form>';
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  let guardando=false;
- if(admin)$('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
-  const{error}=await sb.from('citas').update({estado:f.estado,observaciones:f.observaciones||null}).eq('negocio_id',S.perfil.negocio_id).eq('id',c.id);
-  if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}dlg.close();toast('Cita actualizada');ir();
-  if(f.estado==='ATENDIDA'&&c.estado!=='ATENDIDA')cobrarCita(c)};
+ if(admin)$('#df').onsubmit=async e=>{
+  e.preventDefault();if(guardando)return;guardando=true;
+  const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;
+  const f=Object.fromEntries(new FormData(e.target)),i=new Date(f.inicio);
+  if(!Number.isFinite(i.getTime())||!dur){guardando=false;if(boton)boton.disabled=false;return toast('La fecha o duración de la cita no es válida.',true)}
+  const fin=new Date(i.getTime()+dur*60000),cambioHorario=i.toISOString()!==new Date(c.inicio).toISOString();
+  if(['PENDIENTE','CONFIRMADA'].includes(f.estado)){
+   const disponibilidad=await validarDisponibilidad({barbero:c.barbero_id,cliente:c.cliente_id,inicio:i.toISOString(),fin:fin.toISOString(),excluir:c.id});
+   if(disponibilidad){guardando=false;if(boton)boton.disabled=false;return toast(disponibilidad,true)}
+  }
+  const cambios={estado:f.estado,observaciones:f.observaciones||null};
+  if(cambioHorario){cambios.inicio=i.toISOString();cambios.fin=fin.toISOString()}
+  const{error}=await sb.from('citas').update(cambios).eq('negocio_id',S.perfil.negocio_id).eq('id',c.id);
+  if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
+  dlg.close();toast(cambioHorario?'Cita reprogramada':'Cita actualizada');S.dia=fecha(i);agenda();
+  if(f.estado==='ATENDIDA'&&c.estado!=='ATENDIDA')cobrarCita(c);
+ };
  const cf=$('#cf');if(admin&&cf)cf.onclick=async()=>{if(guardando)return;guardando=true;cf.style.pointerEvents='none';const{error}=await sb.from('citas').update({estado:'CONFIRMADA'}).eq('negocio_id',S.perfil.negocio_id).eq('id',c.id);if(error){guardando=false;cf.style.pointerEvents='';return toast(traducir(error.message),true)}dlg.close();toast('Cita confirmada');ir()};
 }
-
 /* ---------- Cobro de la cita y citas por confirmar ---------- */
 async function cobrarCita(c){
  const{data:ya,error:errorVenta}=await sb.from('ventas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('cita_id',c.id).limit(1);
