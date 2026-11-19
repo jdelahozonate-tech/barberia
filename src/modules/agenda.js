@@ -43,6 +43,7 @@ function wa(c,conf){
 
 
 async function agenda(){
+ const main=$('#main');
  const vista=S.vistaAgenda||'dia',base=new Date(S.dia+'T12:00:00Z'),p=n=>String(n).padStart(2,'0'),fmt=d=>d.getUTCFullYear()+'-'+p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate()),sum=(d,n)=>{const x=new Date(d);x.setUTCDate(x.getUTCDate()+n);return x};
  let primero=new Date(base),ultimo;
  if(vista==='semana'){const offset=(base.getUTCDay()+6)%7;primero=sum(base,-offset);ultimo=sum(primero,7)}
