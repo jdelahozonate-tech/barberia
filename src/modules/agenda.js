@@ -59,8 +59,6 @@ async function agenda(){
  for(let d=new Date(primero);d<ultimo;d=sum(d,1))dias.push(fmt(d));
  const etiqueta=d=>new Date(d+'T12:00:00Z').toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'});
  const citasDia=d=>data.filter(c=>partesNegocio(c.inicio).fecha===d);
- const etiqueta=d=>new Date(d+'T12:00:00Z').toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'});
- const citasDia=d=>data.filter(c=>partesNegocio(c.inicio).fecha===d);
  const tarjeta=c=>'<button class="agenda-cita" data-id="'+c.id+'" aria-label="Abrir cita de '+esc(c.clientes?.nombre)+' a las '+hora(c.inicio)+'"><span class="agenda-cita-hora">'+hora(c.inicio)+' – '+hora(c.fin)+'</span><strong>'+esc(c.clientes?.nombre)+'</strong><span class="agenda-cita-detalle">'+esc(c.servicios?.nombre)+' · '+esc(c.barberos?.nombre)+'</span><span class="chip '+c.estado+'">'+bonito(c.estado)+'</span></button>';
  const xsHoy=citasDia(fmt(base)),pendientes=data.filter(c=>c.estado==='PENDIENTE').length,confirmadas=data.filter(c=>c.estado==='CONFIRMADA').length,atendidas=data.filter(c=>c.estado==='ATENDIDA').length;
  let contenido='';
