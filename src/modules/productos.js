@@ -166,6 +166,6 @@ export function crearModuloProductos(deps) {
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{vista=b.dataset.tab;render()});
   document.querySelectorAll('[data-order]').forEach(s=>s.onchange=async()=>{s.disabled=true;const{error:e1}=await sb.from('pedidos_productos').update({estado:s.value,actualizado_en:new Date().toISOString()}).eq('id',s.dataset.order).eq('negocio_id',nid());if(e1){s.disabled=false;return error(e1)}toast('Estado del pedido actualizado');s.disabled=false});
  }
- async function render(){if(!rol())return toast('No tienes permisos para gestionar productos e inventario.',true);if(vista==='productos')return productosVista();if(vista==='pedidos')return pedidosVista();if(vista==='compras')return comprasVista();if(vista==='proveedores')return proveedoresVista();return movimientosVista()}
- return { productos:()=>{vista='productos';return render()} };
+ async function render(){if(!rol()&&vista!=='pedidos')return toast('No tienes permisos para gestionar productos e inventario.',true);if(vista==='productos')return productosVista();if(vista==='pedidos')return pedidosVista();if(vista==='compras')return comprasVista();if(vista==='proveedores')return proveedoresVista();return movimientosVista()}
+ return { productos:()=>{vista='productos';return render()}, pedidos:()=>{vista='pedidos';return render()} };
 }
