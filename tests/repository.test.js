@@ -652,7 +652,7 @@ test('el catálogo de servicios presenta tarjetas, métricas y filtros sin cambi
   assert.match(catalogos, /service-card-description/);
   assert.match(catalogos, /service-duration/);
   assert.match(catalogos, /Mostrar inactivos/);
-  assert.match(catalogos, /from\('servicios'\)/);
+  assert.match(catalogos, /const esServicios=k==='servicios'/);
   assert.match(catalogos, /insert\(\{\.\.\.o,negocio_id:S\.perfil\.negocio_id\}\)/);
   assert.match(catalogos, /update\(o\)\.eq\('negocio_id',S\.perfil\.negocio_id\)/);
   assert.match(config, /servicios:\{t:'Servicios'/);
