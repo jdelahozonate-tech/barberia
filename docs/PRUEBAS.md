@@ -118,3 +118,20 @@ Antes de habilitar esta parte, ejecutar en Supabase SQL Editor la migración
 8. Intentar enviar cantidades superiores al stock; Supabase debe rechazar el pedido.
 9. Probar con otro negocio y confirmar que ningún usuario puede consultar pedidos ajenos ni cargar imágenes en carpetas de otro negocio.
 10. Confirmar que una venta real de producto sigue usando el flujo de ventas y descuenta el inventario según las reglas existentes.
+
+
+## Comisiones y perfiles de barberos
+
+Antes de publicar:
+1. Ejecutar `supabase/migrations/20261121000000_comisiones_perfiles_barberos.sql` en el SQL Editor del proyecto Supabase.
+2. Crear un barbero nuevo y confirmar que el formulario propone modelo COMISION y 65 %; comprobar que el porcentaje acepta únicamente valores entre 0 y 100.
+3. Editar un barbero existente, cargar una fotografía JPG/PNG/WEBP de hasta 5 MB y comprobar que aparece en su ficha.
+4. Iniciar sesión con el usuario BARBERO vinculado y abrir **Mi perfil**; comprobar que ve su foto y sus datos, sin controles de edición.
+5. Registrar una factura con servicios y productos, aplicar descuento y verificar que la comisión corresponde al 65 % (o al porcentaje configurado) de la base del servicio después del descuento proporcional. Confirmar que los productos generan cero comisión.
+6. Completar el pago de la factura, liquidar la comisión y comprobar que el valor base de la liquidación coincide con la base neta del servicio.
+7. Cambiar el porcentaje del barbero y crear otra venta: la venta anterior debe conservar su porcentaje y la nueva usar el porcentaje actualizado.
+8. Comprobar que una factura con comisión liquidada no se puede editar ni anular.
+9. Comprobar que una factura histórica anterior a la migración conserva sus valores; si tiene servicios y carece de snapshot, la edición queda bloqueada para evitar recalcularla con un porcentaje nuevo.
+10. Probar aislamiento entre dos negocios y permisos de Storage: solo administración puede cargar o reemplazar fotos; el barbero solo puede leer su propia ficha.
+
+La migración conserva NULL en los snapshots históricos deliberadamente; no reconstruye porcentajes pasados a partir de precios actuales.
