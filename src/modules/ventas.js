@@ -271,10 +271,18 @@ function htmlComprobanteVenta(v,detalles,pagos){
 }
 async function cargarJsPDFComprobante(){
  if(window.jspdf?.jsPDF)return window.jspdf;
+ let existente=document.querySelector('script[data-jspdf-comprobante]');
+ if(existente?.dataset.failed==='1'){existente.remove();existente=null}
  await new Promise((resolve,reject)=>{
-  const existente=document.querySelector('script[data-jspdf-comprobante]');
-  if(existente){existente.addEventListener('load',resolve,{once:true});existente.addEventListener('error',()=>reject(new Error('No se pudo cargar el generador PDF. Verifica tu conexión.')),{once:true});return}
-  const script=document.createElement('script');script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';script.async=true;script.dataset.jspdfComprobante='1';script.onload=resolve;script.onerror=()=>reject(new Error('No se pudo cargar el generador PDF. Verifica tu conexión.'));document.head.appendChild(script);
+  if(existente){
+   existente.addEventListener('load',resolve,{once:true});
+   existente.addEventListener('error',()=>reject(new Error('No se pudo cargar el generador PDF. Verifica tu conexión.')),{once:true});
+   return;
+  }
+  const script=document.createElement('script');script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';script.async=true;script.dataset.jspdfComprobante='1';
+  script.onload=()=>{script.dataset.loaded='1';resolve()};
+  script.onerror=()=>{script.dataset.failed='1';reject(new Error('No se pudo cargar el generador PDF. Verifica tu conexión.'))};
+  document.head.appendChild(script);
  });
  if(!window.jspdf?.jsPDF)throw new Error('La biblioteca PDF no está disponible.');
  return window.jspdf;
@@ -420,7 +428,7 @@ async function detalleVenta(v){
  ${v.estado_venta!=='ANULADA'?'<div class="acts" style="flex-wrap:wrap"><button type="button" class="btn block" id="pdf">Descargar PDF</button><button type="button" class="btn sec block" id="print">Imprimir comprobante</button></div>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button>'+(puedeAnular?'<button type="button" class="btn sec block" id="an">Anular venta</button>':'<p class="info">Esta venta pertenece a una caja cerrada, a otro turno o no tiene una caja histórica verificable. No se puede anular desde la caja actual.</p>'):''}
  <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
- const pdf=$('#pdf');if(pdf)pdf.onclick=()=>generarFacturaPDF(v,d,p);const imprimir=$('#print');if(imprimir)imprimir.onclick=()=>imprimirComprobante(v,d,p);
+ const pdf=$('#pdf');if(pdf)pdf.onclick=async()=>{if(pdf.disabled)return;pdf.disabled=true;try{await generarFacturaPDF(v,d,p)}finally{pdf.disabled=false}};const imprimir=$('#print');if(imprimir)imprimir.onclick=()=>imprimirComprobante(v,d,p);
  if(abierta)$('#rp').onclick=async()=>{const b=$('#rp');if(b.disabled)return;const n=Number($('#pg').value);
   if(!(n>0)||n>v.saldo_pendiente)return toast('El pago debe ser mayor a cero y no superar el saldo.',true);
   b.disabled=true;
