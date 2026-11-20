@@ -234,13 +234,13 @@ async function comisiones(){
  document.querySelectorAll('[data-liquidar]').forEach(b=>b.onclick=()=>prepararLiquidacion(b.dataset.liquidar,P[b.dataset.liquidar],!!rc.data?.id));
 }
 function prepararLiquidacion(id,p,cajaAbierta){
- const anticipo=Math.min(p.anticipos,p.t),neto=Math.max(0,p.t-anticipo);
+ const anticipoDisponible=p.anticipos,neto=Math.max(0,p.t-anticipoDisponible);
  const filas=p.L.slice().sort((a,b)=>new Date(a.ventas.fecha_hora)-new Date(b.ventas.fecha_hora)).map(x=>'<div class="liquidation-detail-row"><span><strong>'+esc(x.descripcion||'Servicio')+'</strong><small>'+new Date(x.ventas.fecha_hora).toLocaleDateString('es-CO',{day:'numeric',month:'short',year:'numeric'})+' · '+(x.porcentaje_comision_aplicado||0)+'% · '+Number(x.cantidad||1)+' unidad(es)</small></span><strong>'+dinero(x.comision_generada)+'</strong></div>').join('');
  dlg.innerHTML='<form id="liq-form" class="liquidation-form"><header><span class="liquidation-eyebrow">CIERRE DIARIO</span><h2>Liquidar a '+esc(p.n)+'</h2><p>Revisa los servicios cobrados antes de confirmar.</p></header>'+
   '<div class="liquidation-breakdown">'+filas+'</div>'+
   '<label>Fecha de liquidación<input type="date" id="liq-fecha" value="'+fechaLiquidacion()+'" required></label>'+
   '<div class="liquidation-summary-line"><span>Comisiones generadas</span><strong>'+dinero(p.t)+'</strong></div>'+
-  '<div class="liquidation-summary-line"><span>Anticipos pendientes por aplicar</span><strong class="liquidation-deduction">-'+dinero(anticipo)+'</strong></div>'+
+  '<div class="liquidation-summary-line"><span>Anticipos disponibles para aplicar</span><strong class="liquidation-deduction">-'+dinero(anticipoDisponible)+'</strong></div>'+
   '<label>Descuento adicional<input type="number" id="liq-descuento" min="0" max="'+neto+'" step="0.01" value="0" inputmode="decimal"></label>'+
   '<label>Motivo del descuento<input id="liq-motivo" maxlength="180" placeholder="Ej. Herramienta perdida, ajuste acordado"></label>'+
   '<div class="liquidation-net"><span>Neto después de descuentos y anticipos</span><strong id="liq-neto">'+dinero(neto)+'</strong></div>'+
@@ -252,7 +252,7 @@ function prepararLiquidacion(id,p,cajaAbierta){
  dlg.showModal();$('#liq-cerrar').onclick=()=>dlg.close();
  const calc=()=>{
   const descuento=Number($('#liq-descuento').value)||0,pago=Number($('#liq-pago').value)||0;
-  const disponible=Math.max(0,p.t-anticipo),total=Math.max(0,disponible-descuento),saldo=Math.max(0,total-pago);
+  const anticipoAplicado=Math.min(anticipoDisponible,Math.max(0,p.t-descuento)),total=Math.max(0,p.t-descuento-anticipoAplicado),saldo=Math.max(0,total-pago);
   $('#liq-neto').textContent=dinero(total);
   $('#liq-saldo').textContent='Saldo que quedará pendiente: '+dinero(saldo);
   return{descuento,pago,total,saldo};
@@ -262,7 +262,7 @@ function prepararLiquidacion(id,p,cajaAbierta){
   e.preventDefault();const b=$('#liq-guardar');if(b.disabled)return;
   const c=calc(),motivo=$('#liq-motivo').value.trim();
   if(!$('#liq-fecha').value)return toast('Selecciona la fecha de liquidación.',true);
-  if(!Number.isFinite(c.descuento)||c.descuento<0||c.descuento>disponibleMax(p,anticipo))return toast('El descuento supera el valor disponible.',true);
+  if(!Number.isFinite(c.descuento)||c.descuento<0||c.descuento>p.t)return toast('El descuento supera el valor disponible.',true);
   if(c.descuento>0&&motivo.length<3)return toast('Indica el motivo del descuento.',true);
   if(!Number.isFinite(c.pago)||c.pago<0||c.pago>c.total)return toast('El pago de hoy no puede superar el neto.',true);
   if(c.pago>0&&!cajaAbierta)return toast('Abre Caja para registrar el pago. También puedes dejar el pago en cero y liquidar el saldo después.',true);
@@ -273,7 +273,6 @@ function prepararLiquidacion(id,p,cajaAbierta){
   dlg.close();toast('Liquidación registrada. Saldo pendiente: '+dinero(Number(data?.saldo_pendiente||0)));comisiones();
  };
 }
-function disponibleMax(p,anticipo){return Math.max(0,p.t-anticipo)}
 async function registrarAnticipo(barberos){
  dlg.innerHTML='<form id="anticipo-form" class="liquidation-form"><header><span class="liquidation-eyebrow">ADELANTO DE DINERO</span><h2>Registrar anticipo</h2><p>El valor se registra como egreso de Caja y se descontará de próximas liquidaciones.</p></header>'+
   '<label>Barbero<select id="ant-barbero" required>'+barberos.map(b=>'<option value="'+b.id+'">'+esc(b.nombre)+'</option>').join('')+'</select></label>'+
@@ -305,7 +304,7 @@ async function historialLiquidaciones(){
   ((r.data||[]).length?(r.data||[]).map(x=>'<button type="button" class="liquidation-history-row" data-historial="'+x.id+'"><span><strong>'+esc(x.barberos?.nombre||'Barbero')+'</strong><small>'+new Date(x.fecha_liquidacion+'T12:00:00').toLocaleDateString('es-CO',{dateStyle:'medium'})+' · '+bonito(x.estado_liquidacion)+'</small></span><span><strong>'+dinero(x.total_neto)+'</strong><small>Pagado '+dinero(x.total_pagado)+' · Saldo '+dinero(x.saldo_pendiente)+'</small></span></button>').join(''):'<p class="empty">Todavía no hay liquidaciones registradas.</p>')+
   (Object.keys(grupos).length?'<h3>Liquidaciones anteriores</h3>'+Object.values(grupos).map(x=>'<div class="liquidation-history-row"><span><strong>'+esc(x.nombre)+'</strong><small>'+x.fecha+' · '+x.cantidad+' comisión(es)</small></span><strong>'+dinero(x.total)+'</strong></div>').join(''):'')+
   '<div class="acts"><button type="button" class="btn sec" id="hist-cerrar">Cerrar</button></div></div>';
- dlg.showModal();$('#hist-cerrar').onclick=()=>dlg.close();
+ if(!dlg.open)dlg.showModal();$('#hist-cerrar').onclick=()=>dlg.close();
  document.querySelectorAll('[data-historial]').forEach(b=>b.onclick=()=>verLiquidacion((r.data||[]).find(x=>x.id===b.dataset.historial)));
 }
 async function verLiquidacion(l){
