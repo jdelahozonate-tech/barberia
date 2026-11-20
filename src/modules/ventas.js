@@ -377,9 +377,10 @@ function pdfTextoFactura(paginas,logo){
   else y=inicioResumen+51;
   const capacidad=Math.max(1,Math.floor((690-y)/23));
   const fin=Math.min(filas.length,indice+capacidad);
+  const inicioIndice=indice;
   for(;indice<fin;indice++){
-   const p=filas[indice],yy=y+indice-(indice); // keep row coordinates local to this page
-   const filaY=y+(indice-(fin-capacidad))*23;
+   const p=filas[indice];
+   const filaY=y+(indice-inicioIndice)*23;
    if(indice%2===0)pagina.push(rect(40,filaY,310,23,[0.975,0.978,0.982]));
    if(!p){pagina.push(t('No se registran pagos asociados.',49,filaY+15,8,suave));}
    else{
@@ -391,7 +392,7 @@ function pdfTextoFactura(paginas,logo){
    }
    pagina.push(linea(40,filaY+23,350,filaY+23,[0.88,0.90,0.92],0.4));
   }
-  y+=Math.min(capacidad,fin-(primeraRonda?0:indice-capacidad))*23;
+  y+=(fin-inicioIndice)*23;
   primeraRonda=false;
   if(indice<filas.length)y=112;
  }
@@ -401,8 +402,8 @@ function pdfTextoFactura(paginas,logo){
  pagina.push(rect(40,y,6,48,dorado));
  pagina.push(t(resumen.saldo<=0?'TOTAL PAGADO':'TOTAL DE LA VENTA',58,y+29,12,[1,1,1],true));
  pagina.push(t(moneda(resumen.total),405,y+31,18,[1,1,1],true));
- const graciasY=y+67;
- if(graciasY+37>746){nuevaContinuacion('INFORMACION DE CIERRE');y=112}
+ let graciasY=y+67;
+ if(graciasY+37>746){nuevaContinuacion('INFORMACION DE CIERRE');graciasY=154}
  pagina.push(t('¡GRACIAS POR PREFERIRNOS!',W/2-92,graciasY,11,azul,true));
  pagina.push(t('Agradecemos tu confianza. Te esperamos pronto.',W/2-112,graciasY+16,8,suave));
  const ids=[];
@@ -476,10 +477,11 @@ async function detalleVenta(v){
  ${fila('Total',dinero(v.total_venta),'tot')}${fila('Pagado',dinero(v.total_pagado))}${fila('Saldo',dinero(v.saldo_pendiente))}
  ${p.length?'<label>Pagos</label>'+p.map(x=>fila(bonito(x.metodo_pago)+', '+hora(x.fecha_hora),dinero(x.valor_pago))).join(''):''}
  ${abierta?`<label for="pg">Registrar otro pago</label><div class="ln"><input id="pg" type="number" min="1" inputmode="decimal" value="${v.saldo_pendiente}"><select id="mp" aria-label="Método">${METODOS}</select></div><button type="button" class="btn block" id="rp">Registrar pago</button>`:''}
- ${v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="pdf">Generar factura PDF y compartir</button>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button>'+(puedeAnular?'<button type="button" class="btn sec block" id="an">Anular venta</button>':'<p class="info">Esta venta pertenece a una caja cerrada, a otro turno o no tiene una caja histórica verificable. No se puede anular desde la caja actual.</p>'):''}
+ ${v.estado_venta!=='ANULADA'?'<div class="acts" style="flex-wrap:wrap"><button type="button" class="btn" id="pdf">Descargar PDF</button><button type="button" class="btn sec" id="printpdf">Imprimir PDF</button><button type="button" class="btn sec" id="sharepdf">Compartir PDF</button></div>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button>'+(puedeAnular?'<button type="button" class="btn sec block" id="an">Anular venta</button>':'<p class="info">Esta venta pertenece a una caja cerrada, a otro turno o no tiene una caja histórica verificable. No se puede anular desde la caja actual.</p>'):''}
  <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
- const pdf=$('#pdf');if(pdf)pdf.onclick=async()=>{if(pdf.disabled)return;pdf.disabled=true;try{await generarFacturaPDF(v,d,p)}catch(error){if(error?.name!=='AbortError')toast('No se pudo generar o compartir el PDF: '+(error.message||'Error inesperado'),true)}finally{pdf.disabled=false}};
+ const ejecutarPDF=(id,accion)=>{const b=$(id);if(!b)return;b.onclick=async()=>{if(b.disabled)return;b.disabled=true;try{await generarFacturaPDF(v,d,p,accion)}catch(error){if(error?.name!=='AbortError')toast('No se pudo generar el PDF: '+(error.message||'Error inesperado'),true)}finally{b.disabled=false}}};
+ ejecutarPDF('#pdf','descargar');ejecutarPDF('#printpdf','imprimir');ejecutarPDF('#sharepdf','compartir');
  if(abierta)$('#rp').onclick=async()=>{const b=$('#rp');if(b.disabled)return;const n=Number($('#pg').value);
   if(!(n>0)||n>v.saldo_pendiente)return toast('El pago debe ser mayor a cero y no superar el saldo.',true);
   b.disabled=true;
