@@ -34,6 +34,22 @@ function checkSyntax(file, code) {
   assert.doesNotThrow(() => new vm.Script(code, { filename: file }), file);
 }
 
+
+test('la navegación móvil usa un menú lateral y muestra la foto existente del usuario', () => {
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  const acceso = readFileSync(resolve(root, 'src/modules/acceso.js'), 'utf8');
+  assert.match(index, /id="menu-toggle"/);
+  assert.match(index, /class="nav-backdrop"/);
+  assert.match(index, /nav\\.nav\\.open/);
+  assert.match(index, /translateX\\(-105%\\)/);
+  assert.match(index, /class="nav-profile"/);
+  assert.match(index, /S\\.perfil\\.foto_url/);
+  assert.match(index, /main\\{padding:16px 14px 28px\\}/);
+  assert.match(acceso, /p\\.foto_url\\|\\|p\\.avatar_url/);
+  assert.match(acceso, /from\\('barberos'\\)\\.select\\('foto_url'\\)/);
+  assert.match(acceso, /S\\.perfil=\\{\\.\\.\\.p,foto_url:fotoPerfil\\}/);
+});
+
 test('Pedidos gestiona las órdenes de compra de la barbería a proveedores', () => {
   const pedidos = readFileSync(resolve(root, 'src/modules/pedidos.js'), 'utf8');
   const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
