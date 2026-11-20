@@ -47,6 +47,8 @@ test('la navegación móvil usa un menú lateral y muestra la foto existente del
   assert.ok(index.includes('main{padding:16px 14px 28px}'));
   assert.ok(acceso.includes('p.foto_url||p.avatar_url'));
   assert.ok(acceso.includes("from('barberos').select('foto_url')"));
+  assert.ok(acceso.includes(".ilike('correo',auth.user.email)"));
+  assert.ok(acceso.includes("else if(auth.user.email)"));
   assert.ok(acceso.includes('S.perfil={...p,foto_url:fotoPerfil}'));
 });
 
