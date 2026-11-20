@@ -1,6 +1,6 @@
 -- Operaciones transaccionales para ventas, horarios y ajustes del negocio.
 -- Las funciones validan sesión, negocio y permisos antes de escribir.
--- SECURITY DEFINER es necesario para agrupar escrituras con RLS; se limita EXECUTE a authenticated.
+-- SECURITY DEFINER se acompaña de validaciones explícitas de sesión, negocio y rol; EXECUTE se limita a authenticated.
 
 CREATE OR REPLACE FUNCTION public.registrar_venta_transaccional(
   p_cliente_id uuid,
@@ -20,7 +20,6 @@ DECLARE
   v_rol text := public.mi_rol();
   v_usuario uuid := auth.uid();
   v_barbero public.barberos%ROWTYPE;
-  v_cliente uuid;
   v_cita record;
   v_producto public.productos%ROWTYPE;
   v_servicio public.servicios%ROWTYPE;
@@ -38,7 +37,6 @@ DECLARE
   v_metodo_pago text;
   v_pago numeric(14,2);
   v_cuenta uuid;
-  v_cantidad integer := 0;
   v_metodo_principal text;
 BEGIN
   IF v_usuario IS NULL OR v_negocio IS NULL THEN
@@ -482,7 +480,7 @@ BEGIN
 
   SELECT b.id INTO v_barbero
   FROM public.barberos b
-  WHERE b.id=p_barbero_id AND b.negocio_id=v_negocio AND b.estado='ACTIVO'
+  WHERE b.id=p_barbero_id AND b.negocio_id=v_negocio
   FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'El barbero no pertenece a este negocio o está inactivo.';
@@ -493,7 +491,7 @@ BEGIN
     FROM jsonb_to_recordset(p_horarios) AS h(
       dia_semana smallint,hora_inicio time,hora_fin time
     )
-    WHERE h.dia_semana NOT BETWEEN 0 AND 6
+    WHERE h.dia_semana IS NULL OR h.dia_semana NOT BETWEEN 0 AND 6
        OR h.hora_inicio IS NULL OR h.hora_fin IS NULL
        OR h.hora_inicio>=h.hora_fin
   ) THEN
