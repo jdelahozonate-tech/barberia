@@ -65,6 +65,8 @@ test('Ventas ofrece fiado y comprobante comercial en PDF e impresión', () => {
   assert.match(ventas, /async function generarFacturaPDF/);
   assert.match(ventas, /function htmlComprobanteVenta/);
   assert.match(ventas, /function imprimirComprobante/);
+  assert.match(ventas, /id="share"/);
+  assert.match(ventas, /accion==='compartir'/);
   assert.match(ventas, /window\.print\(\)/);
   assert.match(ventas, /format:'letter'/);
   assert.match(ventas, /logo_url\|\|'\.\/logo-dhbarber\.png'/);
