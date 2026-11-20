@@ -112,15 +112,24 @@ async function historialCaja(){
   if(!desde||!hasta||desde>hasta)return toast('Verifica el rango de fechas: la fecha inicial no puede ser posterior a la final.',true);
   const inicioUTC=new Date(desde+'T00:00:00').toISOString(),finDate=new Date(hasta+'T00:00:00');finDate.setDate(finDate.getDate()+1);const finUTC=finDate.toISOString(),nid=S.perfil.negocio_id;
   results.innerHTML='<div class="cash-empty compact">Consultando movimientos del período…</div>';
-  const [rc,rp,rg,rcp]=await Promise.all([
-   sb.from('cajas').select('*').eq('negocio_id',nid).gte('fecha_apertura',inicioUTC).lt('fecha_apertura',finUTC).order('fecha_apertura',{ascending:false}).limit(500),
-   sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,estado_pago,ventas(estado_venta,clientes(nombre))').eq('negocio_id',nid).eq('estado_pago','REGISTRADO').gte('fecha_hora',inicioUTC).lt('fecha_hora',finUTC).order('fecha_hora',{ascending:false}).limit(1000),
-   sb.from('gastos').select('valor,metodo_pago,fecha_hora,descripcion,categoria_gasto,proveedor,estado_gasto,caja_id').eq('negocio_id',nid).eq('estado_gasto','REGISTRADO').gte('fecha_hora',inicioUTC).lt('fecha_hora',finUTC).order('fecha_hora',{ascending:false}).limit(1000),
-   sb.from('pagos_compras_inventario').select('valor_pago,metodo_pago,fecha_pago,compra_id,caja_id').eq('negocio_id',nid).gte('fecha_pago',inicioUTC).lt('fecha_pago',finUTC).order('fecha_pago',{ascending:false}).limit(1000)
-  ]);
-  const error=[rc.error,rp.error,rg.error,rcp.error].find(Boolean);
-  if(error){results.innerHTML='<div class="cash-empty"><strong>No fue posible consultar el historial</strong><p>'+esc(error.message)+'</p></div>';return}
-  const cajas=rc.data||[],pagos=(rp.data||[]).filter(p=>p.ventas?.estado_venta!=='ANULADA'),gastos=rg.data||[],compras=rcp.data||[];
+  const traerTodo=async crear=>{
+   const acumulado=[];let desde=0,lote=[];
+   do{const{data,error}=await crear().range(desde,desde+999);if(error)throw error;lote=data||[];acumulado.push(...lote);desde+=lote.length}while(lote.length===1000);
+   return acumulado;
+  };
+  let cajas=[],pagos=[],gastos=[],compras=[];
+  try{
+   const [abiertasPorInicio,cerradasPorCierre,p,g,pc]=await Promise.all([
+    traerTodo(()=>sb.from('cajas').select('*').eq('negocio_id',nid).gte('fecha_apertura',inicioUTC).lt('fecha_apertura',finUTC).order('fecha_apertura',{ascending:false})),
+    traerTodo(()=>sb.from('cajas').select('*').eq('negocio_id',nid).eq('estado_caja','CERRADA').gte('fecha_cierre',inicioUTC).lt('fecha_cierre',finUTC).order('fecha_cierre',{ascending:false})),
+    traerTodo(()=>sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,estado_pago,ventas(estado_venta,clientes(nombre))').eq('negocio_id',nid).eq('estado_pago','REGISTRADO').gte('fecha_hora',inicioUTC).lt('fecha_hora',finUTC).order('fecha_hora',{ascending:false})),
+    traerTodo(()=>sb.from('gastos').select('valor,metodo_pago,fecha_hora,descripcion,categoria_gasto,proveedor,estado_gasto,caja_id').eq('negocio_id',nid).eq('estado_gasto','REGISTRADO').gte('fecha_hora',inicioUTC).lt('fecha_hora',finUTC).order('fecha_hora',{ascending:false})),
+    traerTodo(()=>sb.from('pagos_compras_inventario').select('valor_pago,metodo_pago,fecha_pago,compra_id,caja_id').eq('negocio_id',nid).gte('fecha_pago',inicioUTC).lt('fecha_pago',finUTC).order('fecha_pago',{ascending:false}))
+   ]);
+   const unicas=new Map();[...abiertasPorInicio,...cerradasPorCierre].forEach(c=>unicas.set(c.id,c));cajas=[...unicas.values()].sort((a,b)=>new Date(b.fecha_apertura)-new Date(a.fecha_apertura));
+   pagos=p;gastos=g;compras=pc;
+  }catch(error){results.innerHTML='<div class="cash-empty"><strong>No fue posible consultar el historial</strong><p>'+esc(error.message||'Error de consulta')+'</p></div>';return}
+  pagos=pagos.filter(p=>p.ventas?.estado_venta!=='ANULADA');
   const movimientos=[
    ...pagos.map(p=>({fecha:p.fecha_hora,tipo:'Ingreso',concepto:p.ventas?.clientes?.nombre||'Cliente de paso',metodo:p.metodo_pago,valor:Number(p.valor_pago),caja:'No asignada'})),
    ...gastos.map(g=>({fecha:g.fecha_hora,tipo:'Gasto',concepto:g.descripcion||bonito(g.categoria_gasto),metodo:g.metodo_pago,valor:-Number(g.valor),caja:g.caja_id||'No asignada'})),
