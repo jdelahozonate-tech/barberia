@@ -202,6 +202,138 @@ dialog::backdrop{background:rgba(16,34,63,.55)}
  .service-card-bottom{align-items:baseline;flex-direction:row}
 }
 
+
+/* Caja: panel de control financiero */
+.cash-shell{display:grid;gap:19px;min-width:0}
+.cash-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:8px 0 2px}
+.cash-header h2{font-size:clamp(1.7rem,3vw,2.1rem);letter-spacing:-.045em}
+.cash-header p{margin:6px 0 0;color:var(--mute);font-size:.9rem}
+.cash-eyebrow{display:block;margin-bottom:5px;color:var(--blue);font-size:.68rem;font-weight:800;letter-spacing:.14em}
+.cash-state{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border-radius:99px;font-size:.76rem;font-weight:800;white-space:nowrap}
+.cash-state i{width:8px;height:8px;border-radius:50%}
+.cash-state.open{background:#e5f4eb;color:#247348}.cash-state.open i{background:#299653}
+.cash-state.closed{background:#edf1f7;color:#52647b}.cash-state.closed i{background:#8897aa}
+.cash-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+.cash-metric{display:flex;flex-direction:column;gap:5px;min-width:0;padding:16px;background:#fff;border:1px solid var(--line);border-radius:13px;box-shadow:0 2px 8px #10223f08}
+.cash-metric-label{color:var(--mute);font-size:.76rem;font-weight:700}
+.cash-metric strong{font-size:clamp(1.05rem,2vw,1.42rem);letter-spacing:-.03em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.cash-metric small{color:var(--mute);font-size:.7rem;line-height:1.35}
+.cash-metric-primary{background:#10223f;color:#fff;border-color:#10223f}
+.cash-metric-primary .cash-metric-label,.cash-metric-primary small{color:#d7e1ef}
+.cash-balance-panel,.cash-income-section,.cash-movements-section,.cash-open-panel,.cash-history{padding:17px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 8px #10223f07}
+.cash-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}
+.cash-section-heading h3{margin:0;font-size:1.05rem;letter-spacing:-.02em}
+.cash-section-heading .cash-eyebrow{margin-bottom:3px}
+.cash-balance-badge,.cash-count{padding:5px 9px;border-radius:99px;background:#edf1f7;color:#52647b;font-size:.72rem;font-weight:700;white-space:nowrap}
+.cash-balance-lines{display:grid;gap:0}
+.cash-balance-lines>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 2px;border-bottom:1px solid #edf0f4;font-size:.84rem}
+.cash-balance-lines>div>span{color:var(--mute)}
+.cash-balance-lines strong{font-variant-numeric:tabular-nums}
+.cash-balance-total{margin-top:3px;padding-top:13px!important;border:0!important;font-weight:800;font-size:.96rem!important}
+.cash-balance-total>span{color:var(--ink)!important}
+.cash-balance-total strong{font-size:1.25rem}
+.positive{color:#247348!important}.negative{color:#b23a42!important}
+.cash-method-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:9px}
+.cash-method-card{display:flex;flex-direction:column;align-items:flex-start;gap:5px;padding:13px;background:#f8f9fb;border:1px solid var(--line);border-radius:11px;text-align:left;color:var(--ink);transition:border-color .15s,background .15s}
+.cash-method-card:hover{background:#f2f6fc;border-color:#aabbd1}
+.cash-method-card>span{color:var(--mute);font-size:.76rem;font-weight:700}
+.cash-method-card strong{font-size:1.08rem;font-variant-numeric:tabular-nums}
+.cash-method-card small{color:var(--blue);font-size:.7rem;font-weight:700}
+.cash-movement-toolbar{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:0 0 10px}
+.cash-movement-toolbar label{display:grid;gap:5px;max-width:240px;margin:0;color:var(--mute);font-size:.74rem}
+.cash-movement-toolbar select{min-height:39px;padding:7px 10px;border-radius:8px;font-size:.82rem}
+.cash-movement-toolbar>span{color:var(--mute);font-size:.7rem;text-align:right}
+.cash-movement-list{display:grid}
+.cash-movement{display:flex;align-items:center;gap:11px;min-width:0;padding:11px 2px;border-bottom:1px solid #edf0f4}
+.cash-movement:last-child{border-bottom:0}
+.cash-movement-icon{display:grid;place-items:center;flex:0 0 36px;height:36px;border-radius:11px;font-size:1.1rem;font-weight:800}
+.cash-movement-icon.ingreso{background:#e5f4eb;color:#247348}
+.cash-movement-icon.gasto{background:#fff0e8;color:#b65a32}
+.cash-movement-icon.compra{background:#edf1f7;color:#52647b}
+.cash-movement-info{display:grid;gap:2px;flex:1;min-width:0}
+.cash-movement-info strong{font-size:.83rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cash-movement-info small{color:var(--mute);font-size:.69rem;overflow-wrap:anywhere}
+.cash-movement-value{font-size:.82rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+.cash-empty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:28px 16px;text-align:center;color:var(--mute)}
+.cash-empty>span{display:grid;place-items:center;width:42px;height:42px;border-radius:13px;background:#edf1f7;color:#526985;font-size:1.3rem}
+.cash-empty strong{color:var(--ink);font-size:.9rem}
+.cash-empty p{max-width:44ch;margin:0;font-size:.76rem}
+.cash-empty.compact{grid-column:1/-1;padding:14px}
+.cash-actions{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:15px 17px;background:#f0f4fa;border:1px solid #dce5f1;border-radius:13px}
+.cash-actions>div:first-child{display:grid;gap:3px}
+.cash-actions>div:first-child strong{font-size:.9rem}
+.cash-actions>div:first-child small{color:var(--mute);font-size:.73rem;max-width:44ch}
+.cash-actions>div:last-child{display:flex;gap:8px;flex-wrap:wrap}
+.cash-close-button{background:#a52e36}
+.cash-open-panel{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.48fr);align-items:center;gap:24px;padding:22px}
+.cash-open-copy{display:flex;align-items:flex-start;gap:13px}
+.cash-panel-icon{display:grid;place-items:center;flex:0 0 45px;height:45px;border-radius:13px;background:#eaf1ff;color:#2f63ad;font-size:1.35rem}
+.cash-open-copy h3{margin:0;font-size:1.12rem}
+.cash-open-copy p{margin:6px 0 0;color:var(--mute);font-size:.82rem;max-width:55ch}
+.cash-open-form{display:grid;grid-template-columns:1fr;gap:7px}
+.cash-open-form label{margin:0;color:var(--mute);font-size:.77rem}
+.cash-money-input{display:flex;align-items:center;gap:8px;padding-left:11px;border:1px solid var(--line);border-radius:9px;background:#fff}
+.cash-money-input span{color:var(--mute);font-weight:700}
+.cash-money-input input{border:0;min-width:0;padding:10px 8px;box-shadow:none}
+.cash-open-form .btn{width:100%;margin-top:3px}
+.cash-history{padding:18px}
+.cash-history-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:10px}
+.cash-history-card{padding:13px;border:1px solid var(--line);border-radius:11px;background:#fbfcfd}
+.cash-history-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cash-history-top>strong{font-size:.83rem}
+.cash-difference{padding:4px 7px;border-radius:99px;font-size:.7rem;font-weight:800;white-space:nowrap}
+.cash-difference.balanced{background:#e5f4eb;color:#247348}
+.cash-difference.surplus{background:#eaf1ff;color:#2f63ad}
+.cash-difference.shortage{background:#fff0e8;color:#b23a42}
+.cash-history-values{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}
+.cash-history-values span{display:grid;gap:3px}
+.cash-history-values small,.cash-history-note{color:var(--mute);font-size:.68rem}
+.cash-history-values strong{font-size:.9rem;font-variant-numeric:tabular-nums}
+.cash-history-note{display:block;margin-top:11px;overflow-wrap:anywhere}
+.cash-close-form header{padding-bottom:13px;border-bottom:1px solid var(--line)}
+.cash-close-form header h2{font-size:1.35rem}
+.cash-close-form header p{margin:5px 0 0;color:var(--mute);font-size:.8rem}
+.cash-close-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:15px;padding:13px;border-radius:10px;background:#edf3fb;color:#425a79;font-size:.82rem}
+.cash-close-summary strong{font-size:1.2rem;color:var(--ink)}
+.cash-close-form>label{margin-top:13px}
+.cash-close-difference{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:9px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:.78rem}
+.cash-close-difference strong{font-size:.88rem}
+.cash-close-form label small{color:var(--mute);font-weight:400}
+.cash-close-hint{margin-top:12px;padding:10px;border-radius:8px;background:#f7f8fa;color:var(--mute);font-size:.72rem;line-height:1.45}
+@media(max-width:760px){
+ .cash-shell{gap:13px}
+ .cash-header{align-items:flex-start}
+ .cash-header p{font-size:.8rem}
+ .cash-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .cash-metric{padding:12px}
+ .cash-metric-primary{grid-column:1/-1}
+ .cash-metric small{font-size:.66rem}
+ .cash-balance-panel,.cash-income-section,.cash-movements-section,.cash-open-panel,.cash-history{padding:13px}
+ .cash-actions{align-items:stretch;flex-direction:column}
+ .cash-actions>div:last-child{display:grid;grid-template-columns:1fr 1fr}
+ .cash-actions .btn{padding:11px 9px;font-size:.8rem}
+ .cash-open-panel{grid-template-columns:1fr;gap:16px}
+ .cash-open-form{grid-template-columns:1fr 1fr;align-items:end}
+ .cash-open-form label{grid-column:1/-1}
+ .cash-open-form .cash-money-input{grid-column:1}
+ .cash-open-form .btn{grid-column:2}
+ .cash-method-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:420px){
+ .cash-header{flex-direction:column}
+ .cash-metric strong{font-size:1.05rem}
+ .cash-movement-toolbar{align-items:stretch;flex-direction:column}
+ .cash-movement-toolbar label{max-width:none}
+ .cash-movement-toolbar>span{text-align:left}
+ .cash-movement{gap:8px}
+ .cash-movement-icon{flex-basis:31px;height:31px}
+ .cash-movement-value{font-size:.74rem}
+ .cash-actions>div:last-child{grid-template-columns:1fr}
+ .cash-open-form{grid-template-columns:1fr}
+ .cash-open-form label,.cash-open-form .cash-money-input,.cash-open-form .btn{grid-column:1}
+ .cash-history-grid{grid-template-columns:1fr}
+}
+
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
