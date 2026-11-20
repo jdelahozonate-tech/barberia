@@ -33,18 +33,18 @@ function checkSyntax(file, code) {
   assert.doesNotThrow(() => new vm.Script(code, { filename: file }), file);
 }
 
-test('Pedidos de clientes tiene un panel independiente y solo gestiona pedidos de productos', () => {
+test('Pedidos gestiona las órdenes de compra de la barbería a proveedores', () => {
   const pedidos = readFileSync(resolve(root, 'src/modules/pedidos.js'), 'utf8');
   const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
   const index = readFileSync(resolve(root, 'index.html'), 'utf8');
-  assert.match(pedidos, /pedidos_productos/);
-  assert.match(pedidos, /detalle_pedidos_productos/);
-  assert.match(pedidos, /EN_PREPARACION/);
-  assert.match(pedidos, /data-order-status/);
-  assert.match(pedidos, /data-order-search/);
-  assert.match(pedidos, /orders-kpis/);
-  assert.doesNotMatch(productos, /async function pedidosVista/);
-  assert.doesNotMatch(productos, /Pedidos de clientes/);
+  assert.match(pedidos, /pedidos_proveedores/);
+  assert.match(pedidos, /detalle_pedidos_proveedores/);
+  assert.match(pedidos, /ENVIADO/);
+  assert.match(pedidos, /RECIBIDO/);
+  assert.match(pedidos, /registrar recepción/i);
+  assert.doesNotMatch(pedidos, /pedidos_productos/);
+  assert.doesNotMatch(pedidos, /detalle_pedidos_productos/);
+  assert.doesNotMatch(productos.slice(productos.indexOf('const tabs='), productos.indexOf('async function productosVista')), /pedido_proveedor/);
   assert.match(index, /crearModuloPedidos/);
   assert.match(index, /pedidos: pedidosProductos/);
 });
@@ -565,8 +565,8 @@ test('el catálogo de productos incorpora imágenes y pedidos públicos sin move
   assert.match(productos, /storage\.from\('productos'\)\.upload/);
   const pedidos = readFileSync(resolve(root, 'src/modules/pedidos.js'), 'utf8');
   assert.doesNotMatch(productos, /Pedidos de clientes/);
-  assert.match(pedidos, /pedidos_productos/);
-  assert.match(pedidos, /detalle_pedidos_productos/);
+  assert.doesNotMatch(pedidos, /pedidos_productos/);
+  assert.match(pedidos, /pedidos_proveedores/);
   assert.match(publico, /catalogo_productos_publico/);
   assert.match(publico, /crear_pedido_producto_publico/);
   assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.pedidos_productos/);
@@ -577,17 +577,22 @@ test('el catálogo de productos incorpora imágenes y pedidos públicos sin move
 });
 
 
-test('pedidos a proveedores no se confunden con compras ni modifican stock', () => {
+test('los pedidos a proveedores se administran desde Pedidos y no descuentan stock al crearse', () => {
   const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+  const pedidos = readFileSync(resolve(root, 'src/modules/pedidos.js'), 'utf8');
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261120000000_pedidos_proveedores_notificaciones.sql'), 'utf8');
-  assert.match(productos, /async function pedidoProveedorForm/);
-  assert.match(productos, /from\('pedidos_proveedores'\)/);
-  assert.match(productos, /generarPdfPedido/);
-  assert.match(productos, /navigator\.share/);
+  const recepcion = readFileSync(resolve(root, 'supabase/migrations/20261120080000_pedidos_proveedores_recepcion.sql'), 'utf8');
+  assert.match(pedidos, /pdfTexto/);
+  assert.match(pedidos, /navigator\.share/);
+  assert.match(pedidos, /recibir_pedido_proveedor/);
+  assert.match(pedidos, /Confirmar recepción e ingresar inventario/);
+  assert.doesNotMatch(productos.slice(productos.indexOf('const tabs='), productos.indexOf('async function productosVista')), /pedido_proveedor/);
   assert.match(productos, /Stock ideal/);
   assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.pedidos_proveedores/);
   assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.detalle_pedidos_proveedores/);
   assert.match(sql, /estado IN \('BORRADOR','ENVIADO','RECIBIDO','CANCELADO'\)/);
+  assert.match(recepcion, /registrar_compra_inventario/);
+  assert.match(recepcion, /compra_id=v_compra/);
 });
 
 test('proveedores solo solicitan nombre y teléfono desde el formulario', () => {
