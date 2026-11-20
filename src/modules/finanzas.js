@@ -241,7 +241,7 @@ function prepararLiquidacion(id,p,cajaAbierta){
   '<label>Fecha de liquidación<input type="date" id="liq-fecha" value="'+fechaLiquidacion()+'" required></label>'+
   '<div class="liquidation-summary-line"><span>Comisiones generadas</span><strong>'+dinero(p.t)+'</strong></div>'+
   '<div class="liquidation-summary-line"><span>Anticipos disponibles para aplicar</span><strong class="liquidation-deduction">-'+dinero(anticipoDisponible)+'</strong></div>'+
-  '<label>Descuento adicional<input type="number" id="liq-descuento" min="0" max="'+neto+'" step="0.01" value="0" inputmode="decimal"></label>'+
+  '<label>Descuento adicional<input type="number" id="liq-descuento" min="0" max="'+p.t+'" step="0.01" value="0" inputmode="decimal"></label>'+
   '<label>Motivo del descuento<input id="liq-motivo" maxlength="180" placeholder="Ej. Herramienta perdida, ajuste acordado"></label>'+
   '<div class="liquidation-net"><span>Neto después de descuentos y anticipos</span><strong id="liq-neto">'+dinero(neto)+'</strong></div>'+
   '<label>Dinero que se entrega hoy<input type="number" id="liq-pago" min="0" step="0.01" value="'+(cajaAbierta?neto:0)+'" inputmode="decimal"></label>'+
