@@ -63,6 +63,10 @@ test('Ventas ofrece fiado y comprobante comercial en PDF e impresión', () => {
   assert.match(ventas, /Registrar saldo pendiente \(fiado\)/);
   assert.match(ventas, /Para registrar una venta fiada debes seleccionar el cliente/);
   assert.match(ventas, /async function generarFacturaPDF/);
+  assert.match(ventas, /async function generarFacturaPDFVisual/);
+  assert.match(ventas, /html2canvas\/1\.4\.1/);
+  assert.match(ventas, /doc\.html\(root/);
+  assert.match(ventas, /autoPaging:'text'/);
   assert.match(ventas, /function htmlComprobanteVenta/);
   assert.match(ventas, /function imprimirComprobante/);
   assert.match(ventas, /id="share"/);
