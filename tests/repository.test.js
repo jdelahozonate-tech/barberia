@@ -16,6 +16,7 @@ const sourceFiles = [
   'src/modules/agenda.js',
   'src/modules/ajustes.js',
   'src/modules/notificaciones.js',
+  'src/modules/reportes.js',
   'src/modules/catalogos.js',
   'src/modules/productos.js',
   'src/modules/pedidos.js',
@@ -96,6 +97,27 @@ test('Liquidaciones de barberos gestionan comisiones pagadas, anticipos, descuen
   assert.match(sql, /CREATE OR REPLACE FUNCTION public\.registrar_anticipo_barbero/);
   assert.match(sql, /CREATE OR REPLACE FUNCTION public\.registrar_abono_liquidacion_barbero/);
   assert.match(sql, /ENABLE ROW LEVEL SECURITY/);
+});
+
+test('Reportes ofrece informes gerenciales y exportación PDF y Excel', () => {
+  const reportes = readFileSync(resolve(root, 'src/modules/reportes.js'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  const sw = readFileSync(resolve(root, 'sw.js'), 'utf8');
+  assert.match(reportes, /\['VENTAS','Ventas'\]/);
+  assert.match(reportes, /\['PAGOS','Recaudos y medios de pago'\]/);
+  assert.match(reportes, /\['CARTERA','Cartera de clientes'\]/);
+  assert.match(reportes, /\['LIQUIDACIONES','Liquidaciones de barberos'\]/);
+  assert.match(reportes, /\['PEDIDOS','Pedidos a proveedores'\]/);
+  assert.match(reportes, /async function consultar/);
+  assert.match(reportes, /async function exportarPDF/);
+  assert.match(reportes, /async function exportarExcel/);
+  assert.match(reportes, /xlsx\.full\.min\.js/);
+  assert.match(reportes, /jspdf\.umd\.min\.js/);
+  assert.match(reportes, /\.range\(desde,desde\+999\)/);
+  assert.match(index, /\['reportes','Reportes',1\]/);
+  assert.match(index, /crearModuloReportes/);
+  assert.match(sw, /src\/modules\/reportes\.js/);
+  assert.match(sw, /barberia-v23/);
 });
 
 test('todos los módulos JavaScript tienen sintaxis válida', () => {
@@ -525,7 +547,7 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(index, /const \{ productos \} = crearModuloProductos/);
   assert.match(index, /pedidos: pedidosProductos/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v22/);
+  assert.match(sw, /barberia-v23/);
   assert.match(sw, /src\/modules\/pedidos\.js/);
 });
 
@@ -654,7 +676,7 @@ test('los perfiles de barberos permiten fotografía privada de administración y
   assert.match(index, /miperfil:miPerfil/);
   assert.match(sql, /CREATE POLICY barberos_perfil_propio/);
   assert.match(sql, /barberos_fotos_insertar/);
-  assert.match(sw, /barberia-v22/);
+  assert.match(sw, /barberia-v23/);
 });
 
 

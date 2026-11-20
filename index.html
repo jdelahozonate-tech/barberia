@@ -611,6 +611,42 @@ main:has(.inventory-shell){max-width:1480px;padding:26px 28px 110px}
  .supplier-order-line .sp-remove{grid-column:2;justify-self:end}
 }
 
+
+/* Centro de reportes gerenciales */
+.reports-shell{max-width:1320px;margin:0 auto;display:grid;gap:18px}
+.reports-header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.reports-header h2{margin:4px 0;font-size:1.6rem;letter-spacing:-.04em}
+.reports-header p{margin:4px 0 0;color:var(--mute);font-size:.82rem}
+.reports-eyebrow{font-size:.63rem;font-weight:800;letter-spacing:.13em;color:#69809a}
+.reports-badge{padding:8px 12px;border-radius:99px;background:#edf3fb;color:#365b85;font-size:.7rem;font-weight:800}
+.reports-filter-panel{padding:17px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 4px 18px #1d35570a}
+.reports-filter-grid{display:grid;grid-template-columns:1.35fr 1fr 1fr 1fr auto;align-items:end;gap:10px}
+.reports-filter-grid label{display:grid;gap:6px;font-size:.72rem;color:#52657d;font-weight:700}
+.reports-filter-grid input,.reports-filter-grid select{width:100%;min-width:0}
+.reports-result{display:grid;gap:14px}
+.reports-result-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.reports-result-head h3{margin:4px 0;font-size:1.12rem}
+.reports-result-head p{margin:4px 0 0;color:var(--mute);font-size:.75rem}
+.reports-export{display:flex;gap:8px;flex-wrap:wrap}
+.reports-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.reports-summary article{display:grid;gap:6px;padding:15px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.reports-summary small{font-size:.7rem;color:var(--mute)}
+.reports-summary strong{font-size:1.18rem;letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+.reports-table-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px}
+.reports-table-head strong{font-size:.9rem}
+.reports-table-head span,.reports-note{font-size:.7rem;color:var(--mute)}
+.reports-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff}
+.reports-table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:.74rem}
+.reports-table th{padding:11px 12px;background:#f2f5f9;color:#4a5f78;text-align:left;font-size:.67rem;font-weight:800}
+.reports-table td{padding:10px 12px;border-top:1px solid #edf0f4;color:#35465b}
+.reports-table tbody tr:hover{background:#f9fbfd}
+.reports-empty{padding:32px 18px;border:1px dashed #cbd5e1;border-radius:13px;background:#fff;text-align:center;color:var(--mute);font-size:.82rem}
+.reports-empty strong{display:block;margin-bottom:6px;color:var(--ink);font-size:1rem}
+.reports-empty p{margin:0}
+.reports-note{margin:0}
+@media(max-width:900px){.reports-filter-grid{grid-template-columns:1fr 1fr}.reports-filter-grid label:first-child{grid-column:1/-1}.reports-filter-grid button{width:100%}}
+@media(max-width:680px){.reports-header,.reports-result-head{align-items:flex-start;flex-direction:column}.reports-badge{align-self:flex-start}.reports-filter-grid{grid-template-columns:1fr}.reports-filter-grid label:first-child{grid-column:auto}.reports-summary{grid-template-columns:1fr 1fr}.reports-export{width:100%}.reports-export .btn{flex:1}}
+
 </style>
 </head>
 <body>
@@ -630,6 +666,7 @@ import { crearModuloFinanzas } from "./src/modules/finanzas.js";
 import { crearModuloInicio } from "./src/modules/inicio.js";
 import { crearModuloAjustes } from "./src/modules/ajustes.js";
 import { crearModuloNotificaciones } from "./src/modules/notificaciones.js";
+import { crearModuloReportes } from "./src/modules/reportes.js";
 import { crearModuloAcceso } from "./src/modules/acceso.js";
 const $=s=>document.querySelector(s),app=$('#app'),dlg=$('#dlg');
 const S={perfil:null,negocio:null,vista:'inicio',dia:fecha(new Date())};
@@ -643,7 +680,7 @@ const NOTIF=crearModuloNotificaciones({ $, sb, S, esc, toast });
 
 /* ---------- Acceso ---------- */
 /* ---------- Estructura ---------- */
-const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['pedidos','Pedidos'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Inventario'],['caja','Caja',1],['comisiones','Liquidaciones',1],['ajustes','Ajustes',2],['miscom','Mis comisiones',3],['miperfil','Mi perfil',3]];
+const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['pedidos','Pedidos'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Inventario'],['caja','Caja',1],['comisiones','Liquidaciones',1],['reportes','Reportes',1],['ajustes','Ajustes',2],['miscom','Mis comisiones',3],['miperfil','Mi perfil',3]];
 const { pantallaAuth, cargar, aviso } = crearModuloAcceso({ $, app, sb, S, esc, traducir, toast, waNum, shell });
 function shell(){
  app.innerHTML=`<div class="pole"></div><div class="bar">${S.negocio.logo_url?`<img src="${esc(S.negocio.logo_url)}" alt="${esc(S.negocio.nombre)}" style="height:44px;display:block">`:`<strong>${esc(S.negocio.nombre)}</strong>`}<span><small>${esc(S.perfil.nombre)}, ${S.perfil.rol.toLowerCase()}</small> <button type="button" class="link light notif-bell" id="campana-notificaciones" aria-label="Notificaciones">♢</button> <button class="link light" id="out">Salir</button></span></div>
@@ -653,7 +690,7 @@ function shell(){
  document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{S.vista=b.dataset.v;ir()});
  ir();
 }
-function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.vista));({inicio,agenda,ventas,productos,pedidos:pedidosProductos,caja,comisiones,ajustes,miscom:misComisiones,miperfil:miPerfil}[S.vista]||(()=>crud(S.vista)))()}
+function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.vista));({inicio,agenda,ventas,productos,pedidos:pedidosProductos,caja,comisiones,reportes,ajustes,miscom:misComisiones,miperfil:miPerfil}[S.vista]||(()=>crud(S.vista)))()}
 
 /* ---------- Clientes, barberos y servicios ---------- */
 const ADM=['ADMINISTRADOR','SUPERVISOR'];
@@ -667,6 +704,7 @@ const { pedidos: pedidosProductos } = crearModuloPedidos({ $, dlg, sb, S, esc, d
 const { ventas, nuevaVenta } = crearModuloVentas({ $, dlg, sb, S, esc, dinero, hora, bonito, traducir, toast, ADM, METODOS, mio });
 const { caja, comisiones, misComisiones } = crearModuloFinanzas({ $, dlg, sb, S, esc, dinero, hora, bonito, toast, METODOS, fila2, fm });
 const { agenda, porConfirmar } = crearModuloAgenda({ $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, nuevaVenta, mio, ir });
+const { reportes } = crearModuloReportes({ $, sb, S, esc, dinero, toast });
 const { inicio } = crearModuloInicio({ $, sb, S, esc, dinero, hora, fecha, bonito, toast, ADM, mio, fila2, porConfirmar });
 /* ---------- Agenda ---------- */
 
