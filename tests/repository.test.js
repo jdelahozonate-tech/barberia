@@ -38,16 +38,16 @@ function checkSyntax(file, code) {
 test('la navegación móvil usa un menú lateral y muestra la foto existente del usuario', () => {
   const index = readFileSync(resolve(root, 'index.html'), 'utf8');
   const acceso = readFileSync(resolve(root, 'src/modules/acceso.js'), 'utf8');
-  assert.match(index, /id="menu-toggle"/);
-  assert.match(index, /class="nav-backdrop"/);
-  assert.match(index, /nav\\.nav\\.open/);
-  assert.match(index, /translateX\\(-105%\\)/);
-  assert.match(index, /class="nav-profile"/);
-  assert.match(index, /S\\.perfil\\.foto_url/);
-  assert.match(index, /main\\{padding:16px 14px 28px\\}/);
-  assert.match(acceso, /p\\.foto_url\\|\\|p\\.avatar_url/);
-  assert.match(acceso, /from\\('barberos'\\)\\.select\\('foto_url'\\)/);
-  assert.match(acceso, /S\\.perfil=\\{\\.\\.\\.p,foto_url:fotoPerfil\\}/);
+  assert.ok(index.includes('id="menu-toggle"'));
+  assert.ok(index.includes('class="nav-backdrop"'));
+  assert.ok(index.includes('nav.nav.open'));
+  assert.ok(index.includes('translateX(-105%)'));
+  assert.ok(index.includes('class="nav-profile"'));
+  assert.ok(index.includes('S.perfil.foto_url'));
+  assert.ok(index.includes('main{padding:16px 14px 28px}'));
+  assert.ok(acceso.includes('p.foto_url||p.avatar_url'));
+  assert.ok(acceso.includes("from('barberos').select('foto_url')"));
+  assert.ok(acceso.includes('S.perfil={...p,foto_url:fotoPerfil}'));
 });
 
 test('Pedidos gestiona las órdenes de compra de la barbería a proveedores', () => {
