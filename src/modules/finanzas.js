@@ -2,35 +2,94 @@
 export function crearModuloFinanzas(deps) {
  const { $, dlg, sb, S, esc, dinero, hora, bonito, toast, METODOS, fila2, fm } = deps;
 async function caja(){
- const main=$('#main'),{data:cj,error:errorCaja}=await sb.from('cajas').select('*').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
+ const main=$('#main'),nid=S.perfil.negocio_id;
+ const {data:cj,error:errorCaja}=await sb.from('cajas').select('*').eq('negocio_id',nid).eq('estado_caja','ABIERTA').maybeSingle();
  if(errorCaja)return toast(errorCaja.message,true);
  if(!cj){
-  const{data:u,error:errorCierres}=await sb.from('cajas').select('*').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','CERRADA').order('fecha_cierre',{ascending:false}).limit(5);
-  if(errorCierres)return toast(errorCierres.message,true);
-  main.innerHTML=`<div class="head"><h2>Caja</h2></div><p class="info">La caja está cerrada. Ábrela al empezar el día.</p>
-  <label for="si">Efectivo inicial en caja</label><input id="si" type="number" min="0" value="0" inputmode="decimal"><button class="btn block" id="ab">Abrir caja</button>
-  ${u?.length?'<label>Últimos cierres</label>'+u.map(c=>fila2(fm(c.fecha_cierre)+', contó '+dinero(c.efectivo_contado),(c.diferencia>=0?'+':'')+dinero(c.diferencia))).join(''):''}`;
-  $('#ab').onclick=async()=>{const b=$('#ab');if(b.disabled)return;const inicial=Number($('#si').value);if(!Number.isFinite(inicial)||inicial<0)return toast('El saldo inicial debe ser un valor válido y no negativo.',true);b.disabled=true;const{error}=await sb.from('cajas').insert({negocio_id:S.perfil.negocio_id,usuario_apertura:S.perfil.id,saldo_inicial:inicial});if(error){b.disabled=false;return toast(error.message,true)}caja()};
-  return}
- const[rp,rg,rc]=await Promise.all([sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,cuentas(nombre,detalle),ventas(estado_venta,clientes(nombre))').eq('negocio_id',S.perfil.negocio_id).eq('estado_pago','REGISTRADO').gte('fecha_hora',cj.fecha_apertura),sb.from('gastos').select('*').eq('negocio_id',S.perfil.negocio_id).eq('estado_gasto','REGISTRADO').gte('fecha_hora',cj.fecha_apertura).order('fecha_hora',{ascending:false}),sb.from('pagos_compras_inventario').select('valor_pago,metodo_pago,fecha_pago,compra_id').eq('negocio_id',S.perfil.negocio_id).eq('caja_id',cj.id).order('fecha_pago',{ascending:false})]);
- if(rp.error)return toast(rp.error.message,true);if(rg.error)return toast(rg.error.message,true);if(rc.error)return toast('No fue posible consultar los pagos de compras: '+rc.error.message,true);
- const pg=rp.data,gs=rg.data,pc=rc.data||[];
- const por={};(pg||[]).filter(p=>p.ventas?.estado_venta!=='ANULADA').forEach(p=>por[p.metodo_pago]=(por[p.metodo_pago]||0)+Number(p.valor_pago));
- const gEf=(gs||[]).filter(g=>g.metodo_pago==='EFECTIVO').reduce((s,g)=>s+Number(g.valor),0),cEf=pc.filter(p=>p.metodo_pago==='EFECTIVO').reduce((s,p)=>s+Number(p.valor_pago),0),esp=Number(cj.saldo_inicial)+(por.EFECTIVO||0)-gEf-cEf;
- main.innerHTML=`<div class="head"><h2>Caja abierta</h2><button class="btn sec" id="gs">Registrar gasto</button></div>
- <p class="mute">Desde ${new Date(cj.fecha_apertura).toLocaleString('es-CO',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>
- ${fila2('Efectivo inicial',dinero(cj.saldo_inicial))}
- ${Object.entries(por).map(([m,v])=>`<button type="button" class="row" data-m="${m}"><span>Cobrado en ${bonito(m).toLowerCase()}, ver detalle</span><strong>${dinero(v)}</strong></button>`).join('')||'<p class="empty">Aún no hay cobros desde que abriste la caja.</p>'}
- ${fila2('Gastos en efectivo','-'+dinero(gEf))}${fila2('Compras pagadas en efectivo','-'+dinero(cEf))}${fila2('Efectivo que debe haber',dinero(esp),'tot')}
- ${pc.length?'<label>Pagos a proveedores asociados a esta caja</label>'+pc.map(p=>fila2('Pago de compra '+p.compra_id.slice(0,8)+', '+bonito(p.metodo_pago).toLowerCase(),dinero(p.valor_pago))).join(''):''}${gs?.length?'<label>Gastos del turno</label>'+gs.map(g=>fila2(esc(g.descripcion||bonito(g.categoria_gasto))+', '+bonito(g.metodo_pago).toLowerCase(),dinero(g.valor))).join(''):''}
- <button class="btn block" id="ce">Cerrar caja</button>`;
+  const{data:historial,error:errorHistorial}=await sb.from('cajas').select('*').eq('negocio_id',nid).eq('estado_caja','CERRADA').order('fecha_cierre',{ascending:false}).limit(8);
+  if(errorHistorial)return toast(errorHistorial.message,true);
+  main.innerHTML=`<section class="cash-shell">
+   <header class="cash-header"><div><span class="cash-eyebrow">CONTROL FINANCIERO</span><h2>Caja</h2><p>Abre un turno para registrar y controlar el dinero de la barbería.</p></div><span class="cash-state closed"><i></i>Caja cerrada</span></header>
+   <section class="cash-open-panel"><div class="cash-open-copy"><span class="cash-panel-icon">▣</span><div><h3>Iniciar una nueva caja</h3><p>Registra cuánto efectivo tienes físicamente al comenzar. Este valor será la base para calcular el efectivo esperado al cierre.</p></div></div>
+    <form id="cash-open-form" class="cash-open-form"><label for="si">Efectivo inicial</label><div class="cash-money-input"><span>$</span><input id="si" type="number" min="0" step="1" value="0" inputmode="decimal" required></div><button class="btn" id="ab">Abrir caja</button></form>
+   </section>
+   <section class="cash-history"><div class="cash-section-heading"><div><span class="cash-eyebrow">SEGUIMIENTO</span><h3>Últimos cierres</h3></div><span class="cash-count">${historial?.length||0} registros</span></div>
+    ${historial?.length?'<div class="cash-history-grid">'+historial.map(c=>{const dif=Number(c.diferencia||0);return '<article class="cash-history-card"><div class="cash-history-top"><strong>'+new Date(c.fecha_cierre||c.fecha_apertura).toLocaleDateString('es-CO',{day:'numeric',month:'short',year:'numeric'})+'</strong><span class="cash-difference '+(dif===0?'balanced':dif>0?'surplus':'shortage')+'">'+(dif>0?'+':'')+dinero(dif)+'</span></div><div class="cash-history-values"><span><small>Efectivo esperado</small><strong>'+dinero(c.efectivo_esperado??0)+'</strong></span><span><small>Efectivo contado</small><strong>'+dinero(c.efectivo_contado??0)+'</strong></span></div><small class="cash-history-note">'+(c.observaciones?esc(c.observaciones):'Sin observaciones')+'</small></article>'}).join('')+'</div>':'<div class="cash-empty"><span>▣</span><strong>Aún no hay cierres registrados</strong><p>Cuando cierres tu primer turno, aquí podrás consultar el resultado y las diferencias.</p></div>'}
+   </section></section>`;
+  $('#cash-open-form').onsubmit=async e=>{e.preventDefault();const b=$('#ab');if(b.disabled)return;const inicial=Number($('#si').value);if(!Number.isFinite(inicial)||inicial<0)return toast('El saldo inicial debe ser un valor válido y no negativo.',true);b.disabled=true;const{error}=await sb.from('cajas').insert({negocio_id:nid,usuario_apertura:S.perfil.id,saldo_inicial:inicial});if(error){b.disabled=false;return toast(error.message,true)}toast('Caja abierta correctamente');caja()};
+  return;
+ }
+ const[rp,rg,rc]=await Promise.all([
+  sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,cuentas(nombre,detalle),ventas(estado_venta,clientes(nombre))').eq('negocio_id',nid).eq('estado_pago','REGISTRADO').gte('fecha_hora',cj.fecha_apertura).order('fecha_hora',{ascending:false}),
+  sb.from('gastos').select('*').eq('negocio_id',nid).eq('caja_id',cj.id).eq('estado_gasto','REGISTRADO').order('fecha_hora',{ascending:false}),
+  sb.from('pagos_compras_inventario').select('valor_pago,metodo_pago,fecha_pago,compra_id').eq('negocio_id',nid).eq('caja_id',cj.id).order('fecha_pago',{ascending:false})
+ ]);
+ if(rp.error)return toast('No fue posible cargar los ingresos de caja: '+rp.error.message,true);
+ if(rg.error)return toast('No fue posible cargar los gastos de caja: '+rg.error.message,true);
+ if(rc.error)return toast('No fue posible consultar los pagos de compras: '+rc.error.message,true);
+ const pg=rp.data||[],gs=rg.data||[],pc=rc.data||[];
+ const ingresos=pg.filter(p=>p.ventas?.estado_venta!=='ANULADA');
+ const por={};ingresos.forEach(p=>por[p.metodo_pago]=(por[p.metodo_pago]||0)+Number(p.valor_pago));
+ const suma=(arr,key)=>arr.reduce((s,x)=>s+Number(x[key]||0),0);
+ const totalIngresos=suma(ingresos,'valor_pago'),totalGastos=suma(gs,'valor'),totalCompras=suma(pc,'valor_pago');
+ const gEf=gs.filter(g=>g.metodo_pago==='EFECTIVO').reduce((s,g)=>s+Number(g.valor),0);
+ const cEf=pc.filter(p=>p.metodo_pago==='EFECTIVO').reduce((s,p)=>s+Number(p.valor_pago),0);
+ const esp=Number(cj.saldo_inicial)+(por.EFECTIVO||0)-gEf-cEf;
+ const totalEgresos=totalGastos+totalCompras;
+ const fechaApertura=new Date(cj.fecha_apertura);
+ const fmtFecha=d=>new Date(d).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+ const movimientos=[
+  ...ingresos.map(p=>({tipo:'ingreso',fecha:p.fecha_hora,metodo:p.metodo_pago,valor:Number(p.valor_pago),titulo:p.ventas?.clientes?.nombre||'Cliente de paso',detalle:'Venta · '+bonito(p.metodo_pago),cuenta:p.cuentas?.nombre||''})),
+  ...gs.map(g=>({tipo:'gasto',fecha:g.fecha_hora,metodo:g.metodo_pago,valor:Number(g.valor),titulo:g.descripcion||bonito(g.categoria_gasto),detalle:'Gasto · '+bonito(g.categoria_gasto),cuenta:g.proveedor||''})),
+  ...pc.map(p=>({tipo:'compra',fecha:p.fecha_pago,metodo:p.metodo_pago,valor:Number(p.valor_pago),titulo:'Pago a proveedor',detalle:'Compra · '+String(p.compra_id||'').slice(0,8),cuenta:''}))
+ ].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
+ const totalMovimientos=movimientos.length;
+ const htmlMovimientos=lista=>lista.length?lista.map(m=>'<article class="cash-movement"><span class="cash-movement-icon '+m.tipo+'">'+(m.tipo==='ingreso'?'↙':m.tipo==='gasto'?'↗':'▤')+'</span><span class="cash-movement-info"><strong>'+esc(m.titulo)+'</strong><small>'+esc(m.detalle)+(m.cuenta?' · '+esc(m.cuenta):'')+'</small><small>'+fmtFecha(m.fecha)+'</small></span><strong class="cash-movement-value '+(m.tipo==='ingreso'?'positive':'negative')+'">'+(m.tipo==='ingreso'?'+':'−')+dinero(m.valor)+'</strong></article>').join(''):'<div class="cash-empty"><span>↔</span><strong>No hay movimientos para mostrar</strong><p>Los ingresos, gastos y pagos a proveedores aparecerán aquí durante el turno.</p></div>';
+ main.innerHTML=`<section class="cash-shell">
+  <header class="cash-header"><div><span class="cash-eyebrow">CONTROL FINANCIERO</span><h2>Caja del turno</h2><p>Abierta el ${fmtFecha(cj.fecha_apertura)} · Controla ingresos, egresos y efectivo disponible.</p></div><span class="cash-state open"><i></i>En operación</span></header>
+  <section class="cash-metrics">
+   <article class="cash-metric cash-metric-primary"><span class="cash-metric-label">Efectivo esperado en caja</span><strong>${dinero(esp)}</strong><small>Saldo inicial + ingresos en efectivo − egresos en efectivo</small></article>
+   <article class="cash-metric"><span class="cash-metric-label">Total recaudado</span><strong>${dinero(totalIngresos)}</strong><small>${ingresos.length} pagos registrados</small></article>
+   <article class="cash-metric"><span class="cash-metric-label">Total de egresos</span><strong>${dinero(totalEgresos)}</strong><small>Gastos y pagos a proveedores</small></article>
+   <article class="cash-metric"><span class="cash-metric-label">Movimientos</span><strong>${totalMovimientos}</strong><small>Durante este turno</small></article>
+  </section>
+  <section class="cash-balance-panel"><div class="cash-section-heading"><div><span class="cash-eyebrow">ARQUEO DE EFECTIVO</span><h3>¿Cómo se calcula el efectivo?</h3></div><span class="cash-balance-badge">Solo efectivo</span></div>
+   <div class="cash-balance-lines">
+    <div><span>Efectivo inicial</span><strong>${dinero(cj.saldo_inicial)}</strong></div>
+    <div><span>Ingresos en efectivo</span><strong class="positive">+${dinero(por.EFECTIVO||0)}</strong></div>
+    <div><span>Gastos pagados en efectivo</span><strong class="negative">−${dinero(gEf)}</strong></div>
+    <div><span>Compras pagadas en efectivo</span><strong class="negative">−${dinero(cEf)}</strong></div>
+    <div class="cash-balance-total"><span>Efectivo que debe haber</span><strong>${dinero(esp)}</strong></div>
+   </div>
+  </section>
+  <section class="cash-income-section"><div class="cash-section-heading"><div><span class="cash-eyebrow">RECAUDO</span><h3>Ingresos por método de pago</h3></div><span class="cash-count">${dinero(totalIngresos)}</span></div>
+   <div class="cash-method-grid">${Object.entries(por).length?Object.entries(por).map(([m,v])=>'<button type="button" class="cash-method-card" data-m="'+esc(m)+'"><span>'+esc(bonito(m))+'</span><strong>'+dinero(v)+'</strong><small>Ver movimientos →</small></button>').join(''):'<div class="cash-empty compact">Todavía no hay ingresos registrados.</div>'}</div>
+  </section>
+  <section class="cash-movements-section"><div class="cash-section-heading"><div><span class="cash-eyebrow">DETALLE DEL TURNO</span><h3>Movimientos de caja</h3></div><span class="cash-count" id="cash-movement-count">${totalMovimientos} movimientos</span></div>
+   <div class="cash-movement-toolbar"><label for="cash-filter">Mostrar<select id="cash-filter"><option value="todos">Todos los movimientos</option><option value="ingreso">Ingresos</option><option value="gasto">Gastos</option><option value="compra">Pagos a proveedores</option></select></label><span>Ordenados del más reciente al más antiguo</span></div>
+   <div class="cash-movement-list" id="cash-movement-list">${htmlMovimientos(movimientos)}</div>
+  </section>
+  <footer class="cash-actions"><div><strong>¿Terminaste el turno?</strong><small>Cuenta el efectivo físico y compáralo con el valor esperado antes de cerrar.</small></div><div><button class="btn sec" id="gs">＋ Registrar gasto</button><button class="btn cash-close-button" id="ce">Realizar cierre de caja</button></div></footer>
+ </section>`;
  $('#gs').onclick=()=>gasto(cj);
- document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>detallePagos(b.dataset.m,(pg||[]).filter(p=>p.ventas?.estado_venta!=='ANULADA'&&p.metodo_pago===b.dataset.m)));
- $('#ce').onclick=()=>{dlg.innerHTML=`<form id="df"><h2>Cerrar caja</h2><p>Debe haber <strong>${dinero(esp)}</strong> en efectivo.</p><label for="ct">Efectivo contado</label><input id="ct" type="number" min="0" inputmode="decimal" required><label for="co">Observaciones</label><textarea id="co" rows="2"></textarea><div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Cerrar caja</button></div></form>`;
+ const filtrar=()=>{const filtro=$('#cash-filter').value,lista=movimientos.filter(m=>filtro==='todos'||m.tipo===filtro);$('#cash-movement-list').innerHTML=htmlMovimientos(lista);$('#cash-movement-count').textContent=lista.length+' movimientos'};
+ $('#cash-filter').onchange=filtrar;
+ document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>detallePagos(b.dataset.m,ingresos.filter(p=>p.metodo_pago===b.dataset.m)));
+ $('#ce').onclick=()=>{
+  dlg.innerHTML=`<form id="df" class="cash-close-form"><header><span class="cash-eyebrow">CIERRE DE TURNO</span><h2>Arqueo y cierre de caja</h2><p>Cuenta únicamente el efectivo físico que tienes en el cajón.</p></header>
+   <div class="cash-close-summary"><span>Efectivo esperado</span><strong>${dinero(esp)}</strong></div>
+   <label for="ct">Efectivo contado físicamente</label><input id="ct" type="number" min="0" step="1" inputmode="decimal" placeholder="Escribe el valor contado" required>
+   <div class="cash-close-difference" id="cash-difference"><span>Diferencia</span><strong>Ingresa el efectivo contado</strong></div>
+   <label for="co">Observaciones del cierre <small>(opcional)</small></label><textarea id="co" rows="3" placeholder="Anota novedades, faltantes o sobrantes..."></textarea>
+   <div class="cash-close-hint">Si el efectivo contado no coincide con el esperado, la diferencia quedará registrada para consulta posterior.</div>
+   <div class="acts"><button type="button" class="btn sec" id="cx">Volver</button><button class="btn" id="cash-confirm-close">Confirmar cierre</button></div></form>`;
   dlg.showModal();$('#cx').onclick=()=>dlg.close();
-  let cerrando=false;$('#df').onsubmit=async e=>{e.preventDefault();if(cerrando)return;cerrando=true;const boton=e.target.querySelector('button[type=\"submit\"],button:not([type])');if(boton)boton.disabled=true;const n=Number($('#ct').value);if(!Number.isFinite(n)||n<0){cerrando=false;if(boton)boton.disabled=false;return toast('El efectivo contado debe ser un valor válido y no negativo.',true)}
-   const{error}=await sb.from('cajas').update({estado_caja:'CERRADA',fecha_cierre:new Date().toISOString(),usuario_cierre:S.perfil.id,efectivo_esperado:esp,efectivo_contado:n,diferencia:n-esp,observaciones:$('#co').value||null}).eq('id',cj.id).eq('negocio_id',S.perfil.negocio_id);
-   if(error){cerrando=false;if(boton)boton.disabled=false;return toast(error.message,true)}dlg.close();toast('Caja cerrada');caja()}};
+  const diferencia=()=>{const valor=$('#ct').value,box=$('#cash-difference');if(valor===''){box.innerHTML='<span>Diferencia</span><strong>Ingresa el efectivo contado</strong>';return}const n=Number(valor),d=n-esp;if(!Number.isFinite(n)||n<0){box.innerHTML='<span>Diferencia</span><strong>Valor no válido</strong>';return}box.innerHTML='<span>'+(d===0?'Caja cuadrada':d>0?'Sobrante':'Faltante')+'</span><strong class="'+(d===0?'balanced':d>0?'positive':'negative')+'">'+(d>0?'+':'')+dinero(d)+'</strong>'};
+  $('#ct').oninput=diferencia;
+  let cerrando=false;$('#df').onsubmit=async e=>{e.preventDefault();if(cerrando)return;cerrando=true;const boton=$('#cash-confirm-close');if(boton)boton.disabled=true;const n=Number($('#ct').value);if($('#ct').value===''||!Number.isFinite(n)||n<0){cerrando=false;if(boton)boton.disabled=false;return toast('El efectivo contado debe ser un valor válido y no negativo.',true)}
+   const{error}=await sb.from('cajas').update({estado_caja:'CERRADA',fecha_cierre:new Date().toISOString(),usuario_cierre:S.perfil.id,efectivo_esperado:esp,efectivo_contado:n,diferencia:n-esp,observaciones:$('#co').value.trim()||null}).eq('id',cj.id).eq('negocio_id',nid).eq('estado_caja','ABIERTA');
+   if(error){cerrando=false;if(boton)boton.disabled=false;return toast(error.message,true)}dlg.close();toast('Caja cerrada correctamente');caja()};
+ };
 }
 async function gasto(cj){
  const{data:cajaActiva,error:errorCaja}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
