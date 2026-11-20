@@ -18,6 +18,7 @@ const sourceFiles = [
   'src/modules/notificaciones.js',
   'src/modules/catalogos.js',
   'src/modules/productos.js',
+  'src/modules/pedidos.js',
   'src/modules/equipo.js',
   'src/modules/finanzas.js',
   'src/modules/inicio.js',
@@ -31,6 +32,22 @@ function checkSyntax(file, code) {
   code = code.replace(/^import .*;\s*$/gm, '').replace(/^export\s+/gm, '');
   assert.doesNotThrow(() => new vm.Script(code, { filename: file }), file);
 }
+
+test('Pedidos de clientes tiene un panel independiente y solo gestiona pedidos de productos', () => {
+  const pedidos = readFileSync(resolve(root, 'src/modules/pedidos.js'), 'utf8');
+  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  assert.match(pedidos, /pedidos_productos/);
+  assert.match(pedidos, /detalle_pedidos_productos/);
+  assert.match(pedidos, /EN_PREPARACION/);
+  assert.match(pedidos, /data-order-status/);
+  assert.match(pedidos, /data-order-search/);
+  assert.match(pedidos, /orders-kpis/);
+  assert.doesNotMatch(productos, /async function pedidosVista/);
+  assert.doesNotMatch(productos, /Pedidos de clientes/);
+  assert.match(index, /crearModuloPedidos/);
+  assert.match(index, /pedidos: pedidosProductos/);
+});
 
 test('todos los módulos JavaScript tienen sintaxis válida', () => {
   for (const file of sourceFiles) {
