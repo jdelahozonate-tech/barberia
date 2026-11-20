@@ -538,6 +538,79 @@ main:has(.inventory-shell){max-width:1480px;padding:26px 28px 110px}
  .liquidation-form,.liquidation-history{min-width:0}
 }
 
+
+/* Pedidos de compra a proveedores */
+.supplier-orders-shell{max-width:1240px;margin:0 auto;display:grid;gap:18px}
+.supplier-orders-header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.supplier-orders-header h2{margin:4px 0;font-size:1.55rem;letter-spacing:-.035em}
+.supplier-orders-header p,.supplier-orders-panel-head p{margin:4px 0 0;color:var(--mute);font-size:.82rem}
+.supplier-orders-eyebrow{font-size:.63rem;font-weight:800;letter-spacing:.13em;color:#69809a}
+.supplier-orders-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.supplier-orders-kpis article{display:grid;gap:6px;padding:16px;border:1px solid var(--line);border-radius:13px;background:#fff}
+.supplier-orders-kpis small,.supplier-orders-kpis span{font-size:.7rem;color:var(--mute)}
+.supplier-orders-kpis strong{font-size:1.35rem;letter-spacing:-.03em}
+.supplier-orders-kpi-primary{background:#172f4d!important;border-color:#172f4d!important;color:#fff}
+.supplier-orders-kpi-primary small,.supplier-orders-kpi-primary span{color:#d0dced}
+.supplier-orders-panel{padding:18px;border:1px solid var(--line);border-radius:15px;background:#fff;box-shadow:0 5px 20px #1d35570a}
+.supplier-orders-panel-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.supplier-orders-panel-head h3{margin:0;font-size:1.05rem}
+.supplier-orders-panel-head>span{font-size:.72rem;color:var(--mute)}
+.supplier-orders-filters{display:grid;grid-template-columns:minmax(220px,1fr) 190px 170px;gap:9px;margin:16px 0}
+.supplier-orders-filters input,.supplier-orders-filters select{min-width:0}
+.supplier-orders-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.supplier-order-card{padding:16px;border:1px solid var(--line);border-radius:13px;background:#fff}
+.supplier-order-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.supplier-order-top h3{margin:4px 0;font-size:1rem}
+.supplier-order-top small{font-size:.7rem;color:var(--mute)}
+.supplier-order-status{padding:5px 9px;border-radius:99px;font-size:.64rem;font-weight:800;background:#eef2f7;color:#596b82;white-space:nowrap}
+.supplier-order-status.enviado{background:#eaf2ff;color:#315f9b}
+.supplier-order-status.recibido{background:#e8f7ef;color:#26744b}
+.supplier-order-status.cancelado{background:#fceeee;color:#a34c4c}
+.supplier-order-preview{display:grid;gap:5px;margin:14px 0;padding:11px;border-radius:9px;background:#f7f9fc}
+.supplier-order-preview span{display:flex;justify-content:space-between;gap:10px;font-size:.75rem;color:#4e6076}
+.supplier-order-preview small{font-size:.68rem;color:var(--mute)}
+.supplier-order-bottom{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:11px;border-top:1px solid var(--line)}
+.supplier-order-bottom>div{display:grid;gap:3px}
+.supplier-order-bottom small{font-size:.68rem;color:var(--mute)}
+.supplier-order-bottom strong{font-size:1rem}
+.supplier-orders-empty,.supplier-orders-loading{padding:30px 18px;border:1px dashed #cbd5e1;border-radius:12px;text-align:center;color:var(--mute);font-size:.82rem}
+.supplier-orders-empty strong{display:block;margin-bottom:5px;color:var(--ink);font-size:1rem}
+.supplier-orders-empty p{margin:0 0 14px}
+.supplier-order-form,.supplier-order-detail{display:grid;gap:12px;min-width:min(620px,84vw)}
+.supplier-order-form header h2,.supplier-order-detail header h2{margin:4px 0;font-size:1.28rem}
+.supplier-order-form header p,.supplier-order-detail header p{margin:4px 0;color:var(--mute);font-size:.78rem}
+.supplier-order-line{display:grid;grid-template-columns:1.5fr .7fr .9fr 38px;align-items:end;gap:8px;padding:11px 0;border-bottom:1px solid var(--line)}
+.supplier-order-line label,.supplier-receive-line label{font-size:.72rem}
+.supplier-order-line input,.supplier-order-line select,.supplier-receive-line input{width:100%;min-width:0}
+.supplier-order-line small{grid-column:1/-1;color:var(--mute);font-size:.68rem}
+.supplier-order-total{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:10px;background:#edf3fb;color:#3f5877;font-size:.8rem}
+.supplier-order-total strong{font-size:1.12rem;color:#172f4d}
+.supplier-order-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px;border-radius:10px;background:#f6f8fb}
+.supplier-order-meta span{display:grid;gap:4px}
+.supplier-order-meta small,.supplier-order-items small{color:var(--mute);font-size:.68rem}
+.supplier-order-meta strong{font-size:.82rem}
+.supplier-order-items{display:grid;gap:0}
+.supplier-order-items>div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.supplier-order-items>div>span{display:grid;gap:4px}
+.supplier-order-items strong{font-size:.8rem}
+.supplier-order-notes,.supplier-order-received{padding:11px;border-radius:9px;background:#f6f8fb;color:#536780;font-size:.75rem;line-height:1.5}
+.supplier-order-received{background:#e8f7ef;color:#26744b}
+.supplier-order-detail-actions{display:flex;gap:8px;flex-wrap:wrap}
+.supplier-receive-lines{display:grid;gap:8px;max-height:230px;overflow:auto}
+.supplier-receive-line{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;border:1px solid var(--line);border-radius:9px}
+.supplier-receive-line>strong{grid-column:1/-1;font-size:.82rem}
+@media(max-width:760px){
+ .supplier-orders-header{align-items:flex-start;flex-direction:column}
+ .supplier-orders-header .btn{width:100%}
+ .supplier-orders-kpis{grid-template-columns:1fr 1fr}
+ .supplier-orders-list{grid-template-columns:1fr}
+ .supplier-orders-filters{grid-template-columns:1fr 1fr}
+ .supplier-orders-filters input[type=search]{grid-column:1/-1}
+ .supplier-order-form,.supplier-order-detail{min-width:0}
+ .supplier-order-line{grid-template-columns:1fr 1fr}
+ .supplier-order-line .sp-remove{grid-column:2;justify-self:end}
+}
+
 </style>
 </head>
 <body>
@@ -590,7 +663,7 @@ const { ajustes } = crearModuloAjustes({ $, sb, S, esc, toast, equipo, ir, notif
 const CFG=crearConfigCatalogos(ADM,dinero);
 const { crud } = crearModuloCatalogos({ $, app, dlg, sb, S, CFG, esc, bonito, traducir, toast, horarios });
 const { productos } = crearModuloProductos({ $, dlg, sb, S, esc, dinero, traducir, toast });
-const { pedidos: pedidosProductos } = crearModuloPedidos({ $, sb, S, esc, dinero, toast });
+const { pedidos: pedidosProductos } = crearModuloPedidos({ $, dlg, sb, S, esc, dinero, toast });
 const { ventas, nuevaVenta } = crearModuloVentas({ $, dlg, sb, S, esc, dinero, hora, bonito, traducir, toast, ADM, METODOS, mio });
 const { caja, comisiones, misComisiones } = crearModuloFinanzas({ $, dlg, sb, S, esc, dinero, hora, bonito, toast, METODOS, fila2, fm });
 const { agenda, porConfirmar } = crearModuloAgenda({ $, app, dlg, sb, S, esc, hora, bonito, fecha, traducir, toast, nuevaVenta, mio, ir });

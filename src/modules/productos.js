@@ -23,7 +23,7 @@ export function crearModuloProductos(deps) {
  const existencia=id=>Number(stock.find(x=>x.producto_id===id)?.existencias||0);
  const minimo=p=>Number(p.stock_minimo??stock.find(x=>x.producto_id===p.id)?.stock_minimo??0);
  const objetivo=p=>Number(p.stock_objetivo||0);
- const tabs=()=>'<div class="product-tabs"><button class="btn '+(vista==='productos'?'':'sec')+'" data-tab="productos">Inventario general</button><button class="btn '+(vista==='pedido_proveedor'?'':'sec')+'" data-tab="pedido_proveedor">Pedidos a proveedores</button><button class="btn '+(vista==='compras'?'':'sec')+'" data-tab="compras">Compras recibidas</button><button class="btn '+(vista==='proveedores'?'':'sec')+'" data-tab="proveedores">Proveedores</button><button class="btn '+(vista==='movimientos'?'':'sec')+'" data-tab="movimientos">Movimientos</button></div>';
+ const tabs=()=>'<div class="product-tabs"><button class="btn '+(vista==='productos'?'':'sec')+'" data-tab="productos">Inventario general</button><button class="btn '+(vista==='compras'?'':'sec')+'" data-tab="compras">Compras recibidas</button><button class="btn '+(vista==='proveedores'?'':'sec')+'" data-tab="proveedores">Proveedores</button><button class="btn '+(vista==='movimientos'?'':'sec')+'" data-tab="movimientos">Movimientos</button></div>';
  async function productosVista(){
   if(!await cargarBase())return;
   const activos=productos.filter(p=>p.estado==='ACTIVO'),agotados=productos.filter(p=>p.control_stock!==false&&existencia(p.id)<=0).length,bajos=productos.filter(p=>p.control_stock!==false&&existencia(p.id)>0&&existencia(p.id)<=minimo(p)).length;
@@ -290,6 +290,6 @@ export function crearModuloProductos(deps) {
   document.querySelectorAll('[data-ppestado]').forEach(sel=>sel.onchange=async()=>{sel.disabled=true;const{error:e1}=await sb.from('pedidos_proveedores').update({estado:sel.value,actualizado_en:new Date().toISOString()}).eq('id',sel.dataset.ppestado).eq('negocio_id',nid());if(e1){sel.disabled=false;return error(e1)}sel.disabled=false;toast('Estado actualizado')});
   document.querySelectorAll('[data-pppdf]').forEach(b=>b.onclick=async()=>{const p=pedidos.find(x=>x.id===b.dataset.pppdf),items=(p.detalle_pedidos_proveedores||[]).map(d=>({producto:{nombre:d.nombre_producto},cantidad:Number(d.cantidad),costo:Number(d.costo_estimado)}));const pdf=await generarPdfPedido(p,p.proveedores_inventario,items,p.observaciones);if(pdf)mostrarAccionesPdf(pdf,p.proveedores_inventario)});
  }
- async function render(){if(!rol())return toast('No tienes permisos para gestionar productos e inventario.',true);if(vista==='productos')return productosVista();if(vista==='pedido_proveedor')return pedidosProveedorVista();if(vista==='compras')return comprasVista();if(vista==='proveedores')return proveedoresVista();return movimientosVista()}
+ async function render(){if(!rol())return toast('No tienes permisos para gestionar productos e inventario.',true);if(vista==='productos')return productosVista();if(vista==='compras')return comprasVista();if(vista==='proveedores')return proveedoresVista();return movimientosVista()}
  return { productos:()=>{vista='productos';return render()} };
 }
