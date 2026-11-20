@@ -243,23 +243,38 @@ async function editarVenta(v, actuales){
  ref();
 }
 
+let cargaJsPDF=null;
 async function cargarJsPDF(){
  if(window.jspdf?.jsPDF)return window.jspdf.jsPDF;
- await new Promise((resolve,reject)=>{
-  const existente=document.querySelector('script[data-jspdf]');
-  if(existente){existente.addEventListener('load',resolve,{once:true});existente.addEventListener('error',reject,{once:true});return}
-  const script=document.createElement('script');script.dataset.jspdf='1';
-  script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
-  script.onload=resolve;script.onerror=()=>reject(new Error('No se pudo cargar el generador PDF.'));
-  document.head.appendChild(script);
- });
- if(!window.jspdf?.jsPDF)throw new Error('El generador PDF no está disponible.');
- return window.jspdf.jsPDF;
+ if(cargaJsPDF)return cargaJsPDF;
+ cargaJsPDF=(async()=>{
+  await new Promise((resolve,reject)=>{
+   const existente=document.querySelector('script[data-jspdf]');
+   const script=existente||document.createElement('script');
+   let terminado=false;
+   const limpiar=()=>{clearTimeout(limite);script.removeEventListener('load',cargar);script.removeEventListener('error',fallar)};
+   const cargar=()=>{if(terminado)return;terminado=true;limpiar();resolve()};
+   const fallar=()=>{if(terminado)return;terminado=true;limpiar();reject(new Error('No se pudo cargar el generador PDF. Comprueba tu conexión e inténtalo de nuevo.'))};
+   const limite=setTimeout(()=>{if(!existente)script.remove();fallar()},15000);
+   script.addEventListener('load',cargar,{once:true});
+   script.addEventListener('error',fallar,{once:true});
+   if(!existente){
+    script.dataset.jspdf='1';script.async=true;
+    script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
+    document.head.appendChild(script);
+   }
+  });
+  if(!window.jspdf?.jsPDF)throw new Error('El generador PDF no está disponible.');
+  return window.jspdf.jsPDF;
+ })();
+ try{return await cargaJsPDF}finally{cargaJsPDF=null}
 }
 async function imagenFactura(url){
  if(!url)return null;
  try{
-  const r=await fetch(url);if(!r.ok)return null;
+  const controlador=new AbortController(),limite=setTimeout(()=>controlador.abort(),5000);
+  let r;try{r=await fetch(url,{signal:controlador.signal})}finally{clearTimeout(limite)}
+  if(!r.ok)return null;
   const blob=await r.blob();if(!/^image\/(png|jpeg)$/i.test(blob.type))return null;
   const data=await new Promise((resolve,reject)=>{const fr=new FileReader();fr.onload=()=>resolve(fr.result);fr.onerror=reject;fr.readAsDataURL(blob)});
   return{data,formato:blob.type.toLowerCase().includes('png')?'PNG':'JPEG'};
