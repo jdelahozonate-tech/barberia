@@ -476,7 +476,7 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(index, /const \{ productos \} = crearModuloProductos/);
   assert.match(index, /pedidos: pedidosProductos/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v20/);
+  assert.match(sw, /barberia-v21/);
   assert.match(sw, /src\/modules\/pedidos\.js/);
 });
 
@@ -597,7 +597,7 @@ test('los perfiles de barberos permiten fotografía privada de administración y
   assert.match(index, /miperfil:miPerfil/);
   assert.match(sql, /CREATE POLICY barberos_perfil_propio/);
   assert.match(sql, /barberos_fotos_insertar/);
-  assert.match(sw, /barberia-v20/);
+  assert.match(sw, /barberia-v21/);
 });
 
 
@@ -720,4 +720,26 @@ test('Caja presenta un panel estructurado de ingresos, egresos, arqueo e histori
   assert.match(finanzas, /diferencia:n-esp/);
   assert.match(index, /\.cash-shell/);
   assert.match(index, /@media\(max-width:760px\)[\s\S]*?\.cash-metrics/);
+});
+
+
+test('el inventario clasifica artículos, calcula utilidad y convierte compras por presentación', () => {
+  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261122000000_inventario_profesional.sql'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  assert.match(productos, /tipo_inventario/);
+  assert.match(productos, /PRODUCTO_VENTA/);
+  assert.match(productos, /INSUMO/);
+  assert.match(productos, /EQUIPO/);
+  assert.match(productos, /const utilidad=p=>Number\(p\.precio_venta\|\|0\)-Number\(p\.costo_unitario\|\|0\)/);
+  assert.match(productos, /const costoUnitario=unidades>0\?costoPaquete\/unidades:0/);
+  assert.match(productos, /cantidad: d\.cantidad/);
+  assert.match(productos, /name="imagen"/);
+  assert.match(ventas, /q=q\.eq\('vendible',true\)/);
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS tipo_inventario/);
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS vendible boolean NOT NULL DEFAULT true/);
+  assert.match(sql, /vendible IS TRUE AND tipo_inventario='PRODUCTO_VENTA'/);
+  assert.match(index, /\['productos','Inventario'\]/);
+  assert.match(index, /\.inventory-purchase-line/);
 });
