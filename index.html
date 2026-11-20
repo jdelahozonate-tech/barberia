@@ -203,6 +203,27 @@ dialog::backdrop{background:rgba(16,34,63,.55)}
 }
 
 
+/* Caja: historial y reportes por período */
+.cash-report{display:grid;gap:14px}
+.cash-report-subtitle{margin:5px 0 0;color:var(--mute);font-size:.78rem}
+.cash-report-filters{display:grid;grid-template-columns:1fr 1fr auto auto;align-items:end;gap:10px;padding:12px;background:#f8f9fb;border:1px solid var(--line);border-radius:11px}
+.cash-report-filters label{display:grid;gap:5px;margin:0;color:var(--mute);font-size:.74rem}
+.cash-report-filters input{min-width:0;min-height:40px;padding:8px;border-radius:8px}
+.cash-report-presets{display:flex;flex-wrap:wrap;gap:5px}
+.cash-report-presets .btn{padding:8px 9px;font-size:.72rem;white-space:nowrap}
+.cash-report-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.cash-report-metrics article{display:grid;gap:4px;min-width:0;padding:13px;background:#fff;border:1px solid var(--line);border-radius:11px}
+.cash-report-metrics small,.cash-report-metrics span{color:var(--mute);font-size:.7rem}
+.cash-report-metrics strong{font-size:1.12rem;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.cash-report-methods{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:12px;background:#f8f9fb;border-radius:10px;font-size:.78rem}
+.cash-report-methods>strong{width:100%}
+.cash-report-methods>span{display:flex;gap:6px;color:var(--mute)}
+.cash-report-methods b{color:var(--ink)}
+.cash-report-subsection{display:grid;gap:10px}
+.cash-report-subsection h4{margin:0;font-size:.96rem}
+.cash-report-subsection .cash-section-heading{margin:0}
+@media(max-width:760px){.cash-report-filters{grid-template-columns:1fr 1fr}.cash-report-presets{grid-column:1/-1}.cash-report-filters>button[type=submit]{grid-column:1/-1}.cash-report-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.cash-report-filters{grid-template-columns:1fr}.cash-report-presets{grid-column:1}.cash-report-metrics article{padding:10px}.cash-report-metrics strong{font-size:1rem}}
 /* Caja: panel de control financiero */
 .cash-shell{display:grid;gap:19px;min-width:0}
 .cash-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:8px 0 2px}
