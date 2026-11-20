@@ -42,6 +42,10 @@ async function cargar(){
  if(p.barbero_id){
   const{data:barberoFoto}=await sb.from('barberos').select('foto_url').eq('negocio_id',p.negocio_id).eq('id',p.barbero_id).maybeSingle();
   fotoPerfil=fotoPerfil||barberoFoto?.foto_url||null;
+ }else if(auth.user.email){
+  // Algunos administradores también trabajan como barberos: buscar su foto por el correo de acceso.
+  const{data:barberoFoto}=await sb.from('barberos').select('foto_url').eq('negocio_id',p.negocio_id).ilike('correo',auth.user.email).maybeSingle();
+  fotoPerfil=fotoPerfil||barberoFoto?.foto_url||null;
  }
  S.perfil={...p,foto_url:fotoPerfil};S.negocio=p.negocios;shell();
 }
