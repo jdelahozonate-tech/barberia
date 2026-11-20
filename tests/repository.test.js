@@ -674,6 +674,8 @@ test('Caja permite consultar historial por fechas, ver balances y exportar movim
   assert.match(finanzas, /Exportar CSV/);
   assert.match(finanzas, /cash-report-metrics/);
   assert.match(finanzas, /fecha_apertura/);
+  assert.match(finanzas, /fecha_cierre/);
+  assert.match(finanzas, /\.range\(desde,desde\+999\)/);
   assert.match(finanzas, /estado_venta!=='ANULADA'/);
   assert.match(index, /\.cash-report-filters/);
   assert.match(index, /\.cash-report-metrics/);
