@@ -57,6 +57,17 @@ test('Agenda bloquea citas y reprogramaciones con fecha u hora pasada', () => {
   assert.match(agenda, /Selecciona un horario futuro/);
 });
 
+test('Ventas ofrece fiado identificado y comprobante PDF compartible', () => {
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  assert.match(ventas, /Registrar saldo pendiente \(fiado\)/);
+  assert.match(ventas, /Para registrar una venta fiada debes seleccionar el cliente/);
+  assert.match(ventas, /async function generarFacturaPDF/);
+  assert.match(ventas, /cdnjs\.cloudflare\.com\/ajax\/libs\/jspdf/);
+  assert.match(ventas, /navigator\.canShare/);
+  assert.match(ventas, /SALDO PENDIENTE/);
+  assert.match(ventas, /No sustituye una factura electrónica/);
+});
+
 test('todos los módulos JavaScript tienen sintaxis válida', () => {
   for (const file of sourceFiles) {
     checkSyntax(file, readFileSync(resolve(root, file), 'utf8'));
