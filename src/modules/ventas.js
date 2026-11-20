@@ -37,7 +37,7 @@ async function ventas(){
  const filtro=S.filtroVentas||'HOY',desde=S.ventasDesde||fechaEnZona(),hasta=S.ventasHasta||desde;
  const rango=rangoVentas(filtro,desde,hasta);
  const[{data,error},{data:citas,error:errorCitas}]=await Promise.all([
-  mio(sb.from('ventas').select('*,clientes(nombre),barberos(nombre)').eq('negocio_id',S.perfil.negocio_id).gte('fecha_hora',rango.desde).lt('fecha_hora',rango.hasta).order('fecha_hora',{ascending:false}).limit(500)),
+  mio(sb.from('ventas').select('*,clientes(nombre,telefono),barberos(nombre)').eq('negocio_id',S.perfil.negocio_id).gte('fecha_hora',rango.desde).lt('fecha_hora',rango.hasta).order('fecha_hora',{ascending:false}).limit(500)),
   mio(sb.from('citas').select('id,cliente_id,barbero_id,servicio_id,inicio,fin,estado,clientes(nombre),barberos(nombre),servicios(nombre,precio)').eq('negocio_id',S.perfil.negocio_id).in('estado',['PENDIENTE','CONFIRMADA','ATENDIDA']).order('inicio',{ascending:false}).limit(100))
  ]);
  if(error)return toast(traducir(error.message),true);
@@ -138,7 +138,7 @@ async function nuevaVenta(pre,tipo='MIXTA'){
  <label>Servicios y productos</label><div id="lns">${lin()}</div><button type="button" class="link" id="ad">Agregar otro ítem</button>
  <label for="v3">Descuento</label><input id="v3" name="descuento" type="number" min="0" value="0" inputmode="decimal">
  <p class="tot" id="tt"></p>
- <label>Pagos recibidos</label><div id="pgs">${pl()}</div><button type="button" class="link" id="ap">Agregar otro método de pago</button><p class="mute" id="fl"></p>
+ <label>Pagos recibidos</label><div id="pgs">${pl()}</div><button type="button" class="link" id="ap">Agregar otro método de pago</button>${S.negocio.permitir_saldos?'<label class="chk" style="margin-top:10px"><input type="checkbox" id="vfiado"> Registrar saldo pendiente (fiado)</label>':''}<p class="mute" id="fl"></p>
  <div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Cobrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  const calc=()=>{const L=[...document.querySelectorAll('#lns .ln')].map(l=>({i:items.find(x=>x.k===l.querySelector('select').value),q:Number(l.querySelector('input').value)}));const br=L.reduce((s,l)=>s+(l.i?l.i.p*l.q:NaN),0),ds=Number($('#v3').value);return{L,br,ds,t:br-ds}};
@@ -146,9 +146,9 @@ async function nuevaVenta(pre,tipo='MIXTA'){
  $('#pgs').onchange=e=>{if(e.target.tagName==='SELECT'&&!e.target.classList.contains('cu'))e.target.closest('.ln').querySelector('.cu').hidden=e.target.value==='EFECTIVO'||!cu.length};
  const ref=()=>{const c=calc(),f=$('#pgs .ln input');$('#tt').textContent='Total: '+dinero(c.t);
   if(!f.dataset.m&&document.querySelectorAll('#pgs .ln').length===1)f.value=Math.max(0,c.t);
-  const rec=pagos().reduce((s,x)=>s+x.v,0);$('#fl').textContent=rec<c.t?'Falta por cobrar: '+dinero(c.t-rec):rec>c.t?'Sobran '+dinero(rec-c.t):'Pago completo'};
+  const rec=pagos().reduce((s,x)=>s+x.v,0),fiado=!!$('#vfiado')?.checked;$('#fl').textContent=rec<c.t?(fiado?'Saldo a crédito: ':'Falta por cobrar: ')+dinero(c.t-rec):rec>c.t?'Sobran '+dinero(rec-c.t):'Pago completo'};
  $('#pgs').oninput=e=>{if(e.target.tagName==='INPUT')e.target.dataset.m=1};
- $('#df').oninput=ref;$('#df').onchange=ref;
+ $('#df').oninput=ref;$('#df').onchange=ref;const fiado=$('#vfiado');if(fiado)fiado.onchange=ref;
  $('#ad').onclick=()=>{$('#lns').insertAdjacentHTML('beforeend',lin());ref()};
  $('#lns').onclick=e=>{if(e.target.classList.contains('rm')){if(document.querySelectorAll('#lns .ln').length===1)return toast('La venta debe tener al menos un ítem.',true);e.target.closest('.ln').remove();ref()}};
  $('#ap').onclick=()=>{const rec=pagos().reduce((s,x)=>s+x.v,0);$('#pgs').insertAdjacentHTML('beforeend',pl());$('#pgs .ln:last-child input').value=Math.max(0,calc().t-rec)||'';ref()};ref();
@@ -158,7 +158,8 @@ async function nuevaVenta(pre,tipo='MIXTA'){
   if(!c.L.length||c.L.some(l=>!l.i||!Number.isFinite(l.q)||l.q<=0||!Number.isFinite(l.i.p)||l.i.p<0)||!Number.isFinite(c.t)||!Number.isFinite(c.ds)||valoresPago.some(x=>!Number.isFinite(x)||x<0)||!Number.isFinite(pago)){guardando=false;if(boton)boton.disabled=false;return toast('Revisa las cantidades, precios y valores de pago. Deben ser números válidos y no negativos.',true)}
   if(c.ds<0||c.ds>c.L.reduce((s,l)=>s+l.i.p*l.q,0)){guardando=false;if(boton)boton.disabled=false;return toast('El descuento debe estar entre cero y el subtotal.',true)}
   if(pago>c.t){guardando=false;if(boton)boton.disabled=false;return toast('El pago no puede superar el total.',true)}
-  if(pago<c.t&&!S.negocio.permitir_saldos){guardando=false;if(boton)boton.disabled=false;return toast('Esta barbería no permite saldos pendientes. Recibe el pago completo.',true)}
+  if(pago<c.t&&(!S.negocio.permitir_saldos||!$('#vfiado')?.checked)){guardando=false;if(boton)boton.disabled=false;return toast(S.negocio.permitir_saldos?'Para dejar saldo pendiente, activa la opción de fiado.':'Esta barbería no permite saldos pendientes. Recibe el pago completo.',true)}
+  if(pago<c.t&&!f.cliente_id){guardando=false;if(boton)boton.disabled=false;return toast('Para registrar una venta fiada debes seleccionar el cliente responsable de la deuda.',true)}
   if(cu.length&&PG.some(x=>x.m!=='EFECTIVO'&&!x.c)){guardando=false;if(boton)boton.disabled=false;return toast('Elige la cuenta donde entró cada pago que no es en efectivo.',true)}
   const{data:cajaActual,error:errorCajaActual}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
   if(errorCajaActual){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorCajaActual.message),true)}
@@ -242,6 +243,97 @@ async function editarVenta(v, actuales){
  ref();
 }
 
+async function cargarJsPDF(){
+ if(window.jspdf?.jsPDF)return window.jspdf.jsPDF;
+ await new Promise((resolve,reject)=>{
+  const existente=document.querySelector('script[data-jspdf]');
+  if(existente){existente.addEventListener('load',resolve,{once:true});existente.addEventListener('error',reject,{once:true});return}
+  const script=document.createElement('script');script.dataset.jspdf='1';
+  script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
+  script.onload=resolve;script.onerror=()=>reject(new Error('No se pudo cargar el generador PDF.'));
+  document.head.appendChild(script);
+ });
+ if(!window.jspdf?.jsPDF)throw new Error('El generador PDF no está disponible.');
+ return window.jspdf.jsPDF;
+}
+async function imagenFactura(url){
+ if(!url)return null;
+ try{
+  const r=await fetch(url);if(!r.ok)return null;
+  const blob=await r.blob();if(!/^image\/(png|jpeg)$/i.test(blob.type))return null;
+  const data=await new Promise((resolve,reject)=>{const fr=new FileReader();fr.onload=()=>resolve(fr.result);fr.onerror=reject;fr.readAsDataURL(blob)});
+  return{data,formato:blob.type.toLowerCase().includes('png')?'PNG':'JPEG'};
+ }catch{return null}
+}
+async function generarFacturaPDF(v,detalles,pagos){
+ const jsPDF=await cargarJsPDF(),doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+ const ancho=210,margen=16,moneda=n=>dinero(Number(n)||0),fecha=new Date(v.fecha_hora).toLocaleString('es-CO',{dateStyle:'long',timeStyle:'short'});
+ const nombreArchivo='Comprobante-'+String(v.id).slice(0,8).toUpperCase()+'.pdf';
+ doc.setFillColor(24,43,67);doc.rect(0,0,ancho,43,'F');
+ const logo=await imagenFactura(S.negocio.logo_url);
+ if(logo)doc.addImage(logo.data,logo.formato,margen,9,25,25);
+ doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(16);
+ doc.text(String(S.negocio.nombre||'Barbería'),logo?47:margen,16);
+ doc.setFont('helvetica','normal');doc.setFontSize(9);
+ const contacto=[S.negocio.telefono,S.negocio.direccion].filter(Boolean).join(' · ');
+ if(contacto)doc.text(String(contacto),logo?47:margen,23,{maxWidth:145});
+ doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('COMPROBANTE DE VENTA',ancho-margen,35,{align:'right'});
+ doc.setTextColor(35,45,58);doc.setFont('helvetica','bold');doc.setFontSize(10);
+ doc.text('Comprobante: V-'+String(v.id).slice(0,8).toUpperCase(),margen,54);
+ doc.setFont('helvetica','normal');doc.setFontSize(9);
+ doc.text('Fecha: '+fecha,margen,61);
+ doc.text('Cliente: '+String(v.clientes?.nombre||'Cliente de paso'),margen,68);
+ doc.text('Teléfono: '+String(v.clientes?.telefono||'No registrado'),margen,75);
+ doc.text('Atendido por: '+String(v.barberos?.nombre||'No asignado'),margen,82);
+ let y=94;
+ const encabezado=()=>{doc.setFillColor(239,243,248);doc.rect(margen,y,ancho-margen*2,9,'F');doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40,55,72);doc.text('DESCRIPCIÓN',margen+2,y+6);doc.text('CANT.',128,y+6,{align:'right'});doc.text('VALOR',158,y+6,{align:'right'});doc.text('SUBTOTAL',ancho-margen-2,y+6,{align:'right'});y+=14};
+ encabezado();
+ doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(45,52,60);
+ for(const item of detalles){
+  const desc=doc.splitTextToSize(String(item.descripcion||'Servicio o producto'),91);
+  const alto=Math.max(7,desc.length*4.2);
+  if(y+alto>255){doc.addPage();y=20;encabezado();doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(45,52,60)}
+  const subtotal=item.subtotal==null?Number(item.cantidad)*Number(item.precio_unitario):Number(item.subtotal);
+  doc.text(desc,margen+2,y);
+  doc.text(String(Number(item.cantidad)||0),128,y,{align:'right'});
+  doc.text(moneda(item.precio_unitario),158,y,{align:'right'});
+  doc.text(moneda(subtotal),ancho-margen-2,y,{align:'right'});
+  y+=alto+3;doc.setDrawColor(228,233,239);doc.line(margen,y,ancho-margen,y);y+=2;
+ }
+ y+=5;
+ const resumen=(label,valor,negrita=false)=>{if(y>260){doc.addPage();y=20}doc.setFont('helvetica',negrita?'bold':'normal');doc.setFontSize(negrita?11:9);doc.setTextColor(40,48,58);doc.text(label,ancho-91,y);doc.text(valor,ancho-margen,y,{align:'right'});y+=7};
+ resumen('Subtotal',moneda(v.total_bruto));
+ if(Number(v.descuento)>0)resumen('Descuento','-'+moneda(v.descuento));
+ resumen('TOTAL',moneda(v.total_venta),true);y+=2;
+ resumen('Pagado',moneda(v.total_pagado));
+ resumen('SALDO PENDIENTE',moneda(v.saldo_pendiente),true);
+ if(pagos.length){
+  y+=5;if(y>250){doc.addPage();y=20}
+  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('Detalle de pagos',margen,y);y+=6;
+  doc.setFont('helvetica','normal');doc.setFontSize(8);
+  pagos.forEach(p=>{if(y>270){doc.addPage();y=20}doc.text(new Date(p.fecha_hora).toLocaleDateString('es-CO')+' · '+String(p.metodo_pago||'').replaceAll('_',' '),margen,y);doc.text(moneda(p.valor_pago),ancho-margen,y,{align:'right'});y+=5});
+ }
+ y=Math.min(Math.max(y+8,235),276);
+ doc.setFillColor(239,244,249);doc.roundedRect(margen,y,ancho-margen*2,19,2,2,'F');
+ doc.setTextColor(37,58,78);doc.setFont('helvetica','bold');doc.setFontSize(9);
+ doc.text('¡Gracias por preferirnos!',ancho/2,y+7,{align:'center'});
+ doc.setFont('helvetica','normal');doc.setFontSize(8);
+ doc.text('Agradecemos tu confianza. Te esperamos pronto.',ancho/2,y+13,{align:'center'});
+ doc.setFontSize(6);doc.setTextColor(110,115,122);
+ doc.text('Comprobante comercial. No sustituye una factura electrónica de venta autorizada por la DIAN.',ancho/2,290,{align:'center'});
+ const blob=doc.output('blob'),archivo=new File([blob],nombreArchivo,{type:'application/pdf'});
+ const telefono=String(v.clientes?.telefono||'').replace(/\D/g,'');
+ const numero=telefono.length===10?'57'+telefono:telefono;
+ const mensaje='Hola '+String(v.clientes?.nombre||'')+', te compartimos el comprobante de tu compra en '+String(S.negocio.nombre||'la barbería')+'. ¡Gracias por preferirnos!';
+ if(navigator.share&&navigator.canShare?.({files:[archivo]})){
+  await navigator.share({files:[archivo],title:'Comprobante de venta',text:mensaje});
+  return;
+ }
+ doc.save(nombreArchivo);
+ if(numero.length>=7)window.open('https://wa.me/'+numero+'?text='+encodeURIComponent(mensaje),'_blank','noopener');
+ toast(numero.length>=7?'PDF descargado. Adjunta el archivo en WhatsApp para enviarlo al cliente.':'PDF descargado. El cliente no tiene teléfono registrado.',false);
+}
+
 async function detalleVenta(v){
  const[rd,rp]=await Promise.all([sb.from('detalle_ventas').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id),sb.from('pagos').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id).order('fecha_hora')]);
  if(rd.error)return toast(traducir(rd.error.message),true);if(rp.error)return toast(traducir(rp.error.message),true);
@@ -253,9 +345,10 @@ async function detalleVenta(v){
  ${fila('Total',dinero(v.total_venta),'tot')}${fila('Pagado',dinero(v.total_pagado))}${fila('Saldo',dinero(v.saldo_pendiente))}
  ${p.length?'<label>Pagos</label>'+p.map(x=>fila(bonito(x.metodo_pago)+', '+hora(x.fecha_hora),dinero(x.valor_pago))).join(''):''}
  ${abierta?`<label for="pg">Registrar otro pago</label><div class="ln"><input id="pg" type="number" min="1" inputmode="decimal" value="${v.saldo_pendiente}"><select id="mp" aria-label="Método">${METODOS}</select></div><button type="button" class="btn block" id="rp">Registrar pago</button>`:''}
- ${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button><button type="button" class="btn sec block" id="an">Anular venta</button>':''}
+ ${v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="pdf">Generar factura PDF y compartir</button>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button><button type="button" class="btn sec block" id="an">Anular venta</button>':''}
  <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
+ const pdf=$('#pdf');if(pdf)pdf.onclick=async()=>{if(pdf.disabled)return;pdf.disabled=true;try{await generarFacturaPDF(v,d,p)}catch(error){if(error?.name!=='AbortError')toast('No se pudo generar o compartir el PDF: '+(error.message||'Error inesperado'),true)}finally{pdf.disabled=false}};
  if(abierta)$('#rp').onclick=async()=>{const b=$('#rp');if(b.disabled)return;const n=Number($('#pg').value);
   if(!(n>0)||n>v.saldo_pendiente)return toast('El pago debe ser mayor a cero y no superar el saldo.',true);
   b.disabled=true;
