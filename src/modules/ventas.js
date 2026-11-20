@@ -325,10 +325,12 @@ async function generarFacturaPDFVisual(v,detalles,pagos){
  const doc=new PDF({orientation:'portrait',unit:'mm',format:'letter',compress:true});
  const frame=document.createElement('iframe');
  frame.setAttribute('aria-hidden','true');
- frame.style.cssText='position:fixed;left:-10000px;top:0;width:900px;height:1600px;border:0;visibility:hidden;';
+ frame.style.cssText='position:fixed;left:-10000px;top:0;width:900px;height:1600px;border:0;';
  document.body.appendChild(frame);
  try{
-  const html=htmlComprobanteVenta(v,detalles,pagos).replace(/<script[\s\S]*?<\/script>/gi,'');
+  let html=htmlComprobanteVenta(v,detalles,pagos).replace(/<script[\s\S]*?<\/script>/gi,'');
+  const logoData=await logoComprobanteDataURL((S.negocio||{}).logo_url||'./logo-dhbarber.png');
+  if(logoData)html=html.replace(/(<img class="logo" id="logo" src=")[^"]+(" alt=)/,(_,a,b)=>a+logoData+b);
   await new Promise((resolve,reject)=>{
    frame.onload=resolve;
    frame.onerror=()=>reject(new Error('No se pudo preparar la plantilla visual del comprobante.'));
