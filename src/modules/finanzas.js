@@ -17,6 +17,7 @@ async function caja(){
     ${historial?.length?'<div class="cash-history-grid">'+historial.map(c=>{const dif=Number(c.diferencia||0);return '<article class="cash-history-card"><div class="cash-history-top"><strong>'+new Date(c.fecha_cierre||c.fecha_apertura).toLocaleDateString('es-CO',{day:'numeric',month:'short',year:'numeric'})+'</strong><span class="cash-difference '+(dif===0?'balanced':dif>0?'surplus':'shortage')+'">'+(dif>0?'+':'')+dinero(dif)+'</span></div><div class="cash-history-values"><span><small>Efectivo esperado</small><strong>'+dinero(c.efectivo_esperado??0)+'</strong></span><span><small>Efectivo contado</small><strong>'+dinero(c.efectivo_contado??0)+'</strong></span></div><small class="cash-history-note">'+(c.observaciones?esc(c.observaciones):'Sin observaciones')+'</small></article>'}).join('')+'</div>':'<div class="cash-empty"><span>▣</span><strong>Aún no hay cierres registrados</strong><p>Cuando cierres tu primer turno, aquí podrás consultar el resultado y las diferencias.</p></div>'}
    </section></section>`;
   $('#cash-open-form').onsubmit=async e=>{e.preventDefault();const b=$('#ab');if(b.disabled)return;const inicial=Number($('#si').value);if(!Number.isFinite(inicial)||inicial<0)return toast('El saldo inicial debe ser un valor válido y no negativo.',true);b.disabled=true;const{error}=await sb.from('cajas').insert({negocio_id:nid,usuario_apertura:S.perfil.id,saldo_inicial:inicial});if(error){b.disabled=false;return toast(error.message,true)}toast('Caja abierta correctamente');caja()};
+  await historialCaja();
   return;
  }
  const[rp,rg,rc]=await Promise.all([
@@ -71,6 +72,7 @@ async function caja(){
   </section>
   <footer class="cash-actions"><div><strong>¿Terminaste el turno?</strong><small>Cuenta el efectivo físico y compáralo con el valor esperado antes de cerrar.</small></div><div><button class="btn sec" id="gs">＋ Registrar gasto</button><button class="btn cash-close-button" id="ce">Realizar cierre de caja</button></div></footer>
  </section>`;
+ await historialCaja();
  $('#gs').onclick=()=>gasto(cj);
  const filtrar=()=>{const filtro=$('#cash-filter').value,lista=movimientos.filter(m=>filtro==='todos'||m.tipo===filtro);$('#cash-movement-list').innerHTML=htmlMovimientos(lista);$('#cash-movement-count').textContent=lista.length+' movimientos'};
  $('#cash-filter').onchange=filtrar;
@@ -90,6 +92,60 @@ async function caja(){
    const{error}=await sb.from('cajas').update({estado_caja:'CERRADA',fecha_cierre:new Date().toISOString(),usuario_cierre:S.perfil.id,efectivo_esperado:esp,efectivo_contado:n,diferencia:n-esp,observaciones:$('#co').value.trim()||null}).eq('id',cj.id).eq('negocio_id',nid).eq('estado_caja','ABIERTA');
    if(error){cerrando=false;if(boton)boton.disabled=false;return toast(error.message,true)}dlg.close();toast('Caja cerrada correctamente');caja()};
  };
+}
+async function historialCaja(){
+ const shell=document.querySelector('#main .cash-shell');if(!shell)return;
+ const fechaLocal=d=>{const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)};
+ const hoy=new Date(),fin=fechaLocal(hoy),inicioDate=new Date(hoy);inicioDate.setDate(inicioDate.getDate()-6);const inicio=fechaLocal(inicioDate);
+ const section=document.createElement('section');section.className='cash-history cash-report';
+ section.innerHTML='<div class="cash-section-heading"><div><span class="cash-eyebrow">CONSULTAS E INFORMES</span><h3>Historial de caja y movimientos</h3><p class="cash-report-subtitle">Consulta ingresos, egresos y cierres anteriores sin modificar los registros.</p></div><span class="cash-count">Por período</span></div>'+
+ '<form class="cash-report-filters" id="cash-report-form"><label>Desde<input type="date" name="desde" value="'+inicio+'" required></label><label>Hasta<input type="date" name="hasta" value="'+fin+'" required></label>'+
+ '<div class="cash-report-presets"><button type="button" class="btn sec" data-cash-period="hoy">Hoy</button><button type="button" class="btn sec" data-cash-period="7">7 días</button><button type="button" class="btn sec" data-cash-period="30">30 días</button><button type="button" class="btn sec" data-cash-period="mes">Este mes</button></div><button class="btn" type="submit">Consultar</button></form>'+
+ '<div id="cash-report-results"><div class="cash-empty compact">Preparando consulta…</div></div>';
+ shell.append(section);
+ const form=section.querySelector('#cash-report-form'),results=section.querySelector('#cash-report-results');
+ const fechaISO=d=>{const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)};
+ const fechaMostrar=d=>new Date(d).toLocaleString('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+ const csvCell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';let ultimaConsulta=[];
+ async function consultar(){
+  const desde=form.elements.desde.value,hasta=form.elements.hasta.value;
+  if(!desde||!hasta||desde>hasta)return toast('Verifica el rango de fechas: la fecha inicial no puede ser posterior a la final.',true);
+  const inicioUTC=new Date(desde+'T00:00:00').toISOString(),finDate=new Date(hasta+'T00:00:00');finDate.setDate(finDate.getDate()+1);const finUTC=finDate.toISOString(),nid=S.perfil.negocio_id;
+  results.innerHTML='<div class="cash-empty compact">Consultando movimientos del período…</div>';
+  const [rc,rp,rg,rcp]=await Promise.all([
+   sb.from('cajas').select('*').eq('negocio_id',nid).gte('fecha_apertura',inicioUTC).lt('fecha_apertura',finUTC).order('fecha_apertura',{ascending:false}).limit(500),
+   sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,estado_pago,ventas(estado_venta,clientes(nombre))').eq('negocio_id',nid).eq('estado_pago','REGISTRADO').gte('fecha_hora',inicioUTC).lt('fecha_hora',finUTC).order('fecha_hora',{ascending:false}).limit(1000),
+   sb.from('gastos').select('valor,metodo_pago,fecha_hora,descripcion,categoria_gasto,proveedor,estado_gasto,caja_id').eq('negocio_id',nid).eq('estado_gasto','REGISTRADO').gte('fecha_hora',inicioUTC).lt('fecha_hora',finUTC).order('fecha_hora',{ascending:false}).limit(1000),
+   sb.from('pagos_compras_inventario').select('valor_pago,metodo_pago,fecha_pago,compra_id,caja_id').eq('negocio_id',nid).gte('fecha_pago',inicioUTC).lt('fecha_pago',finUTC).order('fecha_pago',{ascending:false}).limit(1000)
+  ]);
+  const error=[rc.error,rp.error,rg.error,rcp.error].find(Boolean);
+  if(error){results.innerHTML='<div class="cash-empty"><strong>No fue posible consultar el historial</strong><p>'+esc(error.message)+'</p></div>';return}
+  const cajas=rc.data||[],pagos=(rp.data||[]).filter(p=>p.ventas?.estado_venta!=='ANULADA'),gastos=rg.data||[],compras=rcp.data||[];
+  const movimientos=[
+   ...pagos.map(p=>({fecha:p.fecha_hora,tipo:'Ingreso',concepto:p.ventas?.clientes?.nombre||'Cliente de paso',metodo:p.metodo_pago,valor:Number(p.valor_pago),caja:'No asignada'})),
+   ...gastos.map(g=>({fecha:g.fecha_hora,tipo:'Gasto',concepto:g.descripcion||bonito(g.categoria_gasto),metodo:g.metodo_pago,valor:-Number(g.valor),caja:g.caja_id||'No asignada'})),
+   ...compras.map(p=>({fecha:p.fecha_pago,tipo:'Pago a proveedor',concepto:'Compra '+String(p.compra_id||'').slice(0,8),metodo:p.metodo_pago,valor:-Number(p.valor_pago),caja:p.caja_id||'No asignada'}))
+  ].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
+  const totalIngresos=pagos.reduce((s,p)=>s+Number(p.valor_pago||0),0),totalGastos=gastos.reduce((s,g)=>s+Number(g.valor||0),0),totalCompras=compras.reduce((s,p)=>s+Number(p.valor_pago||0),0),totalEgresos=totalGastos+totalCompras;
+  const porMetodo={};pagos.forEach(p=>porMetodo[p.metodo_pago]=(porMetodo[p.metodo_pago]||0)+Number(p.valor_pago||0));ultimaConsulta=movimientos;
+  const tarjetas=cajas.length?cajas.map(c=>{const d=Number(c.diferencia||0);return '<article class="cash-history-card"><div class="cash-history-top"><strong>'+fechaMostrar(c.fecha_apertura)+'</strong><span class="cash-difference '+(c.estado_caja==='ABIERTA'?'balanced':d===0?'balanced':d>0?'surplus':'shortage')+'">'+(c.estado_caja==='ABIERTA'?'Abierta':(d>0?'+':'')+dinero(d))+'</span></div><div class="cash-history-values"><span><small>Saldo inicial</small><strong>'+dinero(c.saldo_inicial)+'</strong></span><span><small>Efectivo esperado</small><strong>'+dinero(c.efectivo_esperado??0)+'</strong></span><span><small>Efectivo contado</small><strong>'+dinero(c.efectivo_contado??0)+'</strong></span><span><small>Cierre</small><strong>'+(c.fecha_cierre?fechaMostrar(c.fecha_cierre):'En curso')+'</strong></span></div><small class="cash-history-note">'+esc(c.observaciones||'Sin observaciones')+'</small></article>'}).join(''):'<div class="cash-empty compact">No hay aperturas de caja en este período.</div>';
+  const detalle=movimientos.length?movimientos.map(m=>'<article class="cash-movement"><span class="cash-movement-icon '+(m.valor>=0?'ingreso':'gasto')+'">'+(m.valor>=0?'↙':'↗')+'</span><span class="cash-movement-info"><strong>'+esc(m.concepto)+'</strong><small>'+esc(m.tipo)+' · '+esc(bonito(m.metodo||''))+'</small><small>'+fechaMostrar(m.fecha)+'</small></span><strong class="cash-movement-value '+(m.valor>=0?'positive':'negative')+'">'+(m.valor>=0?'+':'−')+dinero(Math.abs(m.valor))+'</strong></article>').join(''):'<div class="cash-empty compact">No hay movimientos en el período seleccionado.</div>';
+  results.innerHTML='<div class="cash-report-metrics"><article><small>Ingresos</small><strong>'+dinero(totalIngresos)+'</strong><span>'+pagos.length+' pagos válidos</span></article><article><small>Egresos</small><strong>'+dinero(totalEgresos)+'</strong><span>Gastos y pagos a proveedores</span></article><article><small>Balance neto</small><strong class="'+(totalIngresos-totalEgresos>=0?'positive':'negative')+'">'+dinero(totalIngresos-totalEgresos)+'</strong><span>Ingresos menos egresos</span></article><article><small>Cierres / aperturas</small><strong>'+cajas.length+'</strong><span>'+cajas.filter(c=>c.estado_caja==='CERRADA').length+' cerradas · '+cajas.filter(c=>c.estado_caja==='ABIERTA').length+' abiertas</span></article></div>'+
+   '<div class="cash-report-methods"><strong>Ingresos por medio de pago</strong>'+(Object.entries(porMetodo).length?Object.entries(porMetodo).map(([m,v])=>'<span>'+esc(bonito(m))+' <b>'+dinero(v)+'</b></span>').join(''):'<small>Sin ingresos registrados</small>')+'</div>'+
+   '<div class="cash-report-subsection"><div class="cash-section-heading"><div><span class="cash-eyebrow">TURNOS</span><h4>Aperturas y cierres</h4></div><span class="cash-count">'+cajas.length+' registros</span></div><div class="cash-history-grid">'+tarjetas+'</div></div>'+
+   '<div class="cash-report-subsection"><div class="cash-section-heading"><div><span class="cash-eyebrow">DETALLE</span><h4>Movimientos del período</h4></div><button type="button" class="btn sec" id="cash-export">Exportar CSV</button></div><div class="cash-movement-list">'+detalle+'</div></div>';
+  const exportar=results.querySelector('#cash-export');if(exportar)exportar.onclick=()=>{
+   const filas=[['Fecha','Tipo','Concepto','Método de pago','Valor','Caja'],...ultimaConsulta.map(m=>[fechaMostrar(m.fecha),m.tipo,m.concepto,m.metodo,m.valor,m.caja])];
+   const contenido='\uFEFF'+filas.map(f=>f.map(csvCell).join(';')).join('\r\n'),url=URL.createObjectURL(new Blob([contenido],{type:'text/csv;charset=utf-8;'})),a=document.createElement('a');a.href=url;a.download='caja_'+desde+'_a_'+hasta+'.csv';a.click();URL.revokeObjectURL(url);
+  };
+ }
+ form.onsubmit=async e=>{e.preventDefault();await consultar()};
+ section.querySelectorAll('[data-cash-period]').forEach(b=>b.onclick=()=>{
+  const ahora=new Date(),modo=b.dataset.cashPeriod;let desde=new Date(ahora);
+  if(modo==='mes')desde=new Date(ahora.getFullYear(),ahora.getMonth(),1);else if(modo!=='hoy')desde.setDate(desde.getDate()-Number(modo)+1);
+  form.elements.desde.value=fechaISO(desde);form.elements.hasta.value=fechaISO(ahora);consultar();
+ });
+ await consultar();
 }
 async function gasto(cj){
  const{data:cajaActiva,error:errorCaja}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
