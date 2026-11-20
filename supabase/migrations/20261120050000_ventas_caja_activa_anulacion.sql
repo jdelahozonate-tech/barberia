@@ -43,12 +43,13 @@ SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
   v_caja uuid;
+  v_inicio timestamptz;
 BEGIN
   IF auth.uid() IS NULL OR NEW.negocio_id IS DISTINCT FROM public.mi_negocio() THEN
     RAISE EXCEPTION 'Sesión o negocio no válido para registrar la venta.';
   END IF;
 
-  SELECT c.id INTO v_caja
+  SELECT c.id, c.fecha_apertura INTO v_caja, v_inicio
   FROM public.cajas c
   WHERE c.negocio_id = NEW.negocio_id
     AND c.estado_caja = 'ABIERTA'
@@ -58,6 +59,10 @@ BEGIN
 
   IF v_caja IS NULL THEN
     RAISE EXCEPTION 'Para registrar una venta debes tener una caja abierta.';
+  END IF;
+
+  IF NEW.fecha_hora < v_inicio OR NEW.fecha_hora > now() THEN
+    RAISE EXCEPTION 'La fecha de la venta debe estar dentro del turno de caja abierto.';
   END IF;
 
   NEW.caja_id := v_caja;
