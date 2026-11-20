@@ -92,7 +92,10 @@ BEGIN
     FROM public.citas c
     WHERE c.id=p_cita_id AND c.negocio_id=v_negocio
     FOR UPDATE;
-    IF NOT FOUND OR v_cita.estado NOT IN ('PENDIENTE','CONFIRMADA','ATENDIDA') THEN
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'No se encontró la cita en este negocio.';
+    END IF;
+    IF v_cita.estado NOT IN ('PENDIENTE','CONFIRMADA','ATENDIDA') THEN
       RAISE EXCEPTION 'La cita ya no está disponible para cobro.';
     END IF;
     IF v_cita.cliente_id IS DISTINCT FROM p_cliente_id
@@ -348,6 +351,106 @@ $$;
 
 REVOKE ALL ON FUNCTION public.registrar_venta_transaccional(uuid,uuid,numeric,uuid,jsonb,jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.registrar_venta_transaccional(uuid,uuid,numeric,uuid,jsonb,jsonb) TO authenticated;
+
+
+CREATE OR REPLACE FUNCTION public.registrar_abono_venta_transaccional(
+  p_venta_id uuid,
+  p_valor numeric,
+  p_metodo_pago text,
+  p_cuenta_id uuid DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $
+DECLARE
+  v_negocio uuid := public.mi_negocio();
+  v_rol text := public.mi_rol();
+  v_estado text;
+  v_total numeric(14,2);
+  v_pagado numeric(14,2);
+  v_saldo numeric(14,2);
+  v_metodo text := upper(trim(COALESCE(p_metodo_pago,'')));
+  v_caja uuid;
+BEGIN
+  IF auth.uid() IS NULL OR v_negocio IS NULL THEN
+    RAISE EXCEPTION 'Sesión o negocio no válido.';
+  END IF;
+  IF COALESCE(v_rol,'') NOT IN ('ADMINISTRADOR','SUPERVISOR') THEN
+    RAISE EXCEPTION 'No tienes permisos para registrar abonos de ventas.';
+  END IF;
+  IF p_valor IS NULL OR p_valor<=0
+     OR p_valor::text IN ('NaN','Infinity','-Infinity') THEN
+    RAISE EXCEPTION 'El abono debe ser un valor positivo y válido.';
+  END IF;
+  IF v_metodo NOT IN ('EFECTIVO','TRANSFERENCIA','TARJETA','NEQUI','DAVIPLATA') THEN
+    RAISE EXCEPTION 'Método de pago no válido.';
+  END IF;
+
+  SELECT v.estado_venta,v.total_venta,v.total_pagado
+    INTO v_estado,v_total,v_pagado
+  FROM public.ventas v
+  WHERE v.id=p_venta_id AND v.negocio_id=v_negocio
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'No se encontró la venta en este negocio.';
+  END IF;
+  IF v_estado='ANULADA' THEN
+    RAISE EXCEPTION 'No se pueden registrar abonos a una venta anulada.';
+  END IF;
+  v_saldo:=GREATEST(0,COALESCE(v_total,0)-COALESCE(v_pagado,0));
+  IF v_saldo<=0 THEN
+    RAISE EXCEPTION 'Esta venta ya está completamente pagada.';
+  END IF;
+  IF p_valor>v_saldo THEN
+    RAISE EXCEPTION 'El abono no puede superar el saldo pendiente (%).',v_saldo;
+  END IF;
+
+  SELECT c.id INTO v_caja
+  FROM public.cajas c
+  WHERE c.negocio_id=v_negocio AND c.estado_caja='ABIERTA'
+  ORDER BY c.fecha_apertura DESC
+  LIMIT 1
+  FOR UPDATE;
+  IF v_caja IS NULL THEN
+    RAISE EXCEPTION 'Abre Caja antes de registrar un abono.';
+  END IF;
+
+  IF p_cuenta_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM public.cuentas c
+    WHERE c.id=p_cuenta_id AND c.negocio_id=v_negocio AND c.estado='ACTIVO'
+  ) THEN
+    RAISE EXCEPTION 'La cuenta de recaudo no pertenece a este negocio o está inactiva.';
+  END IF;
+
+  INSERT INTO public.pagos(
+    negocio_id,venta_id,valor_pago,metodo_pago,cuenta_id,recibido_por
+  ) VALUES(
+    v_negocio,p_venta_id,p_valor,v_metodo,p_cuenta_id,auth.uid()
+  );
+
+  SELECT COALESCE(SUM(pg.valor_pago),0) INTO v_pagado
+  FROM public.pagos pg
+  WHERE pg.negocio_id=v_negocio AND pg.venta_id=p_venta_id
+    AND pg.estado_pago='REGISTRADO';
+
+  UPDATE public.ventas
+  SET total_pagado=v_pagado,
+      saldo_pendiente=GREATEST(0,COALESCE(total_venta,0)-v_pagado),
+      estado_venta=CASE WHEN COALESCE(total_venta,0)>0 AND v_pagado>=total_venta
+        THEN 'PAGADA' ELSE 'PENDIENTE' END
+  WHERE id=p_venta_id AND negocio_id=v_negocio;
+
+  RETURN jsonb_build_object(
+    'venta_id',p_venta_id,'total_pagado',v_pagado,
+    'saldo_pendiente',GREATEST(0,COALESCE(v_total,0)-v_pagado)
+  );
+END;
+$;
+
+REVOKE ALL ON FUNCTION public.registrar_abono_venta_transaccional(uuid,numeric,text,uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.registrar_abono_venta_transaccional(uuid,numeric,text,uuid) TO authenticated;
 
 
 CREATE OR REPLACE FUNCTION public.guardar_horarios_barbero(
