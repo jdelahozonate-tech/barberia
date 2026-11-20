@@ -599,6 +599,7 @@ test('ventas, compras, gastos y pagos requieren caja abierta en interfaz y Supab
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261119020000_exigir_caja_abierta_operaciones.sql'), 'utf8');
   assert.match(ventas, /Para registrar una venta, primero abre la caja/);
   assert.match(ventas, /sb\.rpc\('registrar_venta_transaccional'/);
+  assert.match(ventas, /sb\.rpc\('registrar_abono_venta_transaccional'/);
   assert.match(productos, /Para registrar una compra, primero abre la caja/);
   assert.match(productos, /Para registrar un abono al proveedor, primero abre la caja/);
   assert.match(finanzas, /Para registrar un gasto, primero abre la caja/);
@@ -869,7 +870,7 @@ test('ventas, horarios y ajustes usan operaciones transaccionales en Supabase', 
   assert.doesNotMatch(nueva, /from\('pagos'\)\.insert\(/);
   assert.match(equipo, /sb\.rpc\('guardar_horarios_barbero'/);
   assert.match(ajustes, /sb\.rpc\('guardar_ajustes_negocio'/);
-  for (const fn of ['registrar_venta_transaccional','guardar_horarios_barbero','guardar_ajustes_negocio']) {
+  for (const fn of ['registrar_venta_transaccional','registrar_abono_venta_transaccional','guardar_horarios_barbero','guardar_ajustes_negocio']) {
     assert.match(sql, new RegExp('CREATE OR REPLACE FUNCTION public\\.' + fn));
     assert.match(sql, new RegExp('REVOKE ALL ON FUNCTION public\\.' + fn));
     assert.match(sql, new RegExp('GRANT EXECUTE ON FUNCTION public\\.' + fn + '[\\s\\S]*?TO authenticated'));
@@ -877,4 +878,15 @@ test('ventas, horarios y ajustes usan operaciones transaccionales en Supabase', 
   assert.match(sql, /FOR UPDATE/);
   assert.match(sql, /saldo_pendiente=GREATEST\(0,total_venta-v_total_pagado\)/);
   assert.match(sql, /No hay existencias suficientes/);
+});
+
+test('los abonos de ventas actualizan el saldo pendiente dentro de una transacción', () => {
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261123000000_operaciones_criticas_transaccionales.sql'), 'utf8');
+  assert.match(ventas, /sb\.rpc\('registrar_abono_venta_transaccional'/);
+  assert.doesNotMatch(ventas, /from\('pagos'\)\.insert\(/);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.registrar_abono_venta_transaccional/);
+  assert.match(sql, /WHERE v\.id=p_venta_id AND v\.negocio_id=v_negocio[\s\S]*?FOR UPDATE/);
+  assert.match(sql, /p_valor>v_saldo/);
+  assert.match(sql, /saldo_pendiente=GREATEST\(0,COALESCE\(total_venta,0\)-v_pagado\)/);
 });
