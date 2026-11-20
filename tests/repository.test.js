@@ -49,6 +49,14 @@ test('Pedidos de clientes tiene un panel independiente y solo gestiona pedidos d
   assert.match(index, /pedidos: pedidosProductos/);
 });
 
+test('Agenda bloquea citas y reprogramaciones con fecha u hora pasada', () => {
+  const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
+  assert.match(agenda, /function validarInicioFuturo/);
+  assert.match(agenda, /min=.*valorLocal\(new Date\(\)\)/);
+  assert.equal((agenda.match(/validarInicioFuturo\(i\)/g) || []).length, 2);
+  assert.match(agenda, /Selecciona un horario futuro/);
+});
+
 test('todos los módulos JavaScript tienen sintaxis válida', () => {
   for (const file of sourceFiles) {
     checkSyntax(file, readFileSync(resolve(root, file), 'utf8'));
