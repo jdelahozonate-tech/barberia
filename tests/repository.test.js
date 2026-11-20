@@ -70,7 +70,7 @@ test('Ventas genera un comprobante PDF vectorial con varias páginas, marca y de
   assert.match(ventas, /navigator\.canShare/);
   assert.match(ventas, /accion==='imprimir'/);
   assert.match(ventas, /TOTAL PAGADO/);
-  assert.match(ventas, /SALDO PENDIENTE/);
+  assert.match(ventas, /Saldo pendiente/);
   assert.match(ventas, /No sustituye una factura electronica/);
   assert.match(ventas, /id="printpdf"/);
   assert.match(ventas, /id="sharepdf"/);
