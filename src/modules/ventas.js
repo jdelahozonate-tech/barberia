@@ -335,17 +335,19 @@ async function generarFacturaPDF(v,detalles,pagos){
 }
 
 async function detalleVenta(v){
- const[rd,rp]=await Promise.all([sb.from('detalle_ventas').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id),sb.from('pagos').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id).order('fecha_hora')]);
- if(rd.error)return toast(traducir(rd.error.message),true);if(rp.error)return toast(traducir(rp.error.message),true);
+ const admin=ADM.includes(S.perfil.rol);
+ const[rd,rp,rc]=await Promise.all([sb.from('detalle_ventas').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id),sb.from('pagos').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id).order('fecha_hora'),admin?sb.from('cajas').select('id,fecha_apertura').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle():Promise.resolve({data:null,error:null})]);
+ if(rd.error)return toast(traducir(rd.error.message),true);if(rp.error)return toast(traducir(rp.error.message),true);if(rc.error)return toast(traducir(rc.error.message),true);
  const d=rd.data||[],p=rp.data||[];
- const admin=ADM.includes(S.perfil.rol),abierta=v.estado_venta==='PENDIENTE'&&admin,fila=(a,b,c='')=>`<div class="ln2 ${c}"><span>${a}</span><span>${b}</span></div>`;
+ const cajaActiva=rc.data,puedeAnular=!!(admin&&cajaActiva?.id&&v.caja_id===cajaActiva.id&&new Date(v.fecha_hora)>=new Date(cajaActiva.fecha_apertura));
+ const abierta=v.estado_venta==='PENDIENTE'&&admin,fila=(a,b,c='')=>`<div class="ln2 ${c}"><span>${a}</span><span>${b}</span></div>`;
  dlg.innerHTML=`<form id="df"><h2>${esc(v.clientes?.nombre||'Cliente de paso')}</h2><p class="mute">${new Date(v.fecha_hora).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})}${v.barberos?', '+esc(v.barberos.nombre):''}</p>
  ${d.map(x=>fila(x.cantidad+' × '+esc(x.descripcion),dinero(x.subtotal))).join('')}
  ${v.descuento>0?fila('Descuento','-'+dinero(v.descuento)):''}
  ${fila('Total',dinero(v.total_venta),'tot')}${fila('Pagado',dinero(v.total_pagado))}${fila('Saldo',dinero(v.saldo_pendiente))}
  ${p.length?'<label>Pagos</label>'+p.map(x=>fila(bonito(x.metodo_pago)+', '+hora(x.fecha_hora),dinero(x.valor_pago))).join(''):''}
  ${abierta?`<label for="pg">Registrar otro pago</label><div class="ln"><input id="pg" type="number" min="1" inputmode="decimal" value="${v.saldo_pendiente}"><select id="mp" aria-label="Método">${METODOS}</select></div><button type="button" class="btn block" id="rp">Registrar pago</button>`:''}
- ${v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="pdf">Generar factura PDF y compartir</button>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button><button type="button" class="btn sec block" id="an">Anular venta</button>':''}
+ ${v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="pdf">Generar factura PDF y compartir</button>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button>'+(puedeAnular?'<button type="button" class="btn sec block" id="an">Anular venta</button>':'<p class="info">Esta venta pertenece a una caja cerrada, a otro turno o no tiene una caja histórica verificable. No se puede anular desde la caja actual.</p>'):''}
  <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  const pdf=$('#pdf');if(pdf)pdf.onclick=async()=>{if(pdf.disabled)return;pdf.disabled=true;try{await generarFacturaPDF(v,d,p)}catch(error){if(error?.name!=='AbortError')toast('No se pudo generar o compartir el PDF: '+(error.message||'Error inesperado'),true)}finally{pdf.disabled=false}};
