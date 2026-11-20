@@ -329,7 +329,7 @@ test('equipo, agenda y cierres limitan operaciones al negocio y bloquean escritu
   const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
   const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
   assert.match(equipo, /from\('perfiles'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
-  assert.match(equipo, /from\('horarios_barbero'\)\.delete\(\)\.eq\('negocio_id',S\.perfil\.negocio_id\)/);
+  assert.match(equipo, /sb\.rpc\('guardar_horarios_barbero'/);\n  assert.doesNotMatch(equipo, /from\('horarios_barbero'\)\.delete\(/);
   assert.match(equipo, /let guardando=false/);
   assert.match(equipo, /let creando=false/);
   assert.match(equipo, /Completa la hora de entrada y salida/);
@@ -851,4 +851,26 @@ test('el inventario clasifica artículos, calcula utilidad y convierte compras p
   assert.match(sql, /vendible IS TRUE AND tipo_inventario='PRODUCTO_VENTA'/);
   assert.match(index, /\['productos','Inventario'\]/);
   assert.match(index, /\.inventory-purchase-line/);
+});
+
+test('ventas, horarios y ajustes usan operaciones transaccionales en Supabase', () => {
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  const equipo = readFileSync(resolve(root, 'src/modules/equipo.js'), 'utf8');
+  const ajustes = readFileSync(resolve(root, 'src/modules/ajustes.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261123000000_operaciones_criticas_transaccionales.sql'), 'utf8');
+  assert.match(ventas, /sb\.rpc\('registrar_venta_transaccional'/);
+  const nueva = ventas.slice(ventas.indexOf('async function nuevaVenta'), ventas.indexOf('async function editarVenta'));
+  assert.doesNotMatch(nueva, /from\('ventas'\)\.insert\(/);
+  assert.doesNotMatch(nueva, /from\('detalle_ventas'\)\.insert\(/);
+  assert.doesNotMatch(nueva, /from\('pagos'\)\.insert\(/);
+  assert.match(equipo, /sb\.rpc\('guardar_horarios_barbero'/);
+  assert.match(ajustes, /sb\.rpc\('guardar_ajustes_negocio'/);
+  for (const fn of ['registrar_venta_transaccional','guardar_horarios_barbero','guardar_ajustes_negocio']) {
+    assert.match(sql, new RegExp('CREATE OR REPLACE FUNCTION public\\.' + fn));
+    assert.match(sql, new RegExp('REVOKE ALL ON FUNCTION public\\.' + fn));
+    assert.match(sql, new RegExp('GRANT EXECUTE ON FUNCTION public\\.' + fn + '[\\s\\S]*?TO authenticated'));
+  }
+  assert.match(sql, /FOR UPDATE/);
+  assert.match(sql, /saldo_pendiente=GREATEST\(0,total_venta-v_total_pagado\)/);
+  assert.match(sql, /No hay existencias suficientes/);
 });
