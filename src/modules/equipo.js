@@ -24,9 +24,11 @@ async function horarios(b){
    }
    if(!tramos){guardando=false;if(boton)boton.disabled=false;return toast('Cada día marcado debe tener al menos un horario.',true)}
   }
-  let{error}=await sb.from('horarios_barbero').delete().eq('negocio_id',S.perfil.negocio_id).eq('barbero_id',b.id);
-  if(!error&&L.length)({error}=await sb.from('horarios_barbero').insert(L));
-  if(error){guardando=false;if(boton)boton.disabled=false;return toast(error.message.includes('check')?'La hora de salida debe ser después de la entrada.':error.message,true)}
+  const{error}=await sb.rpc('guardar_horarios_barbero',{
+   p_barbero_id:b.id,
+   p_horarios:L.map(x=>({dia_semana:x.dia_semana,hora_inicio:x.hora_inicio,hora_fin:x.hora_fin}))
+  });
+  if(error){guardando=false;if(boton)boton.disabled=false;return toast(error.message.includes('posterior')?'La hora de salida debe ser después de la entrada.':error.message,true)}
   dlg.close();toast('Horario guardado')};
 }
 
