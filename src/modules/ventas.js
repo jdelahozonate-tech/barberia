@@ -328,7 +328,7 @@ async function generarFacturaPDFVisual(v,detalles,pagos){
  frame.style.cssText='position:fixed;left:-10000px;top:0;width:900px;height:1600px;border:0;visibility:hidden;';
  document.body.appendChild(frame);
  try{
-  const html=htmlComprobanteVenta(v,detalles,pagos).replace(/<script[\\s\\S]*?<\\/script>/gi,'');
+  const html=htmlComprobanteVenta(v,detalles,pagos).replace(/<script[\s\S]*?<\/script>/gi,'');
   await new Promise((resolve,reject)=>{
    frame.onload=resolve;
    frame.onerror=()=>reject(new Error('No se pudo preparar la plantilla visual del comprobante.'));
