@@ -21,13 +21,12 @@ async function ajustes(){
  $('#cp').onclick=()=>navigator.clipboard.writeText(url).then(()=>toast('Enlace copiado')).catch(()=>{$('#ur').select();toast('Mantén presionado el enlace y copia')});
  let guardando=false;
   $('#af').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=new FormData(e.target),o={nombre:f.get('nombre').trim(),telefono:f.get('telefono')||null,direccion:f.get('direccion')||null,correo:f.get('correo')||null,reserva_publica:!!f.get('reserva_publica'),permitir_saldos:!!f.get('permitir_saldos'),valor_cita:Number(f.get('valor_cita'))||0};
-  const{error}=await sb.from('negocios').update(o).eq('id',n.id);if(error){guardando=false;if(boton)boton.disabled=false;return toast(error.message,true)}Object.assign(S.negocio,o);
-  const{data:sc,error:consultaError}=await sb.from('servicios').select('id').eq('negocio_id',S.perfil.negocio_id).eq('categoria','CITA').limit(1);
-  if(consultaError){guardando=false;if(boton)boton.disabled=false;return toast('Los datos del negocio se guardaron, pero no se pudo consultar el servicio de reserva: '+consultaError.message,true)}
-  let errorServicio=null;
-  if(sc&&sc[0])({error:errorServicio}=await sb.from('servicios').update({precio:o.valor_cita,estado:o.valor_cita>0?'ACTIVO':'INACTIVO'}).eq('negocio_id',S.perfil.negocio_id).eq('id',sc[0].id));
-  else if(o.valor_cita>0)({error:errorServicio}=await sb.from('servicios').insert({negocio_id:S.perfil.negocio_id,nombre:'Cita (reserva)',categoria:'CITA',precio:o.valor_cita,duracion_minutos:1}));
-  if(errorServicio){guardando=false;if(boton)boton.disabled=false;return toast('Los datos del negocio se guardaron, pero no se pudo actualizar el servicio de reserva: '+errorServicio.message,true)}
+  const{error}=await sb.rpc('guardar_ajustes_negocio',{
+   p_nombre:o.nombre,p_telefono:o.telefono,p_direccion:o.direccion,p_correo:o.correo,
+   p_reserva_publica:o.reserva_publica,p_permitir_saldos:o.permitir_saldos,p_valor_cita:o.valor_cita
+  });
+  if(error){guardando=false;if(boton)boton.disabled=false;return toast(error.message,true)}
+  Object.assign(S.negocio,o);
   toast('Ajustes guardados')};
  equipo();
 }
