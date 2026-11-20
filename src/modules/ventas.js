@@ -321,7 +321,7 @@ async function cargarHtml2CanvasComprobante(){
 async function generarFacturaPDFVisual(v,detalles,pagos){
  const lib=await cargarJsPDFComprobante();
  await cargarHtml2CanvasComprobante();
- const PDF=lib.jsPDF,W=612,m=12,cw=186;
+ const PDF=lib.jsPDF,m=12,cw=192;
  const doc=new PDF({orientation:'portrait',unit:'mm',format:'letter',compress:true});
  const frame=document.createElement('iframe');
  frame.setAttribute('aria-hidden','true');
