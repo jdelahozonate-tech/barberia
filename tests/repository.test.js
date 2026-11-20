@@ -60,7 +60,7 @@ test('Agenda bloquea citas y reprogramaciones con fecha u hora pasada', () => {
 
 test('Ventas genera un comprobante PDF vectorial con varias páginas, marca y descarga/impresión/compartir', () => {
   const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
-  assert.match(ventas, /Registrar saldo pendiente \\(fiado\\)/);
+  assert.match(ventas, /Registrar saldo pendiente \(fiado\)/);
   assert.match(ventas, /async function generarFacturaPDF/);
   assert.match(ventas, /async function cargarLogoComprobante/);
   assert.match(ventas, /function pdfTextoFactura\(datosVenta,logo\)/);
