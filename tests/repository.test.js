@@ -103,7 +103,9 @@ test('Reportes ofrece informes gerenciales y exportación PDF y Excel', () => {
   const reportes = readFileSync(resolve(root, 'src/modules/reportes.js'), 'utf8');
   const index = readFileSync(resolve(root, 'index.html'), 'utf8');
   const sw = readFileSync(resolve(root, 'sw.js'), 'utf8');
-  assert.match(reportes, /VENTAS.*PAGOS.*CARTERA/);
+  assert.match(reportes, /\['VENTAS','Ventas'\]/);
+  assert.match(reportes, /\['PAGOS','Recaudos y medios de pago'\]/);
+  assert.match(reportes, /\['CARTERA','Cartera de clientes'\]/);
   assert.match(reportes, /async function consultar/);
   assert.match(reportes, /async function exportarPDF/);
   assert.match(reportes, /async function exportarExcel/);
