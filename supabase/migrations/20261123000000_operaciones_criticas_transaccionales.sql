@@ -483,7 +483,7 @@ BEGIN
   WHERE b.id=p_barbero_id AND b.negocio_id=v_negocio
   FOR UPDATE;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'El barbero no pertenece a este negocio o está inactivo.';
+    RAISE EXCEPTION 'El barbero no pertenece a este negocio.';
   END IF;
 
   IF EXISTS (
