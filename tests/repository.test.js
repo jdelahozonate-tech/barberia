@@ -329,7 +329,8 @@ test('equipo, agenda y cierres limitan operaciones al negocio y bloquean escritu
   const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
   const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
   assert.match(equipo, /from\('perfiles'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
-  assert.match(equipo, /sb\.rpc\('guardar_horarios_barbero'/);\n  assert.doesNotMatch(equipo, /from\('horarios_barbero'\)\.delete\(/);
+  assert.match(equipo, /sb\.rpc\('guardar_horarios_barbero'/);
+  assert.doesNotMatch(equipo, /from\('horarios_barbero'\)\.delete\(/);
   assert.match(equipo, /let guardando=false/);
   assert.match(equipo, /let creando=false/);
   assert.match(equipo, /Completa la hora de entrada y salida/);
