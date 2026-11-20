@@ -64,7 +64,7 @@ test('Ventas genera un comprobante PDF vectorial con varias páginas, marca y de
   assert.match(ventas, /async function generarFacturaPDF/);
   assert.match(ventas, /async function cargarLogoComprobante/);
   assert.match(ventas, /function pdfTextoFactura\(datosVenta,logo\)/);
-  assert.match(ventas, /MediaBox \[0 0 612 792\]/);
+  assert.match(ventas, /const W=612,H=792/);
   assert.match(ventas, /new Blob\(\[Uint8Array\.from\(pdf,c=>c\.charCodeAt\(0\)\)\],\{type:'application\/pdf'\}\)/);
   assert.match(ventas, /new File\(\[blob\],nombreArchivo,\{type:'application\/pdf'\}\)/);
   assert.match(ventas, /navigator\.canShare/);
