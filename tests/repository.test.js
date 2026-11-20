@@ -378,8 +378,9 @@ test('cierre de caja y ajustes permiten reintentar después de errores', () => {
   assert.match(finanzas, /cerrando=false;if\(boton\)boton\.disabled=false;return toast\(error\.message,true\)/);
   assert.match(ajustes, /let guardando=false/);
   assert.match(ajustes, /guardando=false;if\(boton\)boton\.disabled=false;return toast\(error\.message,true\)/);
-  assert.match(ajustes, /guardando=false;if\(boton\)boton\.disabled=false;return toast\('Los datos del negocio se guardaron, pero no se pudo consultar/);
-  assert.match(ajustes, /guardando=false;if\(boton\)boton\.disabled=false;return toast\('Los datos del negocio se guardaron, pero no se pudo actualizar/);
+  assert.match(ajustes, /sb\.rpc\('guardar_ajustes_negocio'/);
+  assert.doesNotMatch(ajustes, /from\('negocios'\)\.update\(o\)/);
+  assert.doesNotMatch(ajustes, /from\('servicios'\)\.insert\(/);
 });
 
 test('cambio de estado de catálogos impide doble envío y filtra por negocio', () => {
