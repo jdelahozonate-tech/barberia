@@ -123,7 +123,7 @@ test('Reportes ofrece informes gerenciales y exportación PDF y Excel', () => {
   assert.match(index, /\['reportes','Reportes',1\]/);
   assert.match(index, /crearModuloReportes/);
   assert.match(sw, /src\/modules\/reportes\.js/);
-  assert.match(sw, /barberia-v24/);
+  assert.match(sw, /barberia-v25/);
 });
 
 test('Las comisiones históricas de ventas no pagadas se limpian', () => {
@@ -579,7 +579,7 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(index, /const \{ productos \} = crearModuloProductos/);
   assert.match(index, /pedidos: pedidosProductos/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v24/);
+  assert.match(sw, /barberia-v25/);
   assert.match(sw, /src\/modules\/pedidos\.js/);
 });
 
@@ -598,7 +598,7 @@ test('ventas, compras, gastos y pagos requieren caja abierta en interfaz y Supab
   const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261119020000_exigir_caja_abierta_operaciones.sql'), 'utf8');
   assert.match(ventas, /Para registrar una venta, primero abre la caja/);
-  assert.match(ventas, /La caja se cerró\. Abre una caja para registrar la venta/);
+  assert.match(ventas, /sb\.rpc\('registrar_venta_transaccional'/);
   assert.match(productos, /Para registrar una compra, primero abre la caja/);
   assert.match(productos, /Para registrar un abono al proveedor, primero abre la caja/);
   assert.match(finanzas, /Para registrar un gasto, primero abre la caja/);
@@ -680,10 +680,10 @@ test('las comisiones nuevas guardan porcentaje y base neta, sin comisión en pro
   const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261121000000_comisiones_perfiles_barberos.sql'), 'utf8');
   const liquidaciones = readFileSync(resolve(root, 'supabase/migrations/20261120070000_liquidaciones_profesionales_barberos.sql'), 'utf8');
-  assert.match(ventas, /porcentaje_comision_aplicado:porcentaje/);
-  assert.match(ventas, /base_comision:base/);
-  assert.match(ventas, /const brutoLinea=l\.i\.p\*l\.q/);
-  assert.match(ventas, /c\.ds\*brutoLinea\/c\.br/);
+  const transacciones = readFileSync(resolve(root, 'supabase/migrations/20261123000000_operaciones_criticas_transaccionales.sql'), 'utf8');
+  assert.match(transacciones, /porcentaje_comision_aplicado/);
+  assert.match(transacciones, /base_comision/);
+  assert.match(transacciones, /ROUND\(v_base\*v_porcentaje\/100,2\)/);
   assert.match(sql, /ADD COLUMN IF NOT EXISTS porcentaje_comision_aplicado/);
   assert.match(sql, /ADD COLUMN IF NOT EXISTS base_comision/);
   assert.match(sql, /UPDATE public\.barberos SET porcentaje_comision = 65/);
@@ -708,7 +708,7 @@ test('los perfiles de barberos permiten fotografía privada de administración y
   assert.match(index, /miperfil:miPerfil/);
   assert.match(sql, /CREATE POLICY barberos_perfil_propio/);
   assert.match(sql, /barberos_fotos_insertar/);
-  assert.match(sw, /barberia-v24/);
+  assert.match(sw, /barberia-v25/);
 });
 
 
@@ -744,8 +744,10 @@ test('la disponibilidad y los enlaces privados de Agenda validan el negocio y se
 
 test('el cobro de citas marca ATENDIDA y permite productos y servicios adicionales', () => {
   const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
-  assert.match(ventas, /in\('estado',\['PENDIENTE','CONFIRMADA','ATENDIDA'\]\)/);
-  assert.match(ventas, /update\(\{estado:'ATENDIDA'\}\)/);
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261123000000_operaciones_criticas_transaccionales.sql'), 'utf8');
+  assert.match(ventas, /sb\.rpc\('registrar_venta_transaccional'/);
+  assert.match(sql, /v_cita\.estado NOT IN \('PENDIENTE','CONFIRMADA','ATENDIDA'\)/);
+  assert.match(sql, /UPDATE public\.citas SET estado='ATENDIDA'/);
   assert.match(ventas, /tipo==='SERVICIOS'\?x\.k\.startsWith\('s:'\):true/);
   assert.match(ventas, /class="btn sec rm" aria-label="Quitar ítem"/);
   assert.match(ventas, /trg_salida_inventario|tipo_item:s\?'SERVICIO':'PRODUCTO'/);
