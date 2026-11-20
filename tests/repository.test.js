@@ -123,7 +123,7 @@ test('Reportes ofrece informes gerenciales y exportación PDF y Excel', () => {
 test('Las comisiones históricas de ventas no pagadas se limpian', () => {
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261120090000_comisiones_solo_ventas_pagadas.sql'), 'utf8');
   assert.match(sql, /v\.estado_venta <> 'PAGADA'/);
-  assert.match(sql, /d\.comision_generada = 0/);
+  assert.match(sql, /SET comision_generada = 0/);
   assert.match(sql, /d\.base_comision IS NOT NULL/);
 });
 
