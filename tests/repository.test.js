@@ -137,6 +137,13 @@ test('Agenda bloquea citas y reprogramaciones en horarios pasados desde la base 
   assert.match(sql, /NEW\.estado IN \('PENDIENTE','CONFIRMADA'\)/);
 });
 
+test('La regla de comisión también limpia servicios históricos sin desglose', () => {
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261120110000_comisiones_legacy_no_pagadas.sql'), 'utf8');
+  assert.match(sql, /IF NEW\.tipo_item = 'SERVICIO' THEN/);
+  assert.match(sql, /WHEN NEW\.estado_venta <> 'PAGADA'/);
+  assert.match(sql, /d\.comision_generada > 0/);
+});
+
 test('todos los módulos JavaScript tienen sintaxis válida', () => {
   for (const file of sourceFiles) {
     checkSyntax(file, readFileSync(resolve(root, file), 'utf8'));
