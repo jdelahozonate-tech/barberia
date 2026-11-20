@@ -323,8 +323,10 @@ async function detalleVenta(v){
  if(abierta)$('#rp').onclick=async()=>{const b=$('#rp');if(b.disabled)return;const n=Number($('#pg').value);
   if(!(n>0)||n>v.saldo_pendiente)return toast('El pago debe ser mayor a cero y no superar el saldo.',true);
   b.disabled=true;
-  const{error}=await sb.from('pagos').insert({negocio_id:S.perfil.negocio_id,venta_id:v.id,valor_pago:n,metodo_pago:$('#mp').value,recibido_por:S.perfil.id});
-  if(error){b.disabled=false;return toast(error.message,true)}dlg.close();toast('Pago registrado');ventas()};
+  const{error}=await sb.rpc('registrar_abono_venta_transaccional',{
+   p_venta_id:v.id,p_valor:n,p_metodo_pago:$('#mp').value,p_cuenta_id:null
+  });
+  if(error){b.disabled=false;return toast(traducir(error.message),true)}dlg.close();toast('Pago registrado');ventas()};
  const ed=$('#ed');if(ed)ed.onclick=()=>{dlg.close();editarVenta(v,d)};
  const an=$('#an');if(an)an.onclick=async()=>{const b=$('#an');if(b.disabled)return;if(!confirm('¿Anular esta venta? No se puede deshacer.'))return;b.disabled=true;
   const{error}=await sb.rpc('anular_venta',{p_venta_id:v.id});
