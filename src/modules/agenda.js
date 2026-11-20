@@ -6,6 +6,12 @@ export function crearModuloAgenda(deps) {
  const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:zona,year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(iso)).map(x=>[x.type,x.value]));
  return {fecha:p.year+'-'+p.month+'-'+p.day,dia:{Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[p.weekday],minutos:Number(p.hour)*60+Number(p.minute)};
 }
+function validarInicioFuturo(inicio){
+  const instante=new Date(inicio);
+  if(!Number.isFinite(instante.getTime()))return 'La fecha y hora seleccionadas no son válidas.';
+  if(instante.getTime()<=Date.now())return 'No puedes agendar ni reprogramar una cita en una fecha u hora que ya pasó. Selecciona un horario futuro.';
+  return null;
+ }
 async function validarDisponibilidad({barbero,cliente,inicio,fin,excluir=null}){
  const pi=partesNegocio(inicio),pf=partesNegocio(fin);
  if(pi.fecha!==pf.fecha)return 'La cita debe terminar dentro del mismo día de atención.';
@@ -99,13 +105,14 @@ async function nuevaCita(){
  <label for="a1">Cliente</label><select id="a1" name="cliente_id" required>${op(cl)}</select>
  <label for="a2">Servicio</label><select id="a2" name="servicio_id" required>${op(se)}</select>
  <label for="a3">Barbero</label><select id="a3" name="barbero_id" required>${op(ba)}</select>
- <label for="a4">Fecha y hora</label><input id="a4" name="inicio" type="datetime-local" value="${loc}" required>
+ <label for="a4">Fecha y hora</label><input id="a4" name="inicio" type="datetime-local" min="${valorLocal(new Date()).slice(0,16)}" value="${loc}" required>
  <label for="a5">Observaciones</label><textarea id="a5" name="observaciones" rows="2"></textarea>
  <div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Agendar cita</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  let guardando=false;
  $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;guardando=true;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;const f=Object.fromEntries(new FormData(e.target));
   const i=instanteNegocio(f.inicio),dur=Number(se.find(s=>s.id===f.servicio_id)?.duracion_minutos||0),fin=new Date(i.getTime()+dur*6e4);
+  const pasado=validarInicioFuturo(i);if(pasado){guardando=false;if(boton)boton.disabled=false;return toast(pasado,true)}
   if(!Number.isFinite(i.getTime())||!dur){guardando=false;if(boton)boton.disabled=false;return toast('La fecha o duración del servicio no es válida.',true)}
   const disponibilidad=await validarDisponibilidad({barbero:f.barbero_id,cliente:f.cliente_id,inicio:i.toISOString(),fin:fin.toISOString()});
   if(disponibilidad){guardando=false;if(boton)boton.disabled=false;return toast(disponibilidad,true)}
@@ -119,7 +126,7 @@ function editarCita(c){
  const dur=Number(c.servicios?.duracion_minutos||Math.max(0,(new Date(c.fin)-new Date(c.inicio))/60000));
  const local=valorLocal(c.inicio);
  dlg.innerHTML='<form id="df"><h2>'+esc(c.clientes?.nombre)+'</h2><p class="mute">'+esc(c.servicios?.nombre)+' con '+esc(c.barberos?.nombre)+'.</p>'+
- (admin?'<label for="e3">Nueva fecha y hora</label><input id="e3" name="inicio" type="datetime-local" value="'+local+'" required><label for="e1">Estado</label><select id="e1" name="estado">'+E.map(o=>'<option value="'+o+'"'+(o===c.estado?' selected':'')+'>'+bonito(o)+'</option>').join('')+'</select><label for="e2">Observaciones</label><textarea id="e2" name="observaciones" rows="3">'+esc(c.observaciones||'')+'</textarea>'+wa(c,c.estado==='PENDIENTE'): '<p class="info">Vista de solo lectura. Solo un administrador o supervisor puede modificar esta cita.</p>')+
+ (admin?'<label for="e3">Nueva fecha y hora</label><input id="e3" name="inicio" type="datetime-local" min="'+valorLocal(new Date()).slice(0,16)+'" value="'+local+'" required><label for="e1">Estado</label><select id="e1" name="estado">'+E.map(o=>'<option value="'+o+'"'+(o===c.estado?' selected':'')+'>'+bonito(o)+'</option>').join('')+'</select><label for="e2">Observaciones</label><textarea id="e2" name="observaciones" rows="3">'+esc(c.observaciones||'')+'</textarea>'+wa(c,c.estado==='PENDIENTE'): '<p class="info">Vista de solo lectura. Solo un administrador o supervisor puede modificar esta cita.</p>')+
  '<div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button>'+(admin?'<button class="btn">Guardar cambios</button>':'')+'</div></form>';
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  let guardando=false;
@@ -129,6 +136,7 @@ function editarCita(c){
   const f=Object.fromEntries(new FormData(e.target)),i=instanteNegocio(f.inicio);
   if(!Number.isFinite(i.getTime())||!dur){guardando=false;if(boton)boton.disabled=false;return toast('La fecha o duración de la cita no es válida.',true)}
   const fin=new Date(i.getTime()+dur*60000),cambioHorario=i.toISOString()!==new Date(c.inicio).toISOString();
+  if(['PENDIENTE','CONFIRMADA'].includes(f.estado)){const pasado=validarInicioFuturo(i);if(pasado){guardando=false;if(boton)boton.disabled=false;return toast(pasado,true)}}
   if(['PENDIENTE','CONFIRMADA'].includes(f.estado)&&(cambioHorario||!['PENDIENTE','CONFIRMADA'].includes(c.estado))){
    const disponibilidad=await validarDisponibilidad({barbero:c.barbero_id,cliente:c.cliente_id,inicio:i.toISOString(),fin:fin.toISOString(),excluir:c.id});
    if(disponibilidad){guardando=false;if(boton)boton.disabled=false;return toast(disponibilidad,true)}
