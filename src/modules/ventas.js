@@ -121,7 +121,7 @@ async function nuevaVenta(pre,tipo='MIXTA'){
  const{data:cajaInicial,error:errorCajaInicial}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
  if(errorCajaInicial)return toast(traducir(errorCajaInicial.message),true);
  if(!cajaInicial?.id)return toast('Para registrar una venta, primero abre la caja.',true);
- const respuestas=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre,modelo_pago,porcentaje_comision'],['servicios','id,nombre,precio'],['productos','id,nombre,precio_venta,costo_unitario'],['cuentas','id,nombre,detalle']].map(([t,campos])=>sb.from(t).select(campos).eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').order('nombre')));
+ const respuestas=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre,modelo_pago,porcentaje_comision'],['servicios','id,nombre,precio'],['productos','id,nombre,precio_venta,costo_unitario,vendible'],['cuentas','id,nombre,detalle']].map(([t,campos])=>{let q=sb.from(t).select(campos).eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO');if(t==='productos')q=q.eq('vendible',true);return q.order('nombre')}));
  const fallo=respuestas.find(r=>r.error);if(fallo)return toast(traducir(fallo.error.message),true);
  const[cl,ba,se,pr,cu]=respuestas.map(r=>r.data||[]);
  if(!se.length&&!pr.length)return toast('Primero crea un servicio o un producto.',true);
