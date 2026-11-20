@@ -106,6 +106,8 @@ test('Reportes ofrece informes gerenciales y exportación PDF y Excel', () => {
   assert.match(reportes, /\['VENTAS','Ventas'\]/);
   assert.match(reportes, /\['PAGOS','Recaudos y medios de pago'\]/);
   assert.match(reportes, /\['CARTERA','Cartera de clientes'\]/);
+  assert.match(reportes, /\['LIQUIDACIONES','Liquidaciones de barberos'\]/);
+  assert.match(reportes, /\['PEDIDOS','Pedidos a proveedores'\]/);
   assert.match(reportes, /async function consultar/);
   assert.match(reportes, /async function exportarPDF/);
   assert.match(reportes, /async function exportarExcel/);
