@@ -100,7 +100,7 @@ BEGIN
   AS x(producto_id uuid,cantidad integer)
  LOOP
   SELECT * INTO v_producto FROM public.productos
-   WHERE id=v_item.producto_id AND negocio_id=v_negocio AND estado='ACTIVO';
+   WHERE id=v_item.producto_id AND negocio_id=v_negocio AND estado='ACTIVO' AND vendible IS TRUE AND tipo_inventario='PRODUCTO_VENTA';
   INSERT INTO public.detalle_pedidos_productos(
    pedido_id,negocio_id,producto_id,nombre_producto,cantidad,precio_unitario
   ) VALUES(v_pedido,v_negocio,v_producto.id,v_producto.nombre,v_item.cantidad,v_producto.precio_venta);
