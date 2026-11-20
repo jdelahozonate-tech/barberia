@@ -445,7 +445,7 @@ BEGIN
     'saldo_pendiente',GREATEST(0,COALESCE(v_total,0)-v_pagado)
   );
 END;
-$;
+$$;
 
 REVOKE ALL ON FUNCTION public.registrar_abono_venta_transaccional(uuid,numeric,text,uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.registrar_abono_venta_transaccional(uuid,numeric,text,uuid) TO authenticated;
