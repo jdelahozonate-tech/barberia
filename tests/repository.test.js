@@ -662,3 +662,23 @@ test('el catálogo de servicios presenta tarjetas, métricas y filtros sin cambi
   assert.match(index, /\.service-form-grid/);
   assert.match(index, /@media\(max-width:700px\)[\s\S]*?\.services-grid/);
 });
+
+test('Caja presenta un panel estructurado de ingresos, egresos, arqueo e historial', () => {
+  const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  assert.match(finanzas, /cash-shell/);
+  assert.match(finanzas, /cash-metrics/);
+  assert.match(finanzas, /Efectivo esperado en caja/);
+  assert.match(finanzas, /Ingresos por método de pago/);
+  assert.match(finanzas, /Movimientos de caja/);
+  assert.match(finanzas, /Pagos a proveedores/);
+  assert.match(finanzas, /cash-history-grid/);
+  assert.match(finanzas, /cash-difference/);
+  assert.match(finanzas, /Efectivo contado físicamente/);
+  assert.match(finanzas, /\.eq\('caja_id',cj\.id\)/);
+  assert.match(finanzas, /const esp=Number\(cj\.saldo_inicial\)\+\(por\.EFECTIVO\|\|0\)-gEf-cEf/);
+  assert.match(finanzas, /estado_caja:'CERRADA'/);
+  assert.match(finanzas, /diferencia:n-esp/);
+  assert.match(index, /\.cash-shell/);
+  assert.match(index, /@media\(max-width:760px\)[\s\S]*?\.cash-metrics/);
+});
