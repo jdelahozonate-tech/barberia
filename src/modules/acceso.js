@@ -38,7 +38,12 @@ async function cargar(){
  if(errorSus)return toast('No fue posible verificar el estado de la suscripción: '+traducir(errorSus.message),true);
  S.sus=su;
  if(!su||su.dias<0||su.estado!=='ACTIVA'||!p.negocios)return bloqueada(su);
- S.perfil=p;S.negocio=p.negocios;shell();
+ let fotoPerfil=p.foto_url||p.avatar_url||null;
+ if(p.barbero_id){
+  const{data:barberoFoto}=await sb.from('barberos').select('foto_url').eq('negocio_id',p.negocio_id).eq('id',p.barbero_id).maybeSingle();
+  fotoPerfil=fotoPerfil||barberoFoto?.foto_url||null;
+ }
+ S.perfil={...p,foto_url:fotoPerfil};S.negocio=p.negocios;shell();
 }
 
 /* ---------- Plan y suscripción ---------- */
