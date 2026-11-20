@@ -663,6 +663,24 @@ test('el catálogo de servicios presenta tarjetas, métricas y filtros sin cambi
   assert.match(index, /@media\(max-width:700px\)[\s\S]*?\.services-grid/);
 });
 
+test('Caja permite consultar historial por fechas, ver balances y exportar movimientos', () => {
+  const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  assert.match(finanzas, /async function historialCaja\(\)/);
+  assert.match(finanzas, /CONSULTAS E INFORMES/);
+  assert.match(finanzas, /data-cash-period="hoy"/);
+  assert.match(finanzas, /data-cash-period="30"/);
+  assert.match(finanzas, /Ingresos por medio de pago/);
+  assert.match(finanzas, /Exportar CSV/);
+  assert.match(finanzas, /cash-report-metrics/);
+  assert.match(finanzas, /fecha_apertura/);
+  assert.match(finanzas, /fecha_cierre/);
+  assert.match(finanzas, /\.range\(desde,desde\+999\)/);
+  assert.match(finanzas, /estado_venta!=='ANULADA'/);
+  assert.match(index, /\.cash-report-filters/);
+  assert.match(index, /\.cash-report-metrics/);
+});
+
 test('Caja presenta un panel estructurado de ingresos, egresos, arqueo e historial', () => {
   const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
   const index = readFileSync(resolve(root, 'index.html'), 'utf8');
