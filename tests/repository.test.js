@@ -58,21 +58,30 @@ test('Agenda bloquea citas y reprogramaciones con fecha u hora pasada', () => {
   assert.match(agenda, /Selecciona un horario futuro/);
 });
 
-test('Ventas ofrece fiado identificado y comprobante PDF compartible', () => {
+test('Ventas ofrece fiado y comprobante comercial en PDF e impresión', () => {
   const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
   assert.match(ventas, /Registrar saldo pendiente \(fiado\)/);
   assert.match(ventas, /Para registrar una venta fiada debes seleccionar el cliente/);
   assert.match(ventas, /async function generarFacturaPDF/);
-  assert.match(ventas, /function pdfTextoFactura/);
-  assert.match(ventas, /const paginas=\[\];for\(let i=0;i<lineas\.length;i\+=55\)/);
-  assert.match(ventas, /new Blob\(\[pdf\],\{type:'application\/pdf'\}\)/);
-  assert.match(ventas, /new File\(\[blob\],nombreArchivo,\{type:'application\/pdf'\}\)/);
-  assert.match(ventas, /navigator\.canShare/);
-  assert.match(ventas, /PDF descargado/);
-  assert.doesNotMatch(ventas, /cdnjs\.cloudflare\.com\/ajax\/libs\/jspdf/);
-  assert.doesNotMatch(ventas, /function cargarJsPDF/);
+  assert.match(ventas, /async function generarFacturaPDFVisual/);
+  assert.match(ventas, /html2canvas\/1\.4\.1/);
+  assert.match(ventas, /doc\.html\(root/);
+  assert.match(ventas, /autoPaging:'text'/);
+  assert.match(ventas, /function htmlComprobanteVenta/);
+  assert.match(ventas, /function imprimirComprobante/);
+  assert.match(ventas, /id="share"/);
+  assert.match(ventas, /accion==='compartir'/);
+  assert.match(ventas, /window\.print\(\)/);
+  assert.match(ventas, /format:'letter'/);
+  assert.match(ventas, /logo_url\|\|'\.\/logo-dhbarber\.png'/);
+  assert.match(ventas, /DETALLE DE PRODUCTOS Y SERVICIOS/);
+  assert.match(ventas, /DETALLE DE PAGOS/);
   assert.match(ventas, /SALDO PENDIENTE/);
+  assert.match(ventas, /Guardar como PDF/);
+  assert.match(ventas, /navigator\.canShare/);
+  assert.match(ventas, /doc\.save\(nombreArchivo\)/);
   assert.match(ventas, /No sustituye una factura electrónica/);
+  assert.doesNotMatch(ventas, /function pdfTextoFactura/);
 });
 
 test('La anulación de ventas exige la misma caja abierta del turno', () => {
