@@ -80,6 +80,24 @@ test('La anulación de ventas exige la misma caja abierta del turno', () => {
   assert.match(sql, /caja cerrada o a otro turno/);
 });
 
+test('Liquidaciones de barberos gestionan comisiones pagadas, anticipos, descuentos y abonos', () => {
+  const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261120070000_liquidaciones_profesionales_barberos.sql'), 'utf8');
+  assert.match(finanzas, /async function prepararLiquidacion/);
+  assert.match(finanzas, /registrar_anticipo_barbero/);
+  assert.match(finanzas, /registrar_abono_liquidacion_barbero/);
+  assert.match(finanzas, /total_descuentos/);
+  assert.match(index, /\['comisiones','Liquidaciones',1\]/);
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.liquidaciones_barbero/);
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.movimientos_liquidacion_barbero/);
+  assert.match(sql, /estado_venta = 'PAGADA'/);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.liquidar_barbero/);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.registrar_anticipo_barbero/);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.registrar_abono_liquidacion_barbero/);
+  assert.match(sql, /ENABLE ROW LEVEL SECURITY/);
+});
+
 test('todos los módulos JavaScript tienen sintaxis válida', () => {
   for (const file of sourceFiles) {
     checkSyntax(file, readFileSync(resolve(root, file), 'utf8'));
