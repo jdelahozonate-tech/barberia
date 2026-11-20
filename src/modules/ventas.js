@@ -297,104 +297,68 @@ async function logoComprobanteDataURL(url){
  if(!data&&url!=='./logo-dhbarber.png')data=await cargar('./logo-dhbarber.png');
  return data;
 }
+async function cargarHtml2CanvasComprobante(){
+ if(window.html2canvas)return window.html2canvas;
+ let existente=document.querySelector('script[data-html2canvas-comprobante]');
+ if(existente?.dataset.failed==='1'){existente.remove();existente=null}
+ await new Promise((resolve,reject)=>{
+  if(existente){
+   if(existente.dataset.loaded==='1')return resolve();
+   existente.addEventListener('load',resolve,{once:true});
+   existente.addEventListener('error',()=>reject(new Error('No se pudo cargar el motor visual del PDF.')),{once:true});
+   return;
+  }
+  const script=document.createElement('script');
+  script.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  script.async=true;script.dataset.html2canvasComprobante='1';
+  script.onload=()=>{script.dataset.loaded='1';resolve()};
+  script.onerror=()=>{script.dataset.failed='1';reject(new Error('No se pudo cargar el motor visual del PDF. Verifica tu conexión.'))};
+  document.head.appendChild(script);
+ });
+ if(typeof window.html2canvas!=='function')throw new Error('El motor visual del PDF no está disponible.');
+ return window.html2canvas;
+}
+async function generarFacturaPDFVisual(v,detalles,pagos){
+ const lib=await cargarJsPDFComprobante();
+ await cargarHtml2CanvasComprobante();
+ const PDF=lib.jsPDF,W=612,m=12,cw=186;
+ const doc=new PDF({orientation:'portrait',unit:'mm',format:'letter',compress:true});
+ const frame=document.createElement('iframe');
+ frame.setAttribute('aria-hidden','true');
+ frame.style.cssText='position:fixed;left:-10000px;top:0;width:900px;height:1600px;border:0;visibility:hidden;';
+ document.body.appendChild(frame);
+ try{
+  const html=htmlComprobanteVenta(v,detalles,pagos).replace(/<script[\\s\\S]*?<\\/script>/gi,'');
+  await new Promise((resolve,reject)=>{
+   frame.onload=resolve;
+   frame.onerror=()=>reject(new Error('No se pudo preparar la plantilla visual del comprobante.'));
+   frame.srcdoc=html;
+  });
+  const win=frame.contentWindow,root=frame.contentDocument?.querySelector('.hoja');
+  if(!root)throw new Error('No se encontró la plantilla del comprobante.');
+  if(win.document.fonts?.ready)await win.document.fonts.ready;
+  await Promise.all(Array.from(root.querySelectorAll('img')).map(img=>{
+   if(img.complete)return Promise.resolve();
+   return new Promise(resolve=>{img.onload=resolve;img.onerror=resolve});
+  }));
+  await doc.html(root,{
+   x:m,y:8,width:cw,windowWidth:900,autoPaging:'text',
+   html2canvas:{scale:1.5,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',logging:false,windowWidth:900},
+  });
+  return doc;
+ }finally{
+  frame.remove();
+ }
+}
 async function generarFacturaPDF(v,detalles,pagos,accion='descargar'){
  try{
-  const lib=await cargarJsPDFComprobante(),PDF=lib.jsPDF,doc=new PDF({orientation:'portrait',unit:'mm',format:'letter'});
-  const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),m=12,cw=W-m*2;
-  const navy=[20,36,61],gold=[201,155,53],light=[241,243,246],gray=[102,112,133],ink=[24,38,61],green=[35,115,77];
-  const negocio=S.negocio||{},cliente=v.clientes||{},barbero=v.barberos||{};
-  const moneda=n=>dinero(Number(n)||0),fecha=x=>x?new Intl.DateTimeFormat('es-CO',{dateStyle:'short',timeStyle:'short',timeZone:negocio.zona_horaria||'America/Bogota'}).format(new Date(x)):'No registrado';
-  const numero='V-'+String(v.id||'').replace(/-/g,'').slice(0,12).toUpperCase(),nombreArchivo='Comprobante-'+numero+'.pdf';
-  const saldo=Math.max(0,Number(v.saldo_pendiente)||0),pagado=Math.max(0,Number(v.total_pagado)||0),total=Math.max(0,Number(v.total_venta)||0);
-  const subtotal=Number(v.total_bruto??(detalles||[]).reduce((s,x)=>s+(Number(x.subtotal??(Number(x.cantidad)*Number(x.precio_unitario)))||0),0));
-  const descuento=Math.max(0,Number(v.descuento)||0);
-  let estado='PENDIENTE',colorEstado=gold;
-  if(v.estado_venta==='ANULADA'){estado='ANULADA';colorEstado=[180,35,24]}
-  else if(saldo<=0||v.estado_venta==='PAGADA'){estado='PAGADO';colorEstado=green}
-  else if(pagado>0){estado='ABONADO';colorEstado=gold}
-  const logo=await logoComprobanteDataURL(negocio.logo_url||'./logo-dhbarber.png');
-  const texto=(valor,x,y,tam=9,color=ink,negrita=false,align='left')=>{
-   doc.setFont('helvetica',negrita?'bold':'normal');doc.setFontSize(tam);doc.setTextColor(...color);doc.text(String(valor??''),x,y,{align});
-  };
-  const encabezadoContinuacion=()=>{
-   doc.addPage();doc.setFillColor(...gold);doc.rect(0,0,W,3,'F');doc.setFillColor(...navy);doc.rect(0,3,W,13,'F');
-   texto('COMPROBANTE DE VENTA · '+numero,m,11,9,[255,255,255],true);
-   return 23;
-  };
-  const cabeceraTabla=y=>{
-   doc.setFillColor(...light);doc.rect(m,y,cw,9,'F');doc.setFillColor(...gold);doc.rect(m,y+8.5,cw,.5,'F');
-   const x2=m+94,x3=m+112,x4=m+151;
-   texto('DESCRIPCIÓN',m+3,y+6,7,gray,true);texto('CANT.',x2+9,y+6,7,gray,true,'center');texto('VALOR UNITARIO',x3+36,y+6,7,gray,true,'right');texto('SUBTOTAL',x4+36,y+6,7,gray,true,'right');
-   return y+11;
-  };
-  // Encabezado principal y marca existente.
-  doc.setFillColor(...gold);doc.rect(0,0,W,3,'F');
-  if(logo)doc.addImage(logo,'PNG',m,9,32,17,undefined,'FAST');
-  texto(negocio.nombre||'DH BARBER',m+37,17,17,navy,true);
-  texto('BARBERÍA · ESTILO · CUIDADO PERSONAL',m+37,23,6.5,gray,false);
-  doc.setFillColor(...navy);doc.rect(W-m-67,8,67,22,'F');
-  texto('COMPROBANTE',W-m-33.5,17,10,[255,255,255],true,'center');texto('DE VENTA',W-m-33.5,23,10,[255,255,255],true,'center');
-  let y=37;
-  doc.setFillColor(...light);doc.rect(m,y,cw,17,'F');doc.setDrawColor(220,225,233);doc.rect(m,y,cw,17);
-  const w1=48,w2=102;
-  doc.line(m+w1,y,m+w1,y+17);doc.line(m+w1+w2,y,m+w1+w2,y+17);
-  texto('COMPROBANTE',m+3,y+6,6.5,gray,true);texto(numero,m+3,y+12,8,ink,true);
-  texto('FECHA DE EMISIÓN',m+w1+3,y+6,6.5,gray,true);texto(fecha(v.fecha_hora),m+w1+3,y+12,8,ink,true);
-  texto('ESTADO',m+w1+w2+3,y+6,6.5,gray,true);texto(estado,m+w1+w2+3,y+12,8,colorEstado,true);
-  y+=24;
-  texto('DATOS DEL CLIENTE',m,y+3,8,navy,true);y+=6;
-  doc.setDrawColor(225,229,235);doc.rect(m,y,cw,19);
-  doc.line(m+92,y,m+92,y+19);doc.line(m+139,y,m+139,y+19);
-  texto('CLIENTE',m+3,y+6,6.5,gray,true);texto(cliente.nombre||'Cliente de paso',m+3,y+13,8,ink,true);
-  texto('TELÉFONO',m+95,y+6,6.5,gray,true);texto(cliente.telefono||'No registrado',m+95,y+13,8,ink,true);
-  texto('ATENDIDO POR',m+142,y+6,6.5,gray,true);texto(barbero.nombre||'No asignado',m+142,y+13,8,ink,true);
-  y+=26;texto('DETALLE DE PRODUCTOS Y SERVICIOS',m,y,8,navy,true);y+=5;y=cabeceraTabla(y);
-  const filas=(detalles||[]).map(item=>({descripcion:String(item.descripcion||'Servicio o producto'),cantidad:Number(item.cantidad)||0,unitario:Number(item.precio_unitario)||0,subtotal:Number(item.subtotal??(Number(item.cantidad)*Number(item.precio_unitario)))||0}));
-  if(!filas.length)filas.push({descripcion:'No hay productos ni servicios registrados.',cantidad:0,unitario:0,subtotal:0});
-  for(const item of filas){
-   const lines=doc.splitTextToSize(item.descripcion,88),rh=Math.max(8,lines.length*4+3);
-   if(y+rh>H-24){y=encabezadoContinuacion();y=cabeceraTabla(y)}
-   texto(lines,m+3,y+5,8,ink,false);
-   texto(item.cantidad.toLocaleString('es-CO'),m+103,y+5,8,ink,false,'center');
-   texto(moneda(item.unitario),m+148,y+5,8,ink,false,'right');
-   texto(moneda(item.subtotal),W-m-3,y+5,8,ink,true,'right');
-   doc.setDrawColor(230,233,238);doc.line(m,y+rh,cw+m,y+rh);y+=rh;
-  }
-  y+=8;
-  if(y+55>H-16)y=encabezadoContinuacion();
-  const pagosLista=(pagos||[]).map(p=>({fecha:fecha(p.fecha_hora),medio:bonito(p.metodo_pago||'No registrado')+(p.estado_pago&&p.estado_pago!=='REGISTRADO'?' · '+bonito(p.estado_pago):''),valor:moneda(p.valor_pago)}));
-  if(!pagosLista.length)pagosLista.push({fecha:'—',medio:'No se registran pagos asociados',valor:'—'});
-  const xLeft=m,wLeft=108,xRight=m+113,wRight=cw-113,top=y;
-  doc.setDrawColor(225,229,235);doc.rect(xLeft,top,wLeft,10);doc.setFillColor(...light);doc.rect(xLeft,top,wLeft,10,'F');
-  texto('DETALLE DE PAGOS',xLeft+3,top+6.5,8,navy,true);
-  doc.setFillColor(...light);doc.rect(xLeft,top+10,wLeft,8,'F');
-  texto('FECHA',xLeft+3,top+15.5,6,gray,true);texto('MEDIO DE PAGO',xLeft+39,top+15.5,6,gray,true);texto('VALOR',xLeft+wLeft-3,top+15.5,6,gray,true,'right');
-  doc.setDrawColor(225,229,235);doc.rect(xRight,top,wRight,10);doc.setFillColor(...light);doc.rect(xRight,top,wRight,10,'F');
-  texto('RESUMEN FINANCIERO',xRight+3,top+6.5,8,navy,true);
-  let fy=top+16;
-  const fin=(label,value,opts={})=>{if(opts.bg){doc.setFillColor(...opts.bg);doc.rect(xRight+1,fy-4,wRight-2,8,'F')}texto(label,xRight+3,fy,7.5,opts.color||ink,!!opts.bold);texto(value,xRight+wRight-3,fy,7.5,opts.color||ink,true,'right');fy+=8};
-  fin('Subtotal',moneda(subtotal));if(descuento>0)fin('Descuentos','- '+moneda(descuento));
-  fin('Total de la venta',moneda(total),{bold:true});fin('Total pagado',moneda(pagado));fin('Saldo pendiente',moneda(saldo),{bg:[237,246,240],color:[34,91,61],bold:true});
-  let py=top+22,indice=0,limite=Math.max(1,Math.floor((H-22-py)/8));
-  const dibujaPago=p=>{texto(p.fecha,xLeft+3,py+5,6.7,ink);texto(doc.splitTextToSize(p.medio,48),xLeft+39,py+5,6.7,ink);texto(p.valor,xLeft+wLeft-3,py+5,6.7,ink,true,'right');doc.setDrawColor(235,237,241);doc.line(xLeft,py+8,xLeft+wLeft,py+8);py+=8};
-  while(indice<pagosLista.length&&indice<limite){dibujaPago(pagosLista[indice]);indice++}
-  y=Math.max(py,fy)+8;
-  while(indice<pagosLista.length){
-   y=encabezadoContinuacion();texto('DETALLE DE PAGOS · CONTINUACIÓN',m,y,8,navy,true);y+=5;
-   doc.setFillColor(...light);doc.rect(m,y,cw,8,'F');texto('FECHA',m+3,y+5.5,6.5,gray,true);texto('MEDIO DE PAGO',m+43,y+5.5,6.5,gray,true);texto('VALOR RECIBIDO',W-m-3,y+5.5,6.5,gray,true,'right');y+=10;
-   while(indice<pagosLista.length&&y+8<H-18){const p=pagosLista[indice];texto(p.fecha,m+3,y+5,7,ink);texto(p.medio,m+43,y+5,7,ink);texto(p.valor,W-m-3,y+5,7,ink,true,'right');doc.setDrawColor(235,237,241);doc.line(m,y+8,W-m,y+8);y+=8;indice++}
-  }
-  if(y+49>H-14)y=encabezadoContinuacion();
-  y+=3;doc.setFillColor(...navy);doc.rect(m,y,cw,18,'F');doc.setFillColor(...gold);doc.rect(m,y,2,18,'F');
-  texto(saldo<=0?'TOTAL PAGADO':'TOTAL DE LA VENTA',m+6,y+11,10,[255,255,255],true);texto(moneda(total),W-m-5,y+12,15,[255,255,255],true,'right');
-  y+=29;texto('¡Gracias por preferirnos!',W/2,y,12,navy,true,'center');texto('Agradecemos tu confianza. Te esperamos pronto.',W/2,y+6,8,gray,false,'center');
-  y+=15;doc.setDrawColor(225,229,235);doc.line(m,y,W-m,y);y+=6;
-  texto('Comprobante comercial. No sustituye una factura electrónica de venta autorizada por la DIAN.',W/2,y,6.5,gray,false,'center');
-  texto((negocio.nombre||'DH BARBER')+' · Comprobante generado desde el sistema de gestión de la barbería.',W/2,y+4,6.5,gray,false,'center');
+  const negocio=S.negocio||{},cliente=v.clientes||{};
+  const numero='V-'+String(v.id||'').replace(/-/g,'').slice(0,12).toUpperCase();
+  const nombreArchivo='Comprobante-'+numero+'.pdf';
+  const doc=await generarFacturaPDFVisual(v,detalles,pagos);
   const blob=doc.output('blob');
-  const telefono=String(cliente.telefono||'').replace(/\D/g,''),numeroWa=telefono.length===10?'57'+telefono:telefono;
+  const telefono=String(cliente.telefono||'').replace(/\\D/g,''),numeroWa=telefono.length===10?'57'+telefono:telefono;
   const mensaje='Hola '+String(cliente.nombre||'')+', te compartimos el comprobante de tu compra en '+String(negocio.nombre||'la barbería')+'. ¡Gracias por preferirnos!';
-  // La descarga directa no depende de la API File, que no está disponible en todos los navegadores.
   if(accion==='compartir'&&typeof File!=='undefined'&&navigator.share){
    const archivo=new File([blob],nombreArchivo,{type:'application/pdf'});
    if(navigator.canShare?.({files:[archivo]})){
@@ -405,7 +369,10 @@ async function generarFacturaPDF(v,detalles,pagos,accion='descargar'){
   doc.save(nombreArchivo);
   if(accion==='compartir'&&numeroWa.length>=7)window.open('https://wa.me/'+numeroWa+'?text='+encodeURIComponent(mensaje),'_blank','noopener');
   toast(accion==='compartir'&&numeroWa.length>=7?'PDF descargado. Adjunta el archivo en WhatsApp para enviarlo al cliente.':'PDF descargado correctamente.',false);
- }catch(error){abrirComprobanteVenta(v,detalles,pagos,'imprimir');toast('No se pudo generar la descarga directa. Se abrió la vista de impresión para guardar como PDF: '+(error?.message||'Error inesperado'),true)}
+ }catch(error){
+  abrirComprobanteVenta(v,detalles,pagos,'imprimir');
+  toast('No se pudo generar el PDF visual. Se abrió la plantilla para guardarla como PDF: '+(error?.message||'Error inesperado'),true);
+ }
 }
 function abrirComprobanteVenta(v,detalles,pagos,accion){
  const ventana=window.open('','_blank');
