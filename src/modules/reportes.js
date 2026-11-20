@@ -5,7 +5,7 @@ export function crearModuloReportes(deps){
  const zona=()=>S.negocio?.zona_horaria||'America/Bogota';
  const admin=()=>['ADMINISTRADOR','SUPERVISOR'].includes(S.perfil.rol);
  const REPORTES=[
-  ['VENTAS','Ventas'],['PAGOS','Recaudos y medios de pago'],['CARTERA','Cartera de clientes'],['CAJA','Caja y cierres'],['BARBEROS','Servicios y comisiones'],['INVENTARIO','Inventario y valorización'],['COMPRAS','Compras a proveedores'],['GASTOS','Gastos'],['CLIENTES','Clientes y consumo']
+  ['VENTAS','Ventas'],['PAGOS','Recaudos y medios de pago'],['CARTERA','Cartera de clientes'],['CAJA','Caja y cierres'],['BARBEROS','Servicios y comisiones'],['INVENTARIO','Inventario y valorización'],['COMPRAS','Compras a proveedores'],['GASTOS','Gastos'],['LIQUIDACIONES','Liquidaciones de barberos'],['PEDIDOS','Pedidos a proveedores'],['CLIENTES','Clientes y consumo']
  ];
  let actual=null,barberos=[];
  function fechaZona(d=new Date()){
@@ -88,6 +88,15 @@ export function crearModuloReportes(deps){
    const data=await todos(()=>sb.from('compras_inventario').select('id,fecha_compra,fecha_vencimiento,numero_factura,total_compra,total_pagado,saldo_pendiente,estado_compra,referencia,proveedores_inventario(nombre)').eq('negocio_id',nid()).gte('fecha_compra',desde).lte('fecha_compra',hasta).order('fecha_compra',{ascending:false}));
    rows=data.map(x=>({'Fecha':fechaCorta(x.fecha_compra),'Proveedor':x.proveedores_inventario?.nombre||'—','Factura':x.numero_factura||x.referencia||String(x.id).slice(0,8),'Estado':x.estado_compra,'Total compra':Number(x.total_compra||0),'Pagado':Number(x.total_pagado||0),'Saldo proveedor':Number(x.saldo_pendiente||0),'Vence':fechaCorta(x.fecha_vencimiento)}));
    summary=[resumen('Compras',rows.length),resumen('Total comprado',sumar(rows,'Total compra')),resumen('Pagado',sumar(rows,'Pagado')),resumen('Saldo proveedores',sumar(rows,'Saldo proveedor'))];
+  }else if(tipo==='LIQUIDACIONES'){
+   let data=await todos(()=>sb.from('liquidaciones_barbero').select('id,barbero_id,fecha_liquidacion,total_comisiones,total_descuentos,total_anticipos,total_neto,total_pagado,saldo_pendiente,estado_liquidacion,barberos(nombre)').eq('negocio_id',nid()).gte('fecha_liquidacion',desde).lte('fecha_liquidacion',hasta).order('fecha_liquidacion',{ascending:false}));
+   if(barberoId)data=data.filter(x=>x.barbero_id===barberoId);
+   rows=data.map(x=>({'Fecha':fechaCorta(x.fecha_liquidacion),'Barbero':x.barberos?.nombre||'—','Comisiones':Number(x.total_comisiones||0),'Descuentos':Number(x.total_descuentos||0),'Anticipos aplicados':Number(x.total_anticipos||0),'Neto':Number(x.total_neto||0),'Pagado':Number(x.total_pagado||0),'Saldo pendiente':Number(x.saldo_pendiente||0),'Estado':x.estado_liquidacion}));
+   summary=[resumen('Liquidaciones',rows.length),resumen('Comisiones',sumar(rows,'Comisiones')),resumen('Total pagado',sumar(rows,'Pagado')),resumen('Saldo por pagar',sumar(rows,'Saldo pendiente'))];
+  }else if(tipo==='PEDIDOS'){
+   const data=await todos(()=>sb.from('pedidos_proveedores').select('id,fecha_pedido,estado,compra_id,proveedores_inventario(nombre),detalle_pedidos_proveedores(nombre_producto,cantidad,costo_estimado)').eq('negocio_id',nid()).gte('fecha_pedido',desde).lte('fecha_pedido',hasta).order('fecha_pedido',{ascending:false}));
+   rows=data.map(x=>{const items=x.detalle_pedidos_proveedores||[];return{'Fecha':fechaCorta(x.fecha_pedido),'Pedido':String(x.id).slice(0,8).toUpperCase(),'Proveedor':x.proveedores_inventario?.nombre||'—','Productos':items.length,'Total estimado':items.reduce((n,d)=>n+Number(d.cantidad||0)*Number(d.costo_estimado||0),0),'Estado':x.estado,'Compra vinculada':x.compra_id?String(x.compra_id).slice(0,8).toUpperCase():'—'}});
+   summary=[resumen('Pedidos',rows.length),resumen('Valor estimado',sumar(rows,'Total estimado')),resumen('Enviados',rows.filter(x=>x.Estado==='ENVIADO').length),resumen('Recibidos',rows.filter(x=>x.Estado==='RECIBIDO').length)];
   }else if(tipo==='GASTOS'){
    const data=await todos(()=>sb.from('gastos').select('fecha_hora,categoria_gasto,descripcion,valor,metodo_pago,proveedor,estado_gasto').eq('negocio_id',nid()).gte('fecha_hora',inicio).lt('fecha_hora',fin).order('fecha_hora',{ascending:false}));
    rows=data.map(x=>({'Fecha':fechaHora(x.fecha_hora),'Categoría':x.categoria_gasto,'Descripción':x.descripcion||'—','Proveedor':x.proveedor||'—','Método':x.metodo_pago,'Estado':x.estado_gasto,'Valor':Number(x.valor||0)}));
