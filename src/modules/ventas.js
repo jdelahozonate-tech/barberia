@@ -313,7 +313,7 @@ async function generarFacturaPDF(v,detalles,pagos){
   doc.setFont('helvetica','normal');doc.setFontSize(8);
   pagos.forEach(p=>{if(y>270){doc.addPage();y=20}doc.text(new Date(p.fecha_hora).toLocaleDateString('es-CO')+' · '+String(p.metodo_pago||'').replaceAll('_',' '),margen,y);doc.text(moneda(p.valor_pago),ancho-margen,y,{align:'right'});y+=5});
  }
- y=Math.min(Math.max(y+8,235),276);
+ y=Math.min(Math.max(y+8,235),260);
  doc.setFillColor(239,244,249);doc.roundedRect(margen,y,ancho-margen*2,19,2,2,'F');
  doc.setTextColor(37,58,78);doc.setFont('helvetica','bold');doc.setFontSize(9);
  doc.text('¡Gracias por preferirnos!',ancho/2,y+7,{align:'center'});
