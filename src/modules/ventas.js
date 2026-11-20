@@ -357,7 +357,7 @@ async function generarFacturaPDF(v,detalles,pagos,accion='descargar'){
   const nombreArchivo='Comprobante-'+numero+'.pdf';
   const doc=await generarFacturaPDFVisual(v,detalles,pagos);
   const blob=doc.output('blob');
-  const telefono=String(cliente.telefono||'').replace(/\\D/g,''),numeroWa=telefono.length===10?'57'+telefono:telefono;
+  const telefono=String(cliente.telefono||'').replace(/\D/g,''),numeroWa=telefono.length===10?'57'+telefono:telefono;
   const mensaje='Hola '+String(cliente.nombre||'')+', te compartimos el comprobante de tu compra en '+String(negocio.nombre||'la barbería')+'. ¡Gracias por preferirnos!';
   if(accion==='compartir'&&typeof File!=='undefined'&&navigator.share){
    const archivo=new File([blob],nombreArchivo,{type:'application/pdf'});
