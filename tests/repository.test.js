@@ -76,6 +76,7 @@ test('La anulación de ventas exige la misma caja abierta del turno', () => {
   assert.match(sql, /ADD COLUMN IF NOT EXISTS caja_id uuid/);
   assert.match(sql, /CREATE TRIGGER trg_asignar_caja_venta/);
   assert.match(sql, /v_caja_venta <> v_caja_actual/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public.asignar_caja_venta/);
   assert.match(sql, /caja cerrada o a otro turno/);
 });
 
