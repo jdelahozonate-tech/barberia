@@ -68,6 +68,17 @@ test('Ventas ofrece fiado identificado y comprobante PDF compartible', () => {
   assert.match(ventas, /No sustituye una factura electrónica/);
 });
 
+test('La anulación de ventas exige la misma caja abierta del turno', () => {
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261120050000_ventas_caja_activa_anulacion.sql'), 'utf8');
+  assert.match(ventas, /v\.caja_id===cajaActiva\.id/);
+  assert.match(ventas, /No se puede anular desde la caja actual/);
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS caja_id uuid/);
+  assert.match(sql, /CREATE TRIGGER trg_asignar_caja_venta/);
+  assert.match(sql, /v_caja_venta <> v_caja_actual/);
+  assert.match(sql, /caja cerrada o a otro turno/);
+});
+
 test('todos los módulos JavaScript tienen sintaxis válida', () => {
   for (const file of sourceFiles) {
     checkSyntax(file, readFileSync(resolve(root, file), 'utf8'));
