@@ -473,9 +473,11 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(productos, /data-tab="movimientos"/);
   assert.match(productos, /data-tab="proveedores"/);
   assert.match(index, /crearModuloProductos/);
-  assert.match(index, /productos,pedidos:pedidosProductos,caja/);
+  assert.match(index, /const \{ productos \} = crearModuloProductos/);
+  assert.match(index, /pedidos: pedidosProductos/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v19/);
+  assert.match(sw, /barberia-v20/);
+  assert.match(sw, /src\/modules\/pedidos\.js/);
 });
 
 test('los pagos de compras requieren caja abierta en interfaz y base de datos', () => {
@@ -511,8 +513,10 @@ test('el catálogo de productos incorpora imágenes y pedidos públicos sin move
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261119030000_catalogo_visual_pedidos_productos.sql'), 'utf8');
   const index = readFileSync(resolve(root, 'index.html'), 'utf8');
   assert.match(productos, /storage\.from\('productos'\)\.upload/);
-  assert.match(productos, /data-tab="pedidos"/);
-  assert.match(productos, /pedidos_productos/);
+  const pedidos = readFileSync(resolve(root, 'src/modules/pedidos.js'), 'utf8');
+  assert.doesNotMatch(productos, /Pedidos de clientes/);
+  assert.match(pedidos, /pedidos_productos/);
+  assert.match(pedidos, /detalle_pedidos_productos/);
   assert.match(publico, /catalogo_productos_publico/);
   assert.match(publico, /crear_pedido_producto_publico/);
   assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.pedidos_productos/);
