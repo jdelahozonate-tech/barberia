@@ -122,6 +122,7 @@ BEGIN
     WHERE d.tipo_item NOT IN ('SERVICIO','PRODUCTO')
        OR d.cantidad IS NULL OR d.cantidad<=0
        OR d.cantidad::text IN ('NaN','Infinity','-Infinity')
+       OR d.tipo_item IS NULL
        OR (d.tipo_item='SERVICIO' AND (d.servicio_id IS NULL OR d.producto_id IS NOT NULL))
        OR (d.tipo_item='PRODUCTO' AND (d.producto_id IS NULL OR d.servicio_id IS NOT NULL))
   ) THEN
@@ -397,16 +398,24 @@ BEGIN
   END IF;
   IF EXISTS (
     SELECT 1
+    FROM jsonb_to_recordset(p_horarios) AS h(
+      dia_semana smallint,hora_inicio time,hora_fin time
+    )
+    GROUP BY h.dia_semana,h.hora_inicio,h.hora_fin
+    HAVING COUNT(*)>1
+  ) OR EXISTS (
+    SELECT 1
     FROM jsonb_to_recordset(p_horarios) AS a(
       dia_semana smallint,hora_inicio time,hora_fin time
     )
     JOIN jsonb_to_recordset(p_horarios) AS b(
       dia_semana smallint,hora_inicio time,hora_fin time
     ) ON a.dia_semana=b.dia_semana
-       AND a.hora_inicio<b.hora_inicio
+       AND a.hora_inicio<=b.hora_inicio
+       AND (a.hora_inicio,a.hora_fin) IS DISTINCT FROM (b.hora_inicio,b.hora_fin)
        AND a.hora_fin>b.hora_inicio
   ) THEN
-    RAISE EXCEPTION 'Los tramos de un mismo día no pueden cruzarse.';
+    RAISE EXCEPTION 'Los tramos de un mismo día no pueden cruzarse ni repetirse.';
   END IF;
 
   DELETE FROM public.horarios_barbero
