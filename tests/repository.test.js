@@ -63,17 +63,19 @@ test('Ventas genera un comprobante PDF vectorial con varias páginas, marca y de
   assert.match(ventas, /Registrar saldo pendiente \\(fiado\\)/);
   assert.match(ventas, /async function generarFacturaPDF/);
   assert.match(ventas, /async function cargarLogoComprobante/);
-  assert.match(ventas, /function pdfTextoFactura\\(paginas,logo\\)/);
-  assert.match(ventas, /MediaBox \\[0 0 612 792\\]/);
-  assert.match(ventas, /new Blob\\(\\[Uint8Array\\.from\\(pdf,c=>c\\.charCodeAt\\(0\\)\\)\\],\\{type:'application\\/pdf'\\}\\)/);
-  assert.match(ventas, /new File\\(\\[blob\\],nombreArchivo,\\{type:'application\\/pdf'\\}\\)/);
-  assert.match(ventas, /navigator\\.canShare/);
+  assert.match(ventas, /function pdfTextoFactura\(paginas,logo\)/);
+  assert.match(ventas, /MediaBox \[0 0 612 792\]/);
+  assert.match(ventas, /new Blob\(\[Uint8Array\.from\(pdf,c=>c\.charCodeAt\(0\)\)\],\{type:'application\/pdf'\}\)/);
+  assert.match(ventas, /new File\(\[blob\],nombreArchivo,\{type:'application\/pdf'\}\)/);
+  assert.match(ventas, /navigator\.canShare/);
   assert.match(ventas, /accion==='imprimir'/);
   assert.match(ventas, /TOTAL PAGADO/);
   assert.match(ventas, /SALDO PENDIENTE/);
   assert.match(ventas, /No sustituye una factura electronica/);
-  assert.doesNotMatch(ventas, /window\\.print\\(/);
-  assert.doesNotMatch(ventas, /cdnjs\\.cloudflare\\.com\\/ajax\\/libs\\/jspdf/);
+  assert.match(ventas, /id="printpdf"/);
+  assert.match(ventas, /id="sharepdf"/);
+  assert.doesNotMatch(ventas, /window\.print\(/);
+  assert.doesNotMatch(ventas, /cdnjs\.cloudflare\.com\/ajax\/libs\/jspdf/);
 });
 
 test('La anulación de ventas exige la misma caja abierta del turno', () => {
