@@ -241,68 +241,42 @@ async function editarVenta(v, actuales){
  ref();
 }
 
-function pdfTextoFactura(texto){
- const limpiar=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,' ');
- const lineas=texto.split('\n').flatMap(x=>{const t=limpiar(x),out=[];for(let i=0;i<t.length;i+=88)out.push(t.slice(i,i+88));return out.length?out:['']});
- const escPdf=x=>x.replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
- const paginas=[];for(let i=0;i<lineas.length;i+=55)paginas.push(lineas.slice(i,i+55));
- const objetos=['<< /Type /Catalog /Pages 2 0 R >>',''];
- objetos.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
- const ids=[];
- paginas.forEach((pagina,i)=>{
-  const pageId=4+i*2,contentId=pageId+1;ids.push(pageId+' 0 R');
-  const stream='BT /F1 10 Tf 48 790 Td '+pagina.map((x,j)=>(j?'0 -14 Td ':'')+'('+escPdf(x)+') Tj').join(' ')+' ET';
-  objetos.push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents '+contentId+' 0 R >>');
-  objetos.push('<< /Length '+stream.length+' >>\nstream\n'+stream+'\nendstream');
- });
- objetos[1]='<< /Type /Pages /Kids ['+ids.join(' ')+'] /Count '+paginas.length+' >>';
- let pdf='%PDF-1.4\n',offsets=[0];
- objetos.forEach((obj,i)=>{offsets.push(pdf.length);pdf+=(i+1)+' 0 obj\n'+obj+'\nendobj\n'});
- const xref=pdf.length;pdf+='xref\n0 '+(objetos.length+1)+'\n0000000000 65535 f \n';
- for(let i=1;i<offsets.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
- pdf+='trailer\n<< /Size '+(objetos.length+1)+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF';
- return new Blob([pdf],{type:'application/pdf'});
-}
-async function generarFacturaPDF(v,detalles,pagos){
- const moneda=n=>dinero(Number(n)||0),fecha=new Date(v.fecha_hora).toLocaleString('es-CO',{dateStyle:'long',timeStyle:'short'});
- const nombreArchivo='Comprobante-'+String(v.id).slice(0,8).toUpperCase()+'.pdf';
+function htmlComprobanteVenta(v,detalles,pagos){
  const negocio=S.negocio||{},cliente=v.clientes||{},barbero=v.barberos||{};
- const lineas=[
-  negocio.nombre||'Barbería',
-  'COMPROBANTE DE VENTA',
-  'Comprobante: V-'+String(v.id).slice(0,8).toUpperCase(),
-  'Fecha: '+fecha,
-  'Cliente: '+(cliente.nombre||'Cliente de paso'),
-  'Teléfono: '+(cliente.telefono||'No registrado'),
-  'Atendido por: '+(barbero.nombre||'No asignado'),
-  '',
-  'DETALLE DE PRODUCTOS Y SERVICIOS'
- ];
- detalles.forEach(item=>{
-  const subtotal=item.subtotal==null?Number(item.cantidad)*Number(item.precio_unitario):Number(item.subtotal);
-  lineas.push(String(item.descripcion||'Servicio o producto'));
-  lineas.push('Cantidad: '+(Number(item.cantidad)||0)+' | Valor: '+moneda(item.precio_unitario)+' | Subtotal: '+moneda(subtotal));
- });
- lineas.push('','Subtotal: '+moneda(v.total_bruto));
- if(Number(v.descuento)>0)lineas.push('Descuento: -'+moneda(v.descuento));
- lineas.push('TOTAL: '+moneda(v.total_venta),'Pagado: '+moneda(v.total_pagado),'SALDO PENDIENTE: '+moneda(v.saldo_pendiente));
- if(pagos.length){
-  lineas.push('','DETALLE DE PAGOS');
-  pagos.forEach(p=>lineas.push(new Date(p.fecha_hora).toLocaleDateString('es-CO')+' | '+String(p.metodo_pago||'').replaceAll('_',' ')+' | '+moneda(p.valor_pago)));
- }
- lineas.push('','¡Gracias por preferirnos!','Agradecemos tu confianza. Te esperamos pronto.','Comprobante comercial. No sustituye una factura electrónica de venta autorizada por la DIAN.');
- const blob=pdfTextoFactura(lineas.join('\n')),archivo=new File([blob],nombreArchivo,{type:'application/pdf'});
- const telefono=String(cliente.telefono||'').replace(/\D/g,''),numero=telefono.length===10?'57'+telefono:telefono;
- const mensaje='Hola '+String(cliente.nombre||'')+', te compartimos el comprobante de tu compra en '+String(negocio.nombre||'la barbería')+'. ¡Gracias por preferirnos!';
- if(navigator.share&&navigator.canShare?.({files:[archivo]})){
-  try{await navigator.share({files:[archivo],title:'Comprobante de venta',text:mensaje});return}
-  catch(error){if(error?.name==='AbortError')return}
- }
- const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=nombreArchivo;document.body.appendChild(a);a.click();a.remove();
- setTimeout(()=>URL.revokeObjectURL(url),1500);
- if(numero.length>=7)window.open('https://wa.me/'+numero+'?text='+encodeURIComponent(mensaje),'_blank','noopener');
- toast(numero.length>=7?'PDF descargado. Adjunta el archivo en WhatsApp para enviarlo al cliente.':'PDF descargado. El cliente no tiene teléfono registrado.',false);
+ const moneda=n=>dinero(Number(n)||0);
+ const fecha=valor=>{
+  if(!valor)return 'No registrado';
+  const d=new Date(valor);if(Number.isNaN(d.getTime()))return 'No registrado';
+  return new Intl.DateTimeFormat('es-CO',{dateStyle:'medium',timeStyle:'short',timeZone:negocio.zona_horaria||'America/Bogota'}).format(d);
+ };
+ const numero='V-'+String(v.id||'').replace(/-/g,'').slice(0,12).toUpperCase();
+ const saldo=Math.max(0,Number(v.saldo_pendiente)||0),pagado=Math.max(0,Number(v.total_pagado)||0),total=Math.max(0,Number(v.total_venta)||0);
+ const subtotal=Number(v.total_bruto??(detalles||[]).reduce((s,x)=>s+(Number(x.subtotal??(Number(x.cantidad)*Number(x.precio_unitario)))||0),0));
+ const descuento=Math.max(0,Number(v.descuento)||0);
+ let estado='PENDIENTE',claseEstado='pendiente';
+ if(v.estado_venta==='ANULADA'){estado='ANULADA';claseEstado='anulada'}
+ else if(saldo<=0||v.estado_venta==='PAGADA'){estado='PAGADO';claseEstado='pagado'}
+ else if(pagado>0){estado='ABONADO';claseEstado='abonado'}
+ const logo=esc(negocio.logo_url||'./logo-dhbarber.png');
+ const items=(detalles||[]).map(item=>{
+  const cantidad=Number(item.cantidad)||0,unitario=Number(item.precio_unitario)||0,parcial=Number(item.subtotal??(cantidad*unitario))||0;
+  return '<tr><td>'+esc(item.descripcion||'Servicio o producto')+'</td><td class="centro">'+cantidad.toLocaleString('es-CO')+'</td><td class="importe">'+moneda(unitario)+'</td><td class="importe fuerte">'+moneda(parcial)+'</td></tr>';
+ }).join('')||'<tr><td colspan="4" class="vacio">No hay productos ni servicios registrados.</td></tr>';
+ const filasPagos=(pagos||[]).map(p=>{
+  const metodo=bonito(p.metodo_pago||'No registrado'),estadoPago=p.estado_pago&&p.estado_pago!=='REGISTRADO'?' · '+bonito(p.estado_pago):'';
+  return '<tr><td>'+esc(fecha(p.fecha_hora))+'</td><td>'+esc(metodo+estadoPago)+'</td><td class="importe fuerte">'+moneda(p.valor_pago)+'</td></tr>';
+ }).join('')||'<tr><td colspan="3" class="vacio">No se registran pagos asociados.</td></tr>';
+ const css='@page{size:letter;margin:12mm}*{box-sizing:border-box}body{margin:0;background:#f2f4f7;color:#18263d;font:12px/1.45 Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}.hoja{max-width:900px;margin:24px auto;background:#fff;padding:28px 32px;border-top:7px solid #c99b35;box-shadow:0 4px 24px #10223f18}.encabezado{display:flex;align-items:center;justify-content:space-between;gap:22px;padding:8px 0 22px}.marca{display:flex;align-items:center;gap:15px;min-width:0}.logo{width:142px;height:72px;object-fit:contain;object-position:left center}.nombre{font-size:25px;font-weight:800;letter-spacing:1px;color:#14243d}.submarca{font-size:10px;color:#667085;letter-spacing:1px;text-transform:uppercase}.titulo{min-width:230px;padding:16px 18px;background:#14243d;color:#fff;text-align:center;font-size:21px;font-weight:800;line-height:1.2}.metadatos{display:grid;grid-template-columns:1fr 2fr .8fr;background:#f1f3f6;border:1px solid #e1e5eb;margin-bottom:22px}.meta{padding:11px 14px;border-right:1px solid #dfe3e9}.meta:last-child{border:0}.etiqueta{display:block;margin-bottom:3px;color:#596579;font-size:9px;font-weight:700;letter-spacing:.7px;text-transform:uppercase}.valor-meta{font-size:12px;font-weight:700;overflow-wrap:anywhere}.estado{font-weight:800}.pagado{color:#23734d}.abonado,.pendiente{color:#9a6b16}.anulada{color:#b42318}.seccion{margin:0 0 9px;color:#17263e;font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase}.cliente{display:grid;grid-template-columns:1.5fr .8fr .9fr;border:1px solid #e1e5eb;margin-bottom:22px}.dato{padding:12px 14px;border-right:1px solid #e1e5eb;min-width:0}.dato:last-child{border:0}.dato strong{display:block;font-size:12px;overflow-wrap:anywhere}.tabla{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:18px}.tabla thead{display:table-header-group}.tabla th{padding:10px 12px;background:#f1f3f6;color:#667085;text-align:left;font-size:9px;letter-spacing:.5px;text-transform:uppercase;border-bottom:2px solid #c99b35}.tabla td{padding:10px 12px;border-bottom:1px solid #e7e9ee;vertical-align:top;overflow-wrap:anywhere}.tabla th:nth-child(1){width:46%}.tabla th:nth-child(2){width:12%}.tabla th:nth-child(3),.tabla th:nth-child(4){width:21%}.centro{text-align:center}.importe{text-align:right;white-space:nowrap}.fuerte{font-weight:700}.resumen{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;align-items:start;margin:10px 0 20px;break-inside:avoid}.bloque{border:1px solid #e1e5eb;min-width:0}.bloque-titulo{padding:10px 13px;background:#f1f3f6;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;border-bottom:1px solid #e1e5eb}.pagos{width:100%;border-collapse:collapse}.pagos th{padding:8px 10px;background:#fafbfc;color:#667085;text-align:left;font-size:9px}.pagos td{padding:8px 10px;border-top:1px solid #eceef2;font-size:10px;overflow-wrap:anywhere}.finanzas{padding:8px 13px}.linea{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #e7e9ee;font-size:11px}.linea:last-child{border:0}.linea strong{white-space:nowrap}.linea.total{font-size:13px;font-weight:800}.linea.saldo{margin:5px -8px 0;padding:9px 8px;background:#edf6f0;color:#225b3d;font-weight:700}.total-barra{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:18px 0 24px;padding:15px 20px;background:#14243d;color:#fff;border-left:6px solid #c99b35;break-inside:avoid}.total-barra span{font-size:14px;font-weight:800;letter-spacing:1px}.total-barra strong{font-size:25px;white-space:nowrap}.gracias{text-align:center;margin:0 0 18px}.gracias strong{display:block;margin-bottom:3px;color:#14243d;font-size:17px}.gracias span{color:#667085;font-size:11px}.pie{padding-top:12px;border-top:1px solid #e4e7ec;color:#667085;text-align:center;font-size:9px}.pie strong{display:block;margin-top:3px;color:#344054}.vacio{padding:14px!important;color:#667085;text-align:center}@media(max-width:650px){.hoja{margin:0;padding:18px 14px}.encabezado{align-items:flex-start;flex-direction:column}.titulo{width:100%}.metadatos,.cliente,.resumen{grid-template-columns:1fr}.meta,.dato{border-right:0;border-bottom:1px solid #e1e5eb}.logo{width:112px;height:58px}.nombre{font-size:21px}.tabla th,.tabla td{padding:7px 5px;font-size:10px}.total-barra strong{font-size:20px}}@media print{body{background:#fff;font-size:10px}.hoja{max-width:none;margin:0;padding:0;box-shadow:none;border-top:5px solid #c99b35}.encabezado{padding-top:4px}.tabla tr,.pagos tr,.bloque,.total-barra,.gracias,.pie{break-inside:avoid}}';
+ return '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc('Comprobante-'+numero)+'</title><style>'+css+'</style></head><body><main class="hoja"><header class="encabezado"><div class="marca"><img class="logo" id="logo" src="'+logo+'" alt="DH BARBER"><div><div class="nombre">'+esc(negocio.nombre||'DH BARBER')+'</div><div class="submarca">Barbería · Estilo · Cuidado personal</div></div></div><div class="titulo">COMPROBANTE<br>DE VENTA</div></header><section class="metadatos"><div class="meta"><span class="etiqueta">Comprobante</span><span class="valor-meta">'+esc(numero)+'</span></div><div class="meta"><span class="etiqueta">Fecha de emisión</span><span class="valor-meta">'+esc(fecha(v.fecha_hora))+'</span></div><div class="meta"><span class="etiqueta">Estado</span><span class="valor-meta estado '+claseEstado+'">'+esc(estado)+'</span></div></section><h2 class="seccion">Datos del cliente</h2><section class="cliente"><div class="dato"><span class="etiqueta">Cliente</span><strong>'+esc(cliente.nombre||'Cliente de paso')+'</strong></div><div class="dato"><span class="etiqueta">Teléfono</span><strong>'+esc(cliente.telefono||'No registrado')+'</strong></div><div class="dato"><span class="etiqueta">Atendido por</span><strong>'+esc(barbero.nombre||'No asignado')+'</strong></div></section><h2 class="seccion">Detalle de productos y servicios</h2><table class="tabla"><thead><tr><th>Descripción</th><th class="centro">Cant.</th><th class="importe">Valor unitario</th><th class="importe">Subtotal</th></tr></thead><tbody>'+items+'</tbody></table><section class="resumen"><div class="bloque"><div class="bloque-titulo">Detalle de pagos</div><table class="pagos"><thead><tr><th>Fecha del pago</th><th>Medio de pago</th><th class="importe">Valor recibido</th></tr></thead><tbody>'+filasPagos+'</tbody></table></div><div class="bloque"><div class="bloque-titulo">Resumen financiero</div><div class="finanzas"><div class="linea"><span>Subtotal</span><strong>'+moneda(subtotal)+'</strong></div>'+(descuento>0?'<div class="linea"><span>Descuentos</span><strong>− '+moneda(descuento)+'</strong></div>':'')+'<div class="linea total"><span>Total de la venta</span><strong>'+moneda(total)+'</strong></div><div class="linea"><span>Total pagado</span><strong>'+moneda(pagado)+'</strong></div><div class="linea saldo"><span>Saldo pendiente</span><strong>'+moneda(saldo)+'</strong></div></div></div></section><div class="total-barra"><span>TOTAL DE LA VENTA</span><strong>'+moneda(total)+'</strong></div><section class="gracias"><strong>¡Gracias por preferirnos!</strong><span>Agradecemos tu confianza. Te esperamos pronto.</span></section><footer class="pie">Comprobante comercial. No sustituye una factura electrónica de venta autorizada por la DIAN.<strong>'+esc(negocio.nombre||'DH BARBER')+' · Comprobante generado desde el sistema de gestión de la barbería.</strong></footer></main><script>(function(){var img=document.getElementById("logo");var imprimir=function(){setTimeout(function(){window.focus();window.print();},350);};if(img&&!img.complete){img.addEventListener("load",imprimir,{once:true});img.addEventListener("error",imprimir,{once:true});}else{imprimir();}window.addEventListener("afterprint",function(){window.close();});})();</script></body></html>';
 }
+function abrirComprobanteVenta(v,detalles,pagos,accion){
+ const ventana=window.open('','_blank');
+ if(!ventana)return toast('El navegador bloqueó la ventana del comprobante. Permite las ventanas emergentes e inténtalo de nuevo.',true);
+ ventana.document.open();ventana.document.write(htmlComprobanteVenta(v,detalles,pagos));ventana.document.close();
+ if(accion==='pdf')toast('En el diálogo de impresión selecciona “Guardar como PDF” para descargar el comprobante.',false);
+}
+function generarFacturaPDF(v,detalles,pagos){abrirComprobanteVenta(v,detalles,pagos,'pdf')}
+function imprimirComprobante(v,detalles,pagos){abrirComprobanteVenta(v,detalles,pagos,'imprimir')}
 async function detalleVenta(v){
  const admin=ADM.includes(S.perfil.rol);
  const[rd,rp,rc]=await Promise.all([sb.from('detalle_ventas').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id),sb.from('pagos').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id).order('fecha_hora'),admin?sb.from('cajas').select('id,fecha_apertura').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle():Promise.resolve({data:null,error:null})]);
@@ -316,10 +290,10 @@ async function detalleVenta(v){
  ${fila('Total',dinero(v.total_venta),'tot')}${fila('Pagado',dinero(v.total_pagado))}${fila('Saldo',dinero(v.saldo_pendiente))}
  ${p.length?'<label>Pagos</label>'+p.map(x=>fila(bonito(x.metodo_pago)+', '+hora(x.fecha_hora),dinero(x.valor_pago))).join(''):''}
  ${abierta?`<label for="pg">Registrar otro pago</label><div class="ln"><input id="pg" type="number" min="1" inputmode="decimal" value="${v.saldo_pendiente}"><select id="mp" aria-label="Método">${METODOS}</select></div><button type="button" class="btn block" id="rp">Registrar pago</button>`:''}
- ${v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="pdf">Generar factura PDF y compartir</button>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button>'+(puedeAnular?'<button type="button" class="btn sec block" id="an">Anular venta</button>':'<p class="info">Esta venta pertenece a una caja cerrada, a otro turno o no tiene una caja histórica verificable. No se puede anular desde la caja actual.</p>'):''}
+ ${v.estado_venta!=='ANULADA'?'<div class="acts" style="flex-wrap:wrap"><button type="button" class="btn block" id="pdf">Descargar PDF</button><button type="button" class="btn sec block" id="print">Imprimir comprobante</button></div>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button>'+(puedeAnular?'<button type="button" class="btn sec block" id="an">Anular venta</button>':'<p class="info">Esta venta pertenece a una caja cerrada, a otro turno o no tiene una caja histórica verificable. No se puede anular desde la caja actual.</p>'):''}
  <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
- const pdf=$('#pdf');if(pdf)pdf.onclick=async()=>{if(pdf.disabled)return;pdf.disabled=true;try{await generarFacturaPDF(v,d,p)}catch(error){if(error?.name!=='AbortError')toast('No se pudo generar o compartir el PDF: '+(error.message||'Error inesperado'),true)}finally{pdf.disabled=false}};
+ const pdf=$('#pdf');if(pdf)pdf.onclick=()=>generarFacturaPDF(v,d,p);const imprimir=$('#print');if(imprimir)imprimir.onclick=()=>imprimirComprobante(v,d,p);
  if(abierta)$('#rp').onclick=async()=>{const b=$('#rp');if(b.disabled)return;const n=Number($('#pg').value);
   if(!(n>0)||n>v.saldo_pendiente)return toast('El pago debe ser mayor a cero y no superar el saldo.',true);
   b.disabled=true;
