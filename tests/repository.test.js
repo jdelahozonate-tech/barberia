@@ -127,6 +127,16 @@ test('Las comisiones históricas de ventas no pagadas se limpian', () => {
   assert.match(sql, /d\.base_comision IS NOT NULL/);
 });
 
+test('Agenda bloquea citas y reprogramaciones en horarios pasados desde la base de datos', () => {
+  const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261120100000_agenda_validar_horarios_futuros.sql'), 'utf8');
+  assert.match(agenda, /validarInicioFuturo/);
+  assert.match(agenda, /type="datetime-local" min=/);
+  assert.match(sql, /CREATE TRIGGER trg_citas_bloquear_horarios_pasados/);
+  assert.match(sql, /NEW\.inicio <= clock_timestamp\(\)/);
+  assert.match(sql, /NEW\.estado IN \('PENDIENTE','CONFIRMADA'\)/);
+});
+
 test('todos los módulos JavaScript tienen sintaxis válida', () => {
   for (const file of sourceFiles) {
     checkSyntax(file, readFileSync(resolve(root, file), 'utf8'));
