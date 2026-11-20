@@ -733,7 +733,7 @@ test('el inventario clasifica artículos, calcula utilidad y convierte compras p
   assert.match(productos, /INSUMO/);
   assert.match(productos, /EQUIPO/);
   assert.match(productos, /const utilidad=p=>Number\(p\.precio_venta\|\|0\)-Number\(p\.costo_unitario\|\|0\)/);
-  assert.match(productos, /const costoUnitario=unidades>0\?costoPaquete\/unidades:0/);
+  assert.match(productos, /costoUnitario=unidades>0\?costoPaquete\/unidades:0/);
   assert.match(productos, /cantidad:d\.cantidad/);
   assert.match(productos, /name="imagen"/);
   assert.match(ventas, /q=q\.eq\('vendible',true\)/);
