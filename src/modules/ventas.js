@@ -243,67 +243,233 @@ async function editarVenta(v, actuales){
  ref();
 }
 
-function pdfTextoFactura(texto){
- const limpiar=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,' ');
- const lineas=texto.split('\n').flatMap(x=>{const t=limpiar(x),out=[];for(let i=0;i<t.length;i+=88)out.push(t.slice(i,i+88));return out.length?out:['']});
- const escPdf=x=>x.replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
- const paginas=[];for(let i=0;i<lineas.length;i+=55)paginas.push(lineas.slice(i,i+55));
- const objetos=['<< /Type /Catalog /Pages 2 0 R >>',''];
- objetos.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
- const ids=[];
- paginas.forEach((pagina,i)=>{
-  const pageId=4+i*2,contentId=pageId+1;ids.push(pageId+' 0 R');
-  const stream='BT /F1 10 Tf 48 790 Td '+pagina.map((x,j)=>(j?'0 -14 Td ':'')+'('+escPdf(x)+') Tj').join(' ')+' ET';
-  objetos.push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents '+contentId+' 0 R >>');
-  objetos.push('<< /Length '+stream.length+' >>\nstream\n'+stream+'\nendstream');
- });
- objetos[1]='<< /Type /Pages /Kids ['+ids.join(' ')+'] /Count '+paginas.length+' >>';
- let pdf='%PDF-1.4\n',offsets=[0];
- objetos.forEach((obj,i)=>{offsets.push(pdf.length);pdf+=(i+1)+' 0 obj\n'+obj+'\nendobj\n'});
- const xref=pdf.length;pdf+='xref\n0 '+(objetos.length+1)+'\n0000000000 65535 f \n';
- for(let i=1;i<offsets.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
- pdf+='trailer\n<< /Size '+(objetos.length+1)+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF';
- return new Blob([pdf],{type:'application/pdf'});
+async function cargarLogoComprobante(url){
+ if(!url)return null;
+ try{
+  const respuesta=await fetch(url,{mode:'cors',credentials:'omit'});
+  if(!respuesta.ok)return null;
+  const blob=await respuesta.blob();
+  let imagen;
+  if(typeof createImageBitmap==='function')imagen=await createImageBitmap(blob);
+  else{
+   const temporal=URL.createObjectURL(blob);
+   try{imagen=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=temporal})}
+   finally{URL.revokeObjectURL(temporal)}
+  }
+  const escala=Math.min(1,600/Math.max(imagen.width,imagen.height));
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.max(1,Math.round(imagen.width*escala));
+  canvas.height=Math.max(1,Math.round(imagen.height*escala));
+  const contexto=canvas.getContext('2d');
+  if(!contexto)return null;
+  contexto.fillStyle='#ffffff';contexto.fillRect(0,0,canvas.width,canvas.height);
+  contexto.drawImage(imagen,0,0,canvas.width,canvas.height);
+  const base64=canvas.toDataURL('image/jpeg',0.9).split(',')[1];
+  const binario=atob(base64);
+  return {width:canvas.width,height:canvas.height,data:binario};
+ }catch(error){return null}
 }
-async function generarFacturaPDF(v,detalles,pagos){
- const moneda=n=>dinero(Number(n)||0),fecha=new Date(v.fecha_hora).toLocaleString('es-CO',{dateStyle:'long',timeStyle:'short'});
- const nombreArchivo='Comprobante-'+String(v.id).slice(0,8).toUpperCase()+'.pdf';
- const negocio=S.negocio||{},cliente=v.clientes||{},barbero=v.barberos||{};
- const lineas=[
-  negocio.nombre||'Barbería',
-  'COMPROBANTE DE VENTA',
-  'Comprobante: V-'+String(v.id).slice(0,8).toUpperCase(),
-  'Fecha: '+fecha,
-  'Cliente: '+(cliente.nombre||'Cliente de paso'),
-  'Teléfono: '+(cliente.telefono||'No registrado'),
-  'Atendido por: '+(barbero.nombre||'No asignado'),
-  '',
-  'DETALLE DE PRODUCTOS Y SERVICIOS'
- ];
- detalles.forEach(item=>{
-  const subtotal=item.subtotal==null?Number(item.cantidad)*Number(item.precio_unitario):Number(item.subtotal);
-  lineas.push(String(item.descripcion||'Servicio o producto'));
-  lineas.push('Cantidad: '+(Number(item.cantidad)||0)+' | Valor: '+moneda(item.precio_unitario)+' | Subtotal: '+moneda(subtotal));
+function pdfTextoFactura(datosVenta,logo){
+ const ascii=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,' ');
+ const escapar=x=>ascii(x).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
+ const W=612,H=792,azul=[0.075,0.145,0.255],dorado=[0.78,0.61,0.28],gris=[0.94,0.95,0.96],texto=[0.13,0.18,0.25],suave=[0.38,0.43,0.50],verde=[0.13,0.43,0.29];
+ const color=c=>c.map(n=>n.toFixed(3)).join(' ');
+ const rect=(x,y,w,h,c)=>'q '+color(c)+' rg '+x+' '+(H-y-h)+' '+w+' '+h+' re f Q\n';
+ const linea=(x1,y1,x2,y2,c=dorado,grosor=0.7)=>'q '+color(c)+' RG '+grosor+' w '+x1+' '+(H-y1)+' m '+x2+' '+(H-y2)+' l S Q\n';
+ const t=(valor,x,y,tam=9,c=texto,bold=false)=>'BT /'+(bold?'F2':'F1')+' '+tam+' Tf '+color(c)+' rg 1 0 0 1 '+x+' '+(H-y)+' Tm ('+escapar(valor)+') Tj ET\n';
+ const objetos=[],poner=(id,valor)=>objetos[id]=valor;
+ poner(1,'<< /Type /Catalog /Pages 2 0 R >>');
+ poner(2,'');
+ poner(3,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+ poner(4,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+ let imagenId=null;
+ if(logo?.data){imagenId=5;poner(imagenId,'<< /Type /XObject /Subtype /Image /Width '+logo.width+' /Height '+logo.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+logo.data.length+' >>\nstream\n'+logo.data+'\nendstream')}
+ const paginasPdf=[],pageIds=[];
+ const nuevaPagina=(continuacion=false)=>{
+  const comandos=[];
+  comandos.push(rect(0,0,W,8,dorado));
+  if(imagenId){
+   const maxW=70,maxH=45,ratio=Math.min(maxW/logo.width,maxH/logo.height),iw=logo.width*ratio,ih=logo.height*ratio;
+   comandos.push('q '+iw.toFixed(2)+' 0 0 '+ih.toFixed(2)+' 40 '+(H-26-ih).toFixed(2)+' cm /Im1 Do Q\n');
+  }
+  comandos.push(t(S.negocio?.nombre||'DH BARBER',122,47,continuacion?16:19,azul,true));
+  comandos.push(t(continuacion?'COMPROBANTE DE VENTA · CONTINUACION':'BARBERIA · ESTILO · CUIDADO PERSONAL',122,64,8,suave));
+  comandos.push(rect(365,25,207,55,azul));
+  comandos.push(t('COMPROBANTE',382,49,14,[1,1,1],true));
+  comandos.push(t(continuacion?'DE VENTA · CONT.':'DE VENTA',382,66,11,[1,1,1],true));
+  comandos.push(linea(40,88,572,88,dorado,1));
+  paginasPdf.push(comandos);return comandos;
+ };
+ const moneda=n=>dinero(Number(n)||0);
+ const negocio=S.negocio||{};
+ const fecha=datosVenta.fecha||'';
+ const numero=datosVenta.numero||'';
+ const estado=datosVenta.estado||'';
+ const cliente=datosVenta.cliente||{};
+ const barbero=datosVenta.barbero||{};
+ const agregarMeta=(c,x,y,w,label,value,colorValor=texto)=>{
+  c.push(rect(x,y,w,42,gris));c.push(t(label.toUpperCase(),x+10,y+13,7,suave,true));
+  c.push(t(value,x+10,y+30,9,colorValor,true));
+ };
+ const primera=paginasPdf[0]||nuevaPagina(false);
+ agregarMeta(primera,40,101,125,'COMPROBANTE',numero);
+ agregarMeta(primera,170,101,275,'FECHA Y HORA',fecha);
+ agregarMeta(primera,450,101,122,'ESTADO',estado,estado==='PAGADO'?verde:estado==='ANULADA'?[0.65,0.18,0.16]:dorado);
+ primera.push(t('DATOS DEL CLIENTE',40,169,10,azul,true));
+ primera.push(rect(40,180,532,51,[0.975,0.978,0.982]));
+ primera.push(linea(220,180,220,231,[0.86,0.88,0.90]));
+ primera.push(linea(390,180,390,231,[0.86,0.88,0.90]));
+ primera.push(t('CLIENTE',51,196,7,suave,true));primera.push(t(String(cliente.nombre||'Cliente de paso').slice(0,25),51,215,9,texto,true));
+ primera.push(t('TELEFONO',231,196,7,suave,true));primera.push(t(String(cliente.telefono||'No registrado').slice(0,20),231,215,9,texto,true));
+ primera.push(t('ATENDIDO POR',401,196,7,suave,true));primera.push(t(String(barbero.nombre||'No asignado').slice(0,23),401,215,9,texto,true));
+ let pagina=primera,y=258;
+ const encabezadoTabla=()=>{
+  pagina.push(t('DETALLE DE PRODUCTOS Y SERVICIOS',40,y,10,azul,true));y+=13;
+  pagina.push(rect(40,y,532,23,azul));
+  pagina.push(t('DESCRIPCION',50,y+15,7,[1,1,1],true));
+  pagina.push(t('CANT.',340,y+15,7,[1,1,1],true));
+  pagina.push(t('VALOR UNITARIO',390,y+15,7,[1,1,1],true));
+  pagina.push(t('SUBTOTAL',500,y+15,7,[1,1,1],true));y+=23;
+ };
+ const nuevaContinuacion=(titulo)=>{
+  pagina=nuevaPagina(true);y=112;pagina.push(t(titulo,40,y,10,azul,true));y+=14;
+ };
+ encabezadoTabla();
+ const detalles=datosVenta.detalles||[];
+ if(!detalles.length){pagina.push(t('No hay productos ni servicios registrados.',50,y+16,8,suave));y+=30}
+ detalles.forEach((item,i)=>{
+  const descripcion=ascii(item.descripcion||'Servicio o producto').slice(0,96);
+  const partes=descripcion.match(/.{1,48}/g)||[''];
+  const cantidad=Number(item.cantidad)||0,unitario=Number(item.precio_unitario)||0;
+  const subtotal=Number(item.subtotal??cantidad*unitario)||0;
+  const alto=partes.length>1?34:25;
+  if(y+alto>690){nuevaContinuacion('DETALLE DE PRODUCTOS Y SERVICIOS · CONTINUACION');encabezadoTabla()}
+  if(i%2===0)pagina.push(rect(40,y,532,alto,[0.975,0.978,0.982]));
+  partes.slice(0,2).forEach((parte,j)=>pagina.push(t(parte,50,y+13+j*10,8,texto)));
+  pagina.push(t(cantidad.toLocaleString('es-CO'),342,y+16,8,texto));
+  pagina.push(t(moneda(unitario),390,y+16,8,texto));
+  pagina.push(t(moneda(subtotal),500,y+16,8,texto,true));
+  pagina.push(linea(40,y+alto,572,y+alto,[0.88,0.90,0.92],0.45));y+=alto;
  });
- lineas.push('','Subtotal: '+moneda(v.total_bruto));
- if(Number(v.descuento)>0)lineas.push('Descuento: -'+moneda(v.descuento));
- lineas.push('TOTAL: '+moneda(v.total_venta),'Pagado: '+moneda(v.total_pagado),'SALDO PENDIENTE: '+moneda(v.saldo_pendiente));
- if(pagos.length){
-  lineas.push('','DETALLE DE PAGOS');
-  pagos.forEach(p=>lineas.push(new Date(p.fecha_hora).toLocaleDateString('es-CO')+' | '+String(p.metodo_pago||'').replaceAll('_',' ')+' | '+moneda(p.valor_pago)));
+ y+=18;
+ const pagos=datosVenta.pagos||[];
+ const resumen=datosVenta.resumen||{};
+ const altoResumen=151;
+ if(y+altoResumen>700){nuevaContinuacion('RESUMEN DE LA VENTA')}
+ const inicioResumen=y;
+ pagina.push(t('DETALLE DE PAGOS',40,inicioResumen+10,10,azul,true));
+ pagina.push(t('RESUMEN FINANCIERO',365,inicioResumen+10,10,azul,true));
+ pagina.push(rect(40,inicioResumen+18,310,25,gris));
+ pagina.push(t('FECHA',49,inicioResumen+34,7,suave,true));
+ pagina.push(t('MEDIO',157,inicioResumen+34,7,suave,true));
+ pagina.push(t('VALOR RECIBIDO',254,inicioResumen+34,7,suave,true));
+ pagina.push(rect(365,inicioResumen+18,207,25,gris));
+ const lineasResumen=[
+  ['Subtotal',moneda(resumen.subtotal)],
+  ...(Number(resumen.descuento)>0?[['Descuento','- '+moneda(resumen.descuento)]]:[]),
+  ['Total de la venta',moneda(resumen.total)],
+  ['Total pagado',moneda(resumen.pagado)],
+  ['Saldo pendiente',moneda(resumen.saldo)]
+ ];
+ lineasResumen.forEach((r,i)=>{
+  const yy=inicioResumen+57+i*18;
+  if(i===2)pagina.push(linea(375,yy-10,562,yy-10,dorado,0.9));
+  pagina.push(t(r[0],376,yy,8,i===4&&resumen.saldo>0?dorado:texto,i===2||i===4));
+  pagina.push(t(r[1],486,yy,8,i===4&&resumen.saldo>0?dorado:texto,true));
+ });
+ const filas=pagos.length?pagos:[null];
+ let indice=0,primeraRonda=true;
+ while(indice<filas.length){
+  if(!primeraRonda){nuevaContinuacion('DETALLE DE PAGOS · CONTINUACION');pagina.push(rect(40,y,310,25,gris));pagina.push(t('FECHA',49,y+16,7,suave,true));pagina.push(t('MEDIO',157,y+16,7,suave,true));pagina.push(t('VALOR RECIBIDO',254,y+16,7,suave,true));y+=25}
+  else y=inicioResumen+51;
+  const capacidad=Math.max(1,Math.floor((690-y)/23));
+  const fin=Math.min(filas.length,indice+capacidad);
+  const inicioIndice=indice;
+  for(;indice<fin;indice++){
+   const p=filas[indice];
+   const filaY=y+(indice-inicioIndice)*23;
+   if(indice%2===0)pagina.push(rect(40,filaY,310,23,[0.975,0.978,0.982]));
+   if(!p){pagina.push(t('No se registran pagos asociados.',49,filaY+15,8,suave));}
+   else{
+    const fechaPago=new Date(p.fecha_hora).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const metodo=bonito(p.metodo_pago||'No registrado')+(p.estado_pago&&p.estado_pago!=='REGISTRADO'?' · '+bonito(p.estado_pago):'');
+    pagina.push(t(fechaPago,49,filaY+15,7,texto));
+    pagina.push(t(metodo.slice(0,20),157,filaY+15,7,texto));
+    pagina.push(t(moneda(p.valor_pago),254,filaY+15,7,texto,true));
+   }
+   pagina.push(linea(40,filaY+23,350,filaY+23,[0.88,0.90,0.92],0.4));
+  }
+  y+=(fin-inicioIndice)*23;
+  primeraRonda=false;
+  if(indice<filas.length)y=112;
  }
- lineas.push('','¡Gracias por preferirnos!','Agradecemos tu confianza. Te esperamos pronto.','Comprobante comercial. No sustituye una factura electrónica de venta autorizada por la DIAN.');
- const blob=pdfTextoFactura(lineas.join('\n')),archivo=new File([blob],nombreArchivo,{type:'application/pdf'});
- const telefono=String(cliente.telefono||'').replace(/\D/g,''),numero=telefono.length===10?'57'+telefono:telefono;
- const mensaje='Hola '+String(cliente.nombre||'')+', te compartimos el comprobante de tu compra en '+String(negocio.nombre||'la barbería')+'. ¡Gracias por preferirnos!';
- if(navigator.share&&navigator.canShare?.({files:[archivo]})){
+ y=Math.max(y,inicioResumen+151);
+ if(y+58>710){nuevaContinuacion('TOTAL DE LA VENTA')}
+ pagina.push(rect(40,y,532,48,azul));
+ pagina.push(rect(40,y,6,48,dorado));
+ pagina.push(t(resumen.saldo<=0?'TOTAL PAGADO':'TOTAL DE LA VENTA',58,y+29,12,[1,1,1],true));
+ pagina.push(t(moneda(resumen.total),405,y+31,18,[1,1,1],true));
+ let graciasY=y+67;
+ if(graciasY+37>746){nuevaContinuacion('INFORMACION DE CIERRE');graciasY=154}
+ pagina.push(t('¡GRACIAS POR PREFERIRNOS!',W/2-92,graciasY,11,azul,true));
+ pagina.push(t('Agradecemos tu confianza. Te esperamos pronto.',W/2-112,graciasY+16,8,suave));
+ const ids=[];
+ const firstPageId=imagenId?6:5;
+ paginasPdf.forEach((commands,i)=>{
+  const pageId=firstPageId+i*2,contentId=pageId+1;ids.push(pageId+' 0 R');
+  const footerY=H-28;
+  commands.push(linea(40,footerY-14,572,footerY-14,[0.86,0.88,0.90],0.5));
+  commands.push(t('Comprobante comercial. No sustituye una factura electronica de venta autorizada por la DIAN.',40,footerY,6.5,suave));
+  commands.push(t('DH BARBER  ·  '+(i+1)+' / '+paginasPdf.length,470,footerY,6.5,suave,true));
+  const recursos='<< /Font << /F1 3 0 R /F2 4 0 R >>'+(imagenId?' /XObject << /Im1 '+imagenId+' 0 R >>':'')+' >>';
+  poner(pageId,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+W+' '+H+'] /Resources '+recursos+' /Contents '+contentId+' 0 R >>');
+  const stream=commands.join('');
+  poner(contentId,'<< /Length '+stream.length+' >>\nstream\n'+stream+'\nendstream');
+ });
+ poner(2,'<< /Type /Pages /Kids ['+ids.join(' ')+'] /Count '+ids.length+' >>');
+ let pdf='%PDF-1.4\n',offsets=[0];
+ for(let i=1;i<objetos.length;i++){offsets.push(pdf.length);pdf+=i+' 0 obj\n'+objetos[i]+'\nendobj\n'}
+ const xref=pdf.length;pdf+='xref\n0 '+(objetos.length)+'\n0000000000 65535 f \n';
+ for(let i=1;i<offsets.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+ pdf+='trailer\n<< /Size '+objetos.length+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF';
+ return new Blob([Uint8Array.from(pdf,c=>c.charCodeAt(0))],{type:'application/pdf'});
+}
+async function generarFacturaPDF(v,detalles,pagos,accion='compartir',ventanaImpresion=null){
+ const negocio=S.negocio||{},cliente=v.clientes||{},barbero=v.barberos||{};
+ const total=Number(v.total_venta)||0,pagado=Number(v.total_pagado)||0;
+ const saldo=Math.max(0,Number(v.saldo_pendiente??(total-pagado))||0);
+ let estado='PENDIENTE';
+ if(v.estado_venta==='ANULADA')estado='ANULADA';
+ else if(saldo<=0||v.estado_venta==='PAGADA')estado='PAGADO';
+ else if(pagado>0)estado='ABONADO';
+ const numero='V-'+String(v.id||'').replace(/-/g,'').slice(0,12).toUpperCase();
+ const subtotal=Number(v.total_bruto??(detalles||[]).reduce((s,x)=>s+(Number(x.subtotal??(Number(x.cantidad)*Number(x.precio_unitario)))||0),0));
+ const descuento=Math.max(0,Number(v.descuento)||0);
+ const logo=await cargarLogoComprobante(negocio.logo_url||'./logo-dhbarber.png');
+ const datos={
+  fecha:new Intl.DateTimeFormat('es-CO',{dateStyle:'medium',timeStyle:'short',timeZone:negocio.zona_horaria||'America/Bogota'}).format(new Date(v.fecha_hora)),
+  numero,estado,cliente,barbero,detalles:detalles||[],pagos:pagos||[],
+  resumen:{subtotal,descuento,total,pagado,saldo}
+ };
+ const blob=pdfTextoFactura(datos,logo),nombreArchivo='Comprobante-'+String(v.id).slice(0,8).toUpperCase()+'.pdf';
+ const archivo=new File([blob],nombreArchivo,{type:'application/pdf'});
+ const telefono=String(cliente.telefono||'').replace(/\D/g,''),numeroTelefono=telefono.length===10?'57'+telefono:telefono;
+ const mensaje='Hola '+String(cliente.nombre||'')+', te compartimos el comprobante de tu compra en '+String(negocio.nombre||'DH BARBER')+'. ¡Gracias por preferirnos!';
+ if(accion==='imprimir'){
+  if(!ventanaImpresion)throw new Error('El navegador bloqueó la apertura del PDF. Descárgalo para imprimirlo.');
+  const url=URL.createObjectURL(blob);ventanaImpresion.location.href=url;
+  setTimeout(()=>URL.revokeObjectURL(url),60000);return;
+ }
+ if(accion==='compartir'&&navigator.share&&navigator.canShare?.({files:[archivo]})){
   try{await navigator.share({files:[archivo],title:'Comprobante de venta',text:mensaje});return}
   catch(error){if(error?.name==='AbortError')return}
  }
  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=nombreArchivo;document.body.appendChild(a);a.click();a.remove();
- setTimeout(()=>URL.revokeObjectURL(url),1500);
- if(numero.length>=7)window.open('https://wa.me/'+numero+'?text='+encodeURIComponent(mensaje),'_blank','noopener');
- toast(numero.length>=7?'PDF descargado. Adjunta el archivo en WhatsApp para enviarlo al cliente.':'PDF descargado. El cliente no tiene teléfono registrado.',false);
+ setTimeout(()=>URL.revokeObjectURL(url),60000);
+ if(accion==='compartir'&&numeroTelefono.length>=7){
+  window.open('https://wa.me/'+numeroTelefono+'?text='+encodeURIComponent(mensaje),'_blank','noopener');
+  toast('PDF descargado. Adjunta el archivo en WhatsApp para enviarlo al cliente.',false);
+ }else toast('PDF descargado correctamente.',false);
 }
 async function detalleVenta(v){
  const admin=ADM.includes(S.perfil.rol);
@@ -318,10 +484,11 @@ async function detalleVenta(v){
  ${fila('Total',dinero(v.total_venta),'tot')}${fila('Pagado',dinero(v.total_pagado))}${fila('Saldo',dinero(v.saldo_pendiente))}
  ${p.length?'<label>Pagos</label>'+p.map(x=>fila(bonito(x.metodo_pago)+', '+hora(x.fecha_hora),dinero(x.valor_pago))).join(''):''}
  ${abierta?`<label for="pg">Registrar otro pago</label><div class="ln"><input id="pg" type="number" min="1" inputmode="decimal" value="${v.saldo_pendiente}"><select id="mp" aria-label="Método">${METODOS}</select></div><button type="button" class="btn block" id="rp">Registrar pago</button>`:''}
- ${v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="pdf">Generar factura PDF y compartir</button>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button>'+(puedeAnular?'<button type="button" class="btn sec block" id="an">Anular venta</button>':'<p class="info">Esta venta pertenece a una caja cerrada, a otro turno o no tiene una caja histórica verificable. No se puede anular desde la caja actual.</p>'):''}
+ ${v.estado_venta!=='ANULADA'?'<div class="acts" style="flex-wrap:wrap"><button type="button" class="btn" id="pdf">Descargar PDF</button><button type="button" class="btn sec" id="printpdf">Imprimir PDF</button><button type="button" class="btn sec" id="sharepdf">Compartir PDF</button></div>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button>'+(puedeAnular?'<button type="button" class="btn sec block" id="an">Anular venta</button>':'<p class="info">Esta venta pertenece a una caja cerrada, a otro turno o no tiene una caja histórica verificable. No se puede anular desde la caja actual.</p>'):''}
  <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
- const pdf=$('#pdf');if(pdf)pdf.onclick=async()=>{if(pdf.disabled)return;pdf.disabled=true;try{await generarFacturaPDF(v,d,p)}catch(error){if(error?.name!=='AbortError')toast('No se pudo generar o compartir el PDF: '+(error.message||'Error inesperado'),true)}finally{pdf.disabled=false}};
+ const ejecutarPDF=(id,accion)=>{const b=$(id);if(!b)return;b.onclick=async()=>{if(b.disabled)return;b.disabled=true;let ventana=null;try{if(accion==='imprimir'){ventana=window.open('about:blank','_blank');if(!ventana)throw new Error('El navegador bloqueó la ventana. Usa Descargar PDF para imprimirlo.')}await generarFacturaPDF(v,d,p,accion,ventana)}catch(error){if(ventana&&!ventana.closed)ventana.close();if(error?.name!=='AbortError')toast('No se pudo generar el PDF: '+(error.message||'Error inesperado'),true)}finally{b.disabled=false}}};
+ ejecutarPDF('#pdf','descargar');ejecutarPDF('#printpdf','imprimir');ejecutarPDF('#sharepdf','compartir');
  if(abierta)$('#rp').onclick=async()=>{const b=$('#rp');if(b.disabled)return;const n=Number($('#pg').value);
   if(!(n>0)||n>v.saldo_pendiente)return toast('El pago debe ser mayor a cero y no superar el saldo.',true);
   b.disabled=true;

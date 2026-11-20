@@ -58,21 +58,24 @@ test('Agenda bloquea citas y reprogramaciones con fecha u hora pasada', () => {
   assert.match(agenda, /Selecciona un horario futuro/);
 });
 
-test('Ventas ofrece fiado identificado y comprobante PDF compartible', () => {
+test('Ventas genera un comprobante PDF vectorial con varias páginas, marca y descarga/impresión/compartir', () => {
   const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
   assert.match(ventas, /Registrar saldo pendiente \(fiado\)/);
-  assert.match(ventas, /Para registrar una venta fiada debes seleccionar el cliente/);
   assert.match(ventas, /async function generarFacturaPDF/);
-  assert.match(ventas, /function pdfTextoFactura/);
-  assert.match(ventas, /const paginas=\[\];for\(let i=0;i<lineas\.length;i\+=55\)/);
-  assert.match(ventas, /new Blob\(\[pdf\],\{type:'application\/pdf'\}\)/);
+  assert.match(ventas, /async function cargarLogoComprobante/);
+  assert.match(ventas, /function pdfTextoFactura\(datosVenta,logo\)/);
+  assert.match(ventas, /const W=612,H=792/);
+  assert.match(ventas, /new Blob\(\[Uint8Array\.from\(pdf,c=>c\.charCodeAt\(0\)\)\],\{type:'application\/pdf'\}\)/);
   assert.match(ventas, /new File\(\[blob\],nombreArchivo,\{type:'application\/pdf'\}\)/);
   assert.match(ventas, /navigator\.canShare/);
-  assert.match(ventas, /PDF descargado/);
+  assert.match(ventas, /accion==='imprimir'/);
+  assert.match(ventas, /TOTAL PAGADO/);
+  assert.match(ventas, /Saldo pendiente/);
+  assert.match(ventas, /No sustituye una factura electronica/);
+  assert.match(ventas, /id="printpdf"/);
+  assert.match(ventas, /id="sharepdf"/);
+  assert.doesNotMatch(ventas, /window\.print\(/);
   assert.doesNotMatch(ventas, /cdnjs\.cloudflare\.com\/ajax\/libs\/jspdf/);
-  assert.doesNotMatch(ventas, /function cargarJsPDF/);
-  assert.match(ventas, /SALDO PENDIENTE/);
-  assert.match(ventas, /No sustituye una factura electrónica/);
 });
 
 test('La anulación de ventas exige la misma caja abierta del turno', () => {
