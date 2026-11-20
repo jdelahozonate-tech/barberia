@@ -248,7 +248,14 @@ async function cargarLogoComprobante(url){
  try{
   const respuesta=await fetch(url,{mode:'cors',credentials:'omit'});
   if(!respuesta.ok)return null;
-  const blob=await respuesta.blob(),imagen=await createImageBitmap(blob);
+  const blob=await respuesta.blob();
+  let imagen;
+  if(typeof createImageBitmap==='function')imagen=await createImageBitmap(blob);
+  else{
+   const temporal=URL.createObjectURL(blob);
+   try{imagen=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=temporal})}
+   finally{URL.revokeObjectURL(temporal)}
+  }
   const escala=Math.min(1,600/Math.max(imagen.width,imagen.height));
   const canvas=document.createElement('canvas');
   canvas.width=Math.max(1,Math.round(imagen.width*escala));
@@ -262,7 +269,7 @@ async function cargarLogoComprobante(url){
   return {width:canvas.width,height:canvas.height,data:binario};
  }catch(error){return null}
 }
-function pdfTextoFactura(paginas,logo){
+function pdfTextoFactura(datosVenta,logo){
  const ascii=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,' ');
  const escapar=x=>ascii(x).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
  const W=612,H=792,azul=[0.075,0.145,0.255],dorado=[0.78,0.61,0.28],gris=[0.94,0.95,0.96],texto=[0.13,0.18,0.25],suave=[0.38,0.43,0.50],verde=[0.13,0.43,0.29];
@@ -294,21 +301,20 @@ function pdfTextoFactura(paginas,logo){
   paginasPdf.push(comandos);return comandos;
  };
  const moneda=n=>dinero(Number(n)||0);
- const negocio=S.negocio||{},clienteActual={};
- const datosVenta=pdfTextoFactura.datos||{};
+ const negocio=S.negocio||{};
  const fecha=datosVenta.fecha||'';
  const numero=datosVenta.numero||'';
  const estado=datosVenta.estado||'';
  const cliente=datosVenta.cliente||{};
  const barbero=datosVenta.barbero||{};
- const agregarMeta=(c,x,y,w,label,value)=>{
+ const agregarMeta=(c,x,y,w,label,value,colorValor=texto)=>{
   c.push(rect(x,y,w,42,gris));c.push(t(label.toUpperCase(),x+10,y+13,7,suave,true));
-  c.push(t(value,x+10,y+30,9,texto,true));
+  c.push(t(value,x+10,y+30,9,colorValor,true));
  };
  const primera=paginasPdf[0]||nuevaPagina(false);
  agregarMeta(primera,40,101,125,'COMPROBANTE',numero);
  agregarMeta(primera,170,101,275,'FECHA Y HORA',fecha);
- agregarMeta(primera,450,101,122,'ESTADO',estado);
+ agregarMeta(primera,450,101,122,'ESTADO',estado,estado==='PAGADO'?verde:estado==='ANULADA'?[0.65,0.18,0.16]:dorado);
  primera.push(t('DATOS DEL CLIENTE',40,169,10,azul,true));
  primera.push(rect(40,180,532,51,[0.975,0.978,0.982]));
  primera.push(linea(220,180,220,231,[0.86,0.88,0.90]));
@@ -332,13 +338,14 @@ function pdfTextoFactura(paginas,logo){
  const detalles=datosVenta.detalles||[];
  if(!detalles.length){pagina.push(t('No hay productos ni servicios registrados.',50,y+16,8,suave));y+=30}
  detalles.forEach((item,i)=>{
-  const descripcion=ascii(item.descripcion||'Servicio o producto').slice(0,48);
+  const descripcion=ascii(item.descripcion||'Servicio o producto').slice(0,96);
+  const partes=descripcion.match(/.{1,48}/g)||[''];
   const cantidad=Number(item.cantidad)||0,unitario=Number(item.precio_unitario)||0;
   const subtotal=Number(item.subtotal??cantidad*unitario)||0;
-  const alto=25;
+  const alto=partes.length>1?34:25;
   if(y+alto>690){nuevaContinuacion('DETALLE DE PRODUCTOS Y SERVICIOS · CONTINUACION');encabezadoTabla()}
   if(i%2===0)pagina.push(rect(40,y,532,alto,[0.975,0.978,0.982]));
-  pagina.push(t(descripcion,50,y+16,8,texto));
+  partes.slice(0,2).forEach((parte,j)=>pagina.push(t(parte,50,y+13+j*10,8,texto)));
   pagina.push(t(cantidad.toLocaleString('es-CO'),342,y+16,8,texto));
   pagina.push(t(moneda(unitario),390,y+16,8,texto));
   pagina.push(t(moneda(subtotal),500,y+16,8,texto,true));
@@ -439,12 +446,12 @@ async function generarFacturaPDF(v,detalles,pagos,accion='compartir'){
  const subtotal=Number(v.total_bruto??(detalles||[]).reduce((s,x)=>s+(Number(x.subtotal??(Number(x.cantidad)*Number(x.precio_unitario)))||0),0));
  const descuento=Math.max(0,Number(v.descuento)||0);
  const logo=await cargarLogoComprobante(negocio.logo_url||'./logo-dhbarber.png');
- pdfTextoFactura.datos={
+ const datos={
   fecha:new Intl.DateTimeFormat('es-CO',{dateStyle:'medium',timeStyle:'short',timeZone:negocio.zona_horaria||'America/Bogota'}).format(new Date(v.fecha_hora)),
   numero,estado,cliente,barbero,detalles:detalles||[],pagos:pagos||[],
   resumen:{subtotal,descuento,total,pagado,saldo}
  };
- const blob=pdfTextoFactura([],logo),nombreArchivo='Comprobante-'+String(v.id).slice(0,8).toUpperCase()+'.pdf';
+ const blob=pdfTextoFactura(datos,logo),nombreArchivo='Comprobante-'+String(v.id).slice(0,8).toUpperCase()+'.pdf';
  const archivo=new File([blob],nombreArchivo,{type:'application/pdf'});
  const telefono=String(cliente.telefono||'').replace(/\D/g,''),numeroTelefono=telefono.length===10?'57'+telefono:telefono;
  const mensaje='Hola '+String(cliente.nombre||'')+', te compartimos el comprobante de tu compra en '+String(negocio.nombre||'DH BARBER')+'. ¡Gracias por preferirnos!';
