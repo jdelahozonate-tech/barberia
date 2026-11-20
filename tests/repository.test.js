@@ -60,20 +60,20 @@ test('Agenda bloquea citas y reprogramaciones con fecha u hora pasada', () => {
 
 test('Ventas ofrece fiado y comprobante comercial en PDF e impresión', () => {
   const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
-  assert.match(ventas, /Registrar saldo pendiente \\(fiado\\)/);
+  assert.match(ventas, /Registrar saldo pendiente \(fiado\)/);
   assert.match(ventas, /Para registrar una venta fiada debes seleccionar el cliente/);
   assert.match(ventas, /async function generarFacturaPDF/);
   assert.match(ventas, /function htmlComprobanteVenta/);
   assert.match(ventas, /function imprimirComprobante/);
-  assert.match(ventas, /window\\.print\\(\\)/);
+  assert.match(ventas, /window\.print\(\)/);
   assert.match(ventas, /format:'letter'/);
-  assert.match(ventas, /logo_url\\|\\|'\\.\\/logo-dhbarber\\.png'/);
+  assert.match(ventas, /logo_url\|\|'\.\/logo-dhbarber\.png'/);
   assert.match(ventas, /DETALLE DE PRODUCTOS Y SERVICIOS/);
   assert.match(ventas, /DETALLE DE PAGOS/);
   assert.match(ventas, /SALDO PENDIENTE/);
   assert.match(ventas, /Guardar como PDF/);
-  assert.match(ventas, /navigator\\.canShare/);
-  assert.match(ventas, /doc\\.save\\(nombreArchivo\\)/);
+  assert.match(ventas, /navigator\.canShare/);
+  assert.match(ventas, /doc\.save\(nombreArchivo\)/);
   assert.match(ventas, /No sustituye una factura electrónica/);
   assert.doesNotMatch(ventas, /function pdfTextoFactura/);
 });
