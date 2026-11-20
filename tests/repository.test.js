@@ -84,7 +84,7 @@ test('Liquidaciones de barberos gestionan comisiones pagadas, anticipos, descuen
   const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
   const index = readFileSync(resolve(root, 'index.html'), 'utf8');
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261120070000_liquidaciones_profesionales_barberos.sql'), 'utf8');
-  assert.match(finanzas, /async function prepararLiquidacion/);
+  assert.match(finanzas, /function prepararLiquidacion/);
   assert.match(finanzas, /registrar_anticipo_barbero/);
   assert.match(finanzas, /registrar_abono_liquidacion_barbero/);
   assert.match(finanzas, /total_descuentos/);
@@ -548,7 +548,8 @@ test('ventas, compras, gastos y pagos requieren caja abierta en interfaz y Supab
   assert.match(productos, /Para registrar una compra, primero abre la caja/);
   assert.match(productos, /Para registrar un abono al proveedor, primero abre la caja/);
   assert.match(finanzas, /Para registrar un gasto, primero abre la caja/);
-  assert.match(finanzas, /Para liquidar comisiones, primero abre la caja/);
+  assert.match(finanzas, /Abre Caja para registrar el pago/);
+  assert.match(finanzas, /registrar_abono_liquidacion_barbero/);
   for (const table of ['ventas', 'pagos', 'compras_inventario', 'gastos', 'pagos_compras_inventario']) {
     assert.match(sql, new RegExp('ON public\\.' + table));
   }
@@ -619,6 +620,7 @@ test('las comisiones nuevas guardan porcentaje y base neta, sin comisión en pro
   const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
   const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261121000000_comisiones_perfiles_barberos.sql'), 'utf8');
+  const liquidaciones = readFileSync(resolve(root, 'supabase/migrations/20261120070000_liquidaciones_profesionales_barberos.sql'), 'utf8');
   assert.match(ventas, /porcentaje_comision_aplicado:porcentaje/);
   assert.match(ventas, /base_comision:base/);
   assert.match(ventas, /const brutoLinea=l\.i\.p\*l\.q/);
@@ -629,7 +631,8 @@ test('las comisiones nuevas guardan porcentaje y base neta, sin comisión en pro
   assert.match(sql, /SET DEFAULT 65/);
   assert.match(sql, /No se puede editar: esta venta tiene comisiones liquidadas/);
   assert.match(sql, /No se puede editar para evitar cambiar retroactivamente su comisión/);
-  assert.match(finanzas, /valor_base:x\.base_comision\?\?x\.subtotal/);
+  assert.match(liquidaciones, /COALESCE\(d\.base_comision,d\.subtotal,0\)/);
+  assert.match(liquidaciones, /d\.porcentaje_comision_aplicado/);
 });
 
 test('los perfiles de barberos permiten fotografía privada de administración y lectura propia', () => {
