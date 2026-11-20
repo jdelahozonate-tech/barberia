@@ -401,7 +401,7 @@ async function generarFacturaPDF(v,detalles,pagos,accion='descargar'){
   doc.save(nombreArchivo);
   if(accion==='compartir'&&numeroWa.length>=7)window.open('https://wa.me/'+numeroWa+'?text='+encodeURIComponent(mensaje),'_blank','noopener');
   toast(accion==='compartir'&&numeroWa.length>=7?'PDF descargado. Adjunta el archivo en WhatsApp para enviarlo al cliente.':'PDF descargado correctamente.',false);
- }catch(error){toast('No se pudo generar el PDF: '+(error?.message||'Error inesperado'),true)}
+ }catch(error){abrirComprobanteVenta(v,detalles,pagos,'imprimir');toast('No se pudo generar la descarga directa. Se abrió la vista de impresión para guardar como PDF: '+(error?.message||'Error inesperado'),true)}
 }
 function abrirComprobanteVenta(v,detalles,pagos,accion){
  const ventana=window.open('','_blank');
