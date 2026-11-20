@@ -18,6 +18,7 @@ const sourceFiles = [
   'src/modules/notificaciones.js',
   'src/modules/catalogos.js',
   'src/modules/productos.js',
+  'src/modules/pedidos.js',
   'src/modules/equipo.js',
   'src/modules/finanzas.js',
   'src/modules/inicio.js',
@@ -31,6 +32,22 @@ function checkSyntax(file, code) {
   code = code.replace(/^import .*;\s*$/gm, '').replace(/^export\s+/gm, '');
   assert.doesNotThrow(() => new vm.Script(code, { filename: file }), file);
 }
+
+test('Pedidos de clientes tiene un panel independiente y solo gestiona pedidos de productos', () => {
+  const pedidos = readFileSync(resolve(root, 'src/modules/pedidos.js'), 'utf8');
+  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  assert.match(pedidos, /pedidos_productos/);
+  assert.match(pedidos, /detalle_pedidos_productos/);
+  assert.match(pedidos, /EN_PREPARACION/);
+  assert.match(pedidos, /data-order-status/);
+  assert.match(pedidos, /data-order-search/);
+  assert.match(pedidos, /orders-kpis/);
+  assert.doesNotMatch(productos, /async function pedidosVista/);
+  assert.doesNotMatch(productos, /Pedidos de clientes/);
+  assert.match(index, /crearModuloPedidos/);
+  assert.match(index, /pedidos: pedidosProductos/);
+});
 
 test('todos los módulos JavaScript tienen sintaxis válida', () => {
   for (const file of sourceFiles) {
@@ -456,9 +473,11 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(productos, /data-tab="movimientos"/);
   assert.match(productos, /data-tab="proveedores"/);
   assert.match(index, /crearModuloProductos/);
-  assert.match(index, /productos,pedidos:pedidosProductos,caja/);
+  assert.match(index, /const \{ productos \} = crearModuloProductos/);
+  assert.match(index, /pedidos: pedidosProductos/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v19/);
+  assert.match(sw, /barberia-v20/);
+  assert.match(sw, /src\/modules\/pedidos\.js/);
 });
 
 test('los pagos de compras requieren caja abierta en interfaz y base de datos', () => {
@@ -494,8 +513,10 @@ test('el catálogo de productos incorpora imágenes y pedidos públicos sin move
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261119030000_catalogo_visual_pedidos_productos.sql'), 'utf8');
   const index = readFileSync(resolve(root, 'index.html'), 'utf8');
   assert.match(productos, /storage\.from\('productos'\)\.upload/);
-  assert.match(productos, /data-tab="pedidos"/);
-  assert.match(productos, /pedidos_productos/);
+  const pedidos = readFileSync(resolve(root, 'src/modules/pedidos.js'), 'utf8');
+  assert.doesNotMatch(productos, /Pedidos de clientes/);
+  assert.match(pedidos, /pedidos_productos/);
+  assert.match(pedidos, /detalle_pedidos_productos/);
   assert.match(publico, /catalogo_productos_publico/);
   assert.match(publico, /crear_pedido_producto_publico/);
   assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.pedidos_productos/);
@@ -576,7 +597,7 @@ test('los perfiles de barberos permiten fotografía privada de administración y
   assert.match(index, /miperfil:miPerfil/);
   assert.match(sql, /CREATE POLICY barberos_perfil_propio/);
   assert.match(sql, /barberos_fotos_insertar/);
-  assert.match(sw, /barberia-v19/);
+  assert.match(sw, /barberia-v20/);
 });
 
 
