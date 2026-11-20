@@ -64,6 +64,9 @@ test('Ventas ofrece fiado identificado y comprobante PDF compartible', () => {
   assert.match(ventas, /Para registrar una venta fiada debes seleccionar el cliente/);
   assert.match(ventas, /async function generarFacturaPDF/);
   assert.match(ventas, /cdnjs\.cloudflare\.com\/ajax\/libs\/jspdf/);
+  assert.match(ventas, /setTimeout\(\(\)=>\{if\(!existente\)script\.remove\(\);fallar\(\)\},15000\)/);
+  assert.match(ventas, /let cargaJsPDF=null/);
+  assert.match(ventas, /new AbortController\(\),limite=setTimeout\(\(\)=>controlador\.abort\(\),5000\)/);
   assert.match(ventas, /navigator\.canShare/);
   assert.match(ventas, /SALDO PENDIENTE/);
   assert.match(ventas, /No sustituye una factura electrónica/);
