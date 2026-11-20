@@ -480,6 +480,64 @@ main:has(.inventory-shell){max-width:1480px;padding:26px 28px 110px}
 }
 
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Liquidaciones profesionales de barberos */
+.liquidation-shell{display:grid;gap:18px;max-width:1180px;margin:0 auto}
+.liquidation-header{display:flex;align-items:flex-end;justify-content:space-between;gap:18px}
+.liquidation-header h2{margin:4px 0;font-size:1.55rem;letter-spacing:-.035em}
+.liquidation-header p,.liquidation-section-head p{margin:4px 0 0;color:var(--mute);font-size:.82rem}
+.liquidation-eyebrow{font-size:.64rem;font-weight:800;letter-spacing:.13em;color:#66809e}
+.liquidation-actions{display:flex;gap:8px;flex-wrap:wrap}
+.liquidation-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.liquidation-kpis article{display:grid;gap:7px;padding:17px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 4px 16px #1d35570a}
+.liquidation-kpis small,.liquidation-kpis span{font-size:.72rem;color:var(--mute)}
+.liquidation-kpis strong{font-size:1.35rem;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.liquidation-kpi-primary{background:#172f4d!important;color:#fff;border-color:#172f4d!important}
+.liquidation-kpi-primary small,.liquidation-kpi-primary span{color:#d0dced}
+.liquidation-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:4px}
+.liquidation-section-head h3{margin:0;font-size:1.05rem}
+.liquidation-section-head>span{font-size:.72rem;color:var(--mute)}
+.liquidation-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.liquidation-card{padding:16px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 4px 16px #1d35570a}
+.liquidation-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.liquidation-card-head h3{margin:4px 0;font-size:1.02rem}
+.liquidation-card-head small{color:var(--mute);font-size:.72rem}
+.liquidation-status{padding:5px 9px;border-radius:99px;background:#fff4dc;color:#946314;font-size:.65rem;font-weight:800}
+.liquidation-card-values{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:17px 0 12px}
+.liquidation-card-values div{display:grid;gap:4px}
+.liquidation-card-values small{font-size:.68rem;color:var(--mute)}
+.liquidation-card-values strong{font-size:.96rem}
+.liquidation-deduction{color:#b24c4c!important}
+.liquidation-card-total{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-top:1px solid var(--line);font-size:.78rem}
+.liquidation-card-total strong{font-size:1.12rem}
+.liquidation-empty,.liquidation-loading{padding:28px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;text-align:center;color:var(--mute);font-size:.82rem}
+.liquidation-empty{grid-column:1/-1;display:grid;gap:6px}
+.liquidation-empty strong{color:var(--ink);font-size:1rem}
+.liquidation-footnote,.liquidation-hint{padding:11px 13px;border-radius:9px;background:#f3f6fa;color:#60718a;font-size:.72rem;line-height:1.5}
+.liquidation-form,.liquidation-history{display:grid;gap:12px;min-width:min(560px,82vw)}
+.liquidation-form header h2,.liquidation-history header h2{margin:4px 0;font-size:1.3rem}
+.liquidation-form header p,.liquidation-history header p{margin:4px 0;color:var(--mute);font-size:.78rem}
+.liquidation-breakdown{max-height:190px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 11px}
+.liquidation-detail-row,.liquidation-history-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.liquidation-detail-row:last-child,.liquidation-history-row:last-child{border-bottom:0}
+.liquidation-detail-row>span,.liquidation-history-row>span{display:grid;gap:4px;min-width:0}
+.liquidation-detail-row strong,.liquidation-history-row strong{font-size:.8rem}
+.liquidation-detail-row small,.liquidation-history-row small{color:var(--mute);font-size:.68rem}
+.liquidation-summary-line{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:.8rem}
+.liquidation-net{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px;border-radius:10px;background:#edf3fb;color:#3f5877;font-size:.78rem}
+.liquidation-net strong{font-size:1.1rem;color:#172f4d}
+.liquidation-history-row{width:100%;text-align:left;background:#fff;border:0;border-bottom:1px solid var(--line);cursor:pointer}
+.liquidation-history-row:hover{background:#f7f9fc}
+@media(max-width:720px){
+ .liquidation-header{align-items:flex-start;flex-direction:column}
+ .liquidation-actions{width:100%}
+ .liquidation-actions .btn{flex:1}
+ .liquidation-kpis{grid-template-columns:1fr 1fr}
+ .liquidation-kpi-primary{grid-column:1/-1}
+ .liquidation-grid{grid-template-columns:1fr}
+ .liquidation-form,.liquidation-history{min-width:0}
+}
+
 </style>
 </head>
 <body>
@@ -512,7 +570,7 @@ const NOTIF=crearModuloNotificaciones({ $, sb, S, esc, toast });
 
 /* ---------- Acceso ---------- */
 /* ---------- Estructura ---------- */
-const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['pedidos','Pedidos'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Inventario'],['caja','Caja',1],['comisiones','Comisiones',1],['ajustes','Ajustes',2],['miscom','Mis comisiones',3],['miperfil','Mi perfil',3]];
+const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['pedidos','Pedidos'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Inventario'],['caja','Caja',1],['comisiones','Liquidaciones',1],['ajustes','Ajustes',2],['miscom','Mis comisiones',3],['miperfil','Mi perfil',3]];
 const { pantallaAuth, cargar, aviso } = crearModuloAcceso({ $, app, sb, S, esc, traducir, toast, waNum, shell });
 function shell(){
  app.innerHTML=`<div class="pole"></div><div class="bar">${S.negocio.logo_url?`<img src="${esc(S.negocio.logo_url)}" alt="${esc(S.negocio.nombre)}" style="height:44px;display:block">`:`<strong>${esc(S.negocio.nombre)}</strong>`}<span><small>${esc(S.perfil.nombre)}, ${S.perfil.rol.toLowerCase()}</small> <button type="button" class="link light notif-bell" id="campana-notificaciones" aria-label="Notificaciones">♢</button> <button class="link light" id="out">Salir</button></span></div>
