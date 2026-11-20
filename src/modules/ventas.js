@@ -386,17 +386,21 @@ async function generarFacturaPDF(v,detalles,pagos,accion='descargar'){
   }
   if(y+49>H-14)y=encabezadoContinuacion();
   y+=3;doc.setFillColor(...navy);doc.rect(m,y,cw,18,'F');doc.setFillColor(...gold);doc.rect(m,y,2,18,'F');
-  texto('TOTAL DE LA VENTA',m+6,y+11,10,[255,255,255],true);texto(moneda(total),W-m-5,y+12,15,[255,255,255],true,'right');
+  texto(saldo<=0?'TOTAL PAGADO':'TOTAL DE LA VENTA',m+6,y+11,10,[255,255,255],true);texto(moneda(total),W-m-5,y+12,15,[255,255,255],true,'right');
   y+=29;texto('¡Gracias por preferirnos!',W/2,y,12,navy,true,'center');texto('Agradecemos tu confianza. Te esperamos pronto.',W/2,y+6,8,gray,false,'center');
   y+=15;doc.setDrawColor(225,229,235);doc.line(m,y,W-m,y);y+=6;
   texto('Comprobante comercial. No sustituye una factura electrónica de venta autorizada por la DIAN.',W/2,y,6.5,gray,false,'center');
   texto((negocio.nombre||'DH BARBER')+' · Comprobante generado desde el sistema de gestión de la barbería.',W/2,y+4,6.5,gray,false,'center');
-  const blob=doc.output('blob'),archivo=new File([blob],nombreArchivo,{type:'application/pdf'});
+  const blob=doc.output('blob');
   const telefono=String(cliente.telefono||'').replace(/\D/g,''),numeroWa=telefono.length===10?'57'+telefono:telefono;
   const mensaje='Hola '+String(cliente.nombre||'')+', te compartimos el comprobante de tu compra en '+String(negocio.nombre||'la barbería')+'. ¡Gracias por preferirnos!';
-  if(accion==='compartir'&&navigator.share&&navigator.canShare?.({files:[archivo]})){
-   try{await navigator.share({files:[archivo],title:'Comprobante de venta',text:mensaje});return}
-   catch(error){if(error?.name==='AbortError')return}
+  // La descarga directa no depende de la API File, que no está disponible en todos los navegadores.
+  if(accion==='compartir'&&typeof File!=='undefined'&&navigator.share){
+   const archivo=new File([blob],nombreArchivo,{type:'application/pdf'});
+   if(navigator.canShare?.({files:[archivo]})){
+    try{await navigator.share({files:[archivo],title:'Comprobante de venta',text:mensaje});return}
+    catch(error){if(error?.name==='AbortError')return}
+   }
   }
   doc.save(nombreArchivo);
   if(accion==='compartir'&&numeroWa.length>=7)window.open('https://wa.me/'+numeroWa+'?text='+encodeURIComponent(mensaje),'_blank','noopener');
