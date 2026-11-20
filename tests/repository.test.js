@@ -751,7 +751,8 @@ test('el cobro de citas marca ATENDIDA y permite productos y servicios adicional
   assert.match(sql, /UPDATE public\.citas SET estado='ATENDIDA'/);
   assert.match(ventas, /tipo==='SERVICIOS'\?x\.k\.startsWith\('s:'\):true/);
   assert.match(ventas, /class="btn sec rm" aria-label="Quitar ítem"/);
-  assert.match(sql, /INSERT INTO public\.detalle_ventas/);\n  assert.match(sql, /tipo_item='PRODUCTO'/);
+  assert.match(sql, /INSERT INTO public\.detalle_ventas/);
+  assert.match(sql, /tipo_item='PRODUCTO'/);
   assert.match(ventas, /data-filtro-ventas="HOY"/);
   assert.match(ventas, /data-filtro-ventas="SEMANA"/);
   assert.match(ventas, /data-filtro-ventas="MES"/);
