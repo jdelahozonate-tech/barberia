@@ -117,7 +117,9 @@ export function crearModuloReportes(deps){
    '<section class="reports-filter-panel"><div class="reports-filter-grid"><label>Tipo de informe<select id="report-type">'+opciones+'</select></label><label>Desde<input id="report-from" type="date" value="'+primerDiaMes()+'"></label><label>Hasta<input id="report-to" type="date" value="'+fechaZona()+'"></label><label>Barbero<select id="report-barber"><option value="">Todos los barberos</option>'+barberos.map(b=>'<option value="'+b.id+'">'+esc(b.nombre)+'</option>').join('')+'</select></label><button class="btn" id="report-run">Generar informe</button></div></section>'+
    '<section id="report-result" class="reports-result"><div class="reports-empty"><strong>Prepara tu primer informe</strong><p>Selecciona el tipo de información y el período que deseas consultar.</p></div></section></section>';
   $('#report-run').onclick=generar;
-  $('#report-type').onchange=()=>{actual=null;$('#report-result').innerHTML='<div class="reports-empty"><strong>Informe listo para consultar</strong><p>Presiona Generar informe para actualizar los resultados.</p></div>'};
+  const actualizarFiltroBarbero=()=>{const usa=['VENTAS','PAGOS','CARTERA','BARBEROS','CLIENTES','LIQUIDACIONES'].includes($('#report-type').value);$('#report-barber').disabled=!usa;if(!usa)$('#report-barber').value=''};
+  actualizarFiltroBarbero();
+  $('#report-type').onchange=()=>{actual=null;actualizarFiltroBarbero();$('#report-result').innerHTML='<div class="reports-empty"><strong>Informe listo para consultar</strong><p>Presiona Generar informe para actualizar los resultados.</p></div>'};
  }
  async function generar(){
   const b=$('#report-run'),tipo=$('#report-type').value,desde=$('#report-from').value,hasta=$('#report-to').value,barberoId=$('#report-barber').value||null;
