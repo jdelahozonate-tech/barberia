@@ -23,9 +23,9 @@ export function crearModuloPedidos(deps) {
    '<div class="orders-actions"><span class="orders-count" id="orders-count"></span><button class="btn sec" id="orders-clear">Limpiar filtros</button></div><section class="orders-list" id="orders-list"></section></div>';
   const list=$('#orders-list'),search=$('#order-search'),status=$('#order-status'),from=$('#order-from'),to=$('#order-to'),count=$('#orders-count');
   const pintar=()=>{
-   const q=search.value.trim().toLocaleLowerCase(),st=status.value,a=from.value,b=to.value;
+   const q=search.value.trim().toLocaleLowerCase(),st=status.value,a=from.value,b=to.value,zona=S.negocio?.zona_horaria||'America/Bogota';
    const visibles=pedidos.filter(p=>{
-    const detalle=p.detalle_pedidos_productos||[],texto=[p.nombre_cliente,p.telefono_cliente,...detalle.map(d=>d.nombre_producto)].join(' ').toLocaleLowerCase(),dia=String(p.creado_en||'').slice(0,10);
+    const detalle=p.detalle_pedidos_productos||[],texto=[p.nombre_cliente,p.telefono_cliente,p.notas,...detalle.map(d=>d.nombre_producto)].join(' ').toLocaleLowerCase(),dia=p.creado_en?new Intl.DateTimeFormat('en-CA',{timeZone:zona,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(p.creado_en)):'';
     return (!q||texto.includes(q))&&(st==='TODOS'||p.estado===st)&&(!a||dia>=a)&&(!b||dia<=b);
    });
    count.textContent=visibles.length+' de '+pedidos.length+' pedidos';
