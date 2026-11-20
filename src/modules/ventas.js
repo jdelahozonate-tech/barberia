@@ -297,7 +297,7 @@ async function logoComprobanteDataURL(url){
  if(!data&&url!=='./logo-dhbarber.png')data=await cargar('./logo-dhbarber.png');
  return data;
 }
-async function generarFacturaPDF(v,detalles,pagos){
+async function generarFacturaPDF(v,detalles,pagos,accion='descargar'){
  try{
   const lib=await cargarJsPDFComprobante(),PDF=lib.jsPDF,doc=new PDF({orientation:'portrait',unit:'mm',format:'letter'});
   const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),m=12,cw=W-m*2;
@@ -394,13 +394,13 @@ async function generarFacturaPDF(v,detalles,pagos){
   const blob=doc.output('blob'),archivo=new File([blob],nombreArchivo,{type:'application/pdf'});
   const telefono=String(cliente.telefono||'').replace(/\D/g,''),numeroWa=telefono.length===10?'57'+telefono:telefono;
   const mensaje='Hola '+String(cliente.nombre||'')+', te compartimos el comprobante de tu compra en '+String(negocio.nombre||'la barbería')+'. ¡Gracias por preferirnos!';
-  if(navigator.share&&navigator.canShare?.({files:[archivo]})){
+  if(accion==='compartir'&&navigator.share&&navigator.canShare?.({files:[archivo]})){
    try{await navigator.share({files:[archivo],title:'Comprobante de venta',text:mensaje});return}
    catch(error){if(error?.name==='AbortError')return}
   }
   doc.save(nombreArchivo);
-  if(numeroWa.length>=7)window.open('https://wa.me/'+numeroWa+'?text='+encodeURIComponent(mensaje),'_blank','noopener');
-  toast(numeroWa.length>=7?'PDF descargado. Adjunta el archivo en WhatsApp para enviarlo al cliente.':'PDF descargado. El cliente no tiene teléfono registrado.',false);
+  if(accion==='compartir'&&numeroWa.length>=7)window.open('https://wa.me/'+numeroWa+'?text='+encodeURIComponent(mensaje),'_blank','noopener');
+  toast(accion==='compartir'&&numeroWa.length>=7?'PDF descargado. Adjunta el archivo en WhatsApp para enviarlo al cliente.':'PDF descargado correctamente.',false);
  }catch(error){toast('No se pudo generar el PDF: '+(error?.message||'Error inesperado'),true)}
 }
 function abrirComprobanteVenta(v,detalles,pagos,accion){
@@ -425,10 +425,10 @@ async function detalleVenta(v){
  ${fila('Total',dinero(v.total_venta),'tot')}${fila('Pagado',dinero(v.total_pagado))}${fila('Saldo',dinero(v.saldo_pendiente))}
  ${p.length?'<label>Pagos</label>'+p.map(x=>fila(bonito(x.metodo_pago)+', '+hora(x.fecha_hora),dinero(x.valor_pago))).join(''):''}
  ${abierta?`<label for="pg">Registrar otro pago</label><div class="ln"><input id="pg" type="number" min="1" inputmode="decimal" value="${v.saldo_pendiente}"><select id="mp" aria-label="Método">${METODOS}</select></div><button type="button" class="btn block" id="rp">Registrar pago</button>`:''}
- ${v.estado_venta!=='ANULADA'?'<div class="acts" style="flex-wrap:wrap"><button type="button" class="btn block" id="pdf">Descargar PDF</button><button type="button" class="btn sec block" id="print">Imprimir comprobante</button></div>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button>'+(puedeAnular?'<button type="button" class="btn sec block" id="an">Anular venta</button>':'<p class="info">Esta venta pertenece a una caja cerrada, a otro turno o no tiene una caja histórica verificable. No se puede anular desde la caja actual.</p>'):''}
+ ${v.estado_venta!=='ANULADA'?'<div class="acts" style="flex-wrap:wrap"><button type="button" class="btn block" id="pdf">Descargar PDF</button><button type="button" class="btn sec block" id="print">Imprimir comprobante</button><button type="button" class="btn sec block" id="share">Compartir PDF</button></div>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button>'+(puedeAnular?'<button type="button" class="btn sec block" id="an">Anular venta</button>':'<p class="info">Esta venta pertenece a una caja cerrada, a otro turno o no tiene una caja histórica verificable. No se puede anular desde la caja actual.</p>'):''}
  <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
- const pdf=$('#pdf');if(pdf)pdf.onclick=async()=>{if(pdf.disabled)return;pdf.disabled=true;try{await generarFacturaPDF(v,d,p)}finally{pdf.disabled=false}};const imprimir=$('#print');if(imprimir)imprimir.onclick=()=>imprimirComprobante(v,d,p);
+ const pdf=$('#pdf');if(pdf)pdf.onclick=async()=>{if(pdf.disabled)return;pdf.disabled=true;try{await generarFacturaPDF(v,d,p,'descargar')}finally{pdf.disabled=false}};const imprimir=$('#print');if(imprimir)imprimir.onclick=()=>imprimirComprobante(v,d,p);const compartir=$('#share');if(compartir)compartir.onclick=async()=>{if(compartir.disabled)return;compartir.disabled=true;try{await generarFacturaPDF(v,d,p,'compartir')}finally{compartir.disabled=false}};
  if(abierta)$('#rp').onclick=async()=>{const b=$('#rp');if(b.disabled)return;const n=Number($('#pg').value);
   if(!(n>0)||n>v.saldo_pendiente)return toast('El pago debe ser mayor a cero y no superar el saldo.',true);
   b.disabled=true;
