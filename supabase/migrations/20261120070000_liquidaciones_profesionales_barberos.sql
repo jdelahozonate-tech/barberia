@@ -448,7 +448,7 @@ BEGIN
   INSERT INTO public.movimientos_liquidacion_barbero(
     negocio_id,barbero_id,liquidacion_id,tipo_movimiento,valor,metodo_pago,motivo,gasto_id,caja_id,usuario_registro
   ) VALUES(v_negocio,v_liquidacion.barbero_id,p_liquidacion_id,'ABONO',p_valor,v_metodo,
-    NULLIF(trim(COALESCE(p_motivo,'')),'Abono a liquidación'),v_gasto,v_caja,auth.uid())
+    COALESCE(NULLIF(trim(COALESCE(p_motivo,'')),''),'Abono a liquidación'),v_gasto,v_caja,auth.uid())
   RETURNING id INTO v_movimiento;
 
   UPDATE public.liquidaciones_barbero
