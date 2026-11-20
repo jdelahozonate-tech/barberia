@@ -63,8 +63,14 @@ test('Ventas ofrece fiado identificado y comprobante PDF compartible', () => {
   assert.match(ventas, /Registrar saldo pendiente \(fiado\)/);
   assert.match(ventas, /Para registrar una venta fiada debes seleccionar el cliente/);
   assert.match(ventas, /async function generarFacturaPDF/);
-  assert.match(ventas, /cdnjs\.cloudflare\.com\/ajax\/libs\/jspdf/);
+  assert.match(ventas, /function pdfTextoFactura/);
+  assert.match(ventas, /const paginas=\[\];for\(let i=0;i<lineas\.length;i\+=55\)/);
+  assert.match(ventas, /new Blob\(\[pdf\],\{type:'application\/pdf'\}\)/);
+  assert.match(ventas, /new File\(\[blob\],nombreArchivo,\{type:'application\/pdf'\}\)/);
   assert.match(ventas, /navigator\.canShare/);
+  assert.match(ventas, /PDF descargado/);
+  assert.doesNotMatch(ventas, /cdnjs\.cloudflare\.com\/ajax\/libs\/jspdf/);
+  assert.doesNotMatch(ventas, /function cargarJsPDF/);
   assert.match(ventas, /SALDO PENDIENTE/);
   assert.match(ventas, /No sustituye una factura electrónica/);
 });
@@ -117,7 +123,7 @@ test('Reportes ofrece informes gerenciales y exportación PDF y Excel', () => {
   assert.match(index, /\['reportes','Reportes',1\]/);
   assert.match(index, /crearModuloReportes/);
   assert.match(sw, /src\/modules\/reportes\.js/);
-  assert.match(sw, /barberia-v23/);
+  assert.match(sw, /barberia-v24/);
 });
 
 test('Las comisiones históricas de ventas no pagadas se limpian', () => {
@@ -571,7 +577,7 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(index, /const \{ productos \} = crearModuloProductos/);
   assert.match(index, /pedidos: pedidosProductos/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v23/);
+  assert.match(sw, /barberia-v24/);
   assert.match(sw, /src\/modules\/pedidos\.js/);
 });
 
@@ -700,7 +706,7 @@ test('los perfiles de barberos permiten fotografía privada de administración y
   assert.match(index, /miperfil:miPerfil/);
   assert.match(sql, /CREATE POLICY barberos_perfil_propio/);
   assert.match(sql, /barberos_fotos_insertar/);
-  assert.match(sw, /barberia-v23/);
+  assert.match(sw, /barberia-v24/);
 });
 
 

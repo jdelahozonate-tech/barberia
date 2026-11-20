@@ -243,97 +243,68 @@ async function editarVenta(v, actuales){
  ref();
 }
 
-async function cargarJsPDF(){
- if(window.jspdf?.jsPDF)return window.jspdf.jsPDF;
- await new Promise((resolve,reject)=>{
-  const existente=document.querySelector('script[data-jspdf]');
-  if(existente){existente.addEventListener('load',resolve,{once:true});existente.addEventListener('error',reject,{once:true});return}
-  const script=document.createElement('script');script.dataset.jspdf='1';
-  script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
-  script.onload=resolve;script.onerror=()=>reject(new Error('No se pudo cargar el generador PDF.'));
-  document.head.appendChild(script);
+function pdfTextoFactura(texto){
+ const limpiar=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,' ');
+ const lineas=texto.split('\n').flatMap(x=>{const t=limpiar(x),out=[];for(let i=0;i<t.length;i+=88)out.push(t.slice(i,i+88));return out.length?out:['']});
+ const escPdf=x=>x.replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
+ const paginas=[];for(let i=0;i<lineas.length;i+=55)paginas.push(lineas.slice(i,i+55));
+ const objetos=['<< /Type /Catalog /Pages 2 0 R >>',''];
+ objetos.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+ const ids=[];
+ paginas.forEach((pagina,i)=>{
+  const pageId=4+i*2,contentId=pageId+1;ids.push(pageId+' 0 R');
+  const stream='BT /F1 10 Tf 48 790 Td '+pagina.map((x,j)=>(j?'0 -14 Td ':'')+'('+escPdf(x)+') Tj').join(' ')+' ET';
+  objetos.push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents '+contentId+' 0 R >>');
+  objetos.push('<< /Length '+stream.length+' >>\nstream\n'+stream+'\nendstream');
  });
- if(!window.jspdf?.jsPDF)throw new Error('El generador PDF no está disponible.');
- return window.jspdf.jsPDF;
-}
-async function imagenFactura(url){
- if(!url)return null;
- try{
-  const r=await fetch(url);if(!r.ok)return null;
-  const blob=await r.blob();if(!/^image\/(png|jpeg)$/i.test(blob.type))return null;
-  const data=await new Promise((resolve,reject)=>{const fr=new FileReader();fr.onload=()=>resolve(fr.result);fr.onerror=reject;fr.readAsDataURL(blob)});
-  return{data,formato:blob.type.toLowerCase().includes('png')?'PNG':'JPEG'};
- }catch{return null}
+ objetos[1]='<< /Type /Pages /Kids ['+ids.join(' ')+'] /Count '+paginas.length+' >>';
+ let pdf='%PDF-1.4\n',offsets=[0];
+ objetos.forEach((obj,i)=>{offsets.push(pdf.length);pdf+=(i+1)+' 0 obj\n'+obj+'\nendobj\n'});
+ const xref=pdf.length;pdf+='xref\n0 '+(objetos.length+1)+'\n0000000000 65535 f \n';
+ for(let i=1;i<offsets.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+ pdf+='trailer\n<< /Size '+(objetos.length+1)+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF';
+ return new Blob([pdf],{type:'application/pdf'});
 }
 async function generarFacturaPDF(v,detalles,pagos){
- const jsPDF=await cargarJsPDF(),doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
- const ancho=210,margen=16,moneda=n=>dinero(Number(n)||0),fecha=new Date(v.fecha_hora).toLocaleString('es-CO',{dateStyle:'long',timeStyle:'short'});
+ const moneda=n=>dinero(Number(n)||0),fecha=new Date(v.fecha_hora).toLocaleString('es-CO',{dateStyle:'long',timeStyle:'short'});
  const nombreArchivo='Comprobante-'+String(v.id).slice(0,8).toUpperCase()+'.pdf';
- doc.setFillColor(24,43,67);doc.rect(0,0,ancho,43,'F');
- const logo=await imagenFactura(S.negocio.logo_url);
- if(logo)doc.addImage(logo.data,logo.formato,margen,9,25,25);
- doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(16);
- doc.text(String(S.negocio.nombre||'Barbería'),logo?47:margen,16);
- doc.setFont('helvetica','normal');doc.setFontSize(9);
- const contacto=[S.negocio.telefono,S.negocio.direccion].filter(Boolean).join(' · ');
- if(contacto)doc.text(String(contacto),logo?47:margen,23,{maxWidth:145});
- doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('COMPROBANTE DE VENTA',ancho-margen,35,{align:'right'});
- doc.setTextColor(35,45,58);doc.setFont('helvetica','bold');doc.setFontSize(10);
- doc.text('Comprobante: V-'+String(v.id).slice(0,8).toUpperCase(),margen,54);
- doc.setFont('helvetica','normal');doc.setFontSize(9);
- doc.text('Fecha: '+fecha,margen,61);
- doc.text('Cliente: '+String(v.clientes?.nombre||'Cliente de paso'),margen,68);
- doc.text('Teléfono: '+String(v.clientes?.telefono||'No registrado'),margen,75);
- doc.text('Atendido por: '+String(v.barberos?.nombre||'No asignado'),margen,82);
- let y=94;
- const encabezado=()=>{doc.setFillColor(239,243,248);doc.rect(margen,y,ancho-margen*2,9,'F');doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40,55,72);doc.text('DESCRIPCIÓN',margen+2,y+6);doc.text('CANT.',128,y+6,{align:'right'});doc.text('VALOR',158,y+6,{align:'right'});doc.text('SUBTOTAL',ancho-margen-2,y+6,{align:'right'});y+=14};
- encabezado();
- doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(45,52,60);
- for(const item of detalles){
-  const desc=doc.splitTextToSize(String(item.descripcion||'Servicio o producto'),91);
-  const alto=Math.max(7,desc.length*4.2);
-  if(y+alto>255){doc.addPage();y=20;encabezado();doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(45,52,60)}
+ const negocio=S.negocio||{},cliente=v.clientes||{},barbero=v.barberos||{};
+ const lineas=[
+  negocio.nombre||'Barbería',
+  'COMPROBANTE DE VENTA',
+  'Comprobante: V-'+String(v.id).slice(0,8).toUpperCase(),
+  'Fecha: '+fecha,
+  'Cliente: '+(cliente.nombre||'Cliente de paso'),
+  'Teléfono: '+(cliente.telefono||'No registrado'),
+  'Atendido por: '+(barbero.nombre||'No asignado'),
+  '',
+  'DETALLE DE PRODUCTOS Y SERVICIOS'
+ ];
+ detalles.forEach(item=>{
   const subtotal=item.subtotal==null?Number(item.cantidad)*Number(item.precio_unitario):Number(item.subtotal);
-  doc.text(desc,margen+2,y);
-  doc.text(String(Number(item.cantidad)||0),128,y,{align:'right'});
-  doc.text(moneda(item.precio_unitario),158,y,{align:'right'});
-  doc.text(moneda(subtotal),ancho-margen-2,y,{align:'right'});
-  y+=alto+3;doc.setDrawColor(228,233,239);doc.line(margen,y,ancho-margen,y);y+=2;
- }
- y+=5;
- const resumen=(label,valor,negrita=false)=>{if(y>260){doc.addPage();y=20}doc.setFont('helvetica',negrita?'bold':'normal');doc.setFontSize(negrita?11:9);doc.setTextColor(40,48,58);doc.text(label,ancho-91,y);doc.text(valor,ancho-margen,y,{align:'right'});y+=7};
- resumen('Subtotal',moneda(v.total_bruto));
- if(Number(v.descuento)>0)resumen('Descuento','-'+moneda(v.descuento));
- resumen('TOTAL',moneda(v.total_venta),true);y+=2;
- resumen('Pagado',moneda(v.total_pagado));
- resumen('SALDO PENDIENTE',moneda(v.saldo_pendiente),true);
+  lineas.push(String(item.descripcion||'Servicio o producto'));
+  lineas.push('Cantidad: '+(Number(item.cantidad)||0)+' | Valor: '+moneda(item.precio_unitario)+' | Subtotal: '+moneda(subtotal));
+ });
+ lineas.push('','Subtotal: '+moneda(v.total_bruto));
+ if(Number(v.descuento)>0)lineas.push('Descuento: -'+moneda(v.descuento));
+ lineas.push('TOTAL: '+moneda(v.total_venta),'Pagado: '+moneda(v.total_pagado),'SALDO PENDIENTE: '+moneda(v.saldo_pendiente));
  if(pagos.length){
-  y+=5;if(y>250){doc.addPage();y=20}
-  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('Detalle de pagos',margen,y);y+=6;
-  doc.setFont('helvetica','normal');doc.setFontSize(8);
-  pagos.forEach(p=>{if(y>270){doc.addPage();y=20}doc.text(new Date(p.fecha_hora).toLocaleDateString('es-CO')+' · '+String(p.metodo_pago||'').replaceAll('_',' '),margen,y);doc.text(moneda(p.valor_pago),ancho-margen,y,{align:'right'});y+=5});
+  lineas.push('','DETALLE DE PAGOS');
+  pagos.forEach(p=>lineas.push(new Date(p.fecha_hora).toLocaleDateString('es-CO')+' | '+String(p.metodo_pago||'').replaceAll('_',' ')+' | '+moneda(p.valor_pago)));
  }
- y=Math.min(Math.max(y+8,235),260);
- doc.setFillColor(239,244,249);doc.roundedRect(margen,y,ancho-margen*2,19,2,2,'F');
- doc.setTextColor(37,58,78);doc.setFont('helvetica','bold');doc.setFontSize(9);
- doc.text('¡Gracias por preferirnos!',ancho/2,y+7,{align:'center'});
- doc.setFont('helvetica','normal');doc.setFontSize(8);
- doc.text('Agradecemos tu confianza. Te esperamos pronto.',ancho/2,y+13,{align:'center'});
- doc.setFontSize(6);doc.setTextColor(110,115,122);
- doc.text('Comprobante comercial. No sustituye una factura electrónica de venta autorizada por la DIAN.',ancho/2,290,{align:'center'});
- const blob=doc.output('blob'),archivo=new File([blob],nombreArchivo,{type:'application/pdf'});
- const telefono=String(v.clientes?.telefono||'').replace(/\D/g,'');
- const numero=telefono.length===10?'57'+telefono:telefono;
- const mensaje='Hola '+String(v.clientes?.nombre||'')+', te compartimos el comprobante de tu compra en '+String(S.negocio.nombre||'la barbería')+'. ¡Gracias por preferirnos!';
+ lineas.push('','¡Gracias por preferirnos!','Agradecemos tu confianza. Te esperamos pronto.','Comprobante comercial. No sustituye una factura electrónica de venta autorizada por la DIAN.');
+ const blob=pdfTextoFactura(lineas.join('\n')),archivo=new File([blob],nombreArchivo,{type:'application/pdf'});
+ const telefono=String(cliente.telefono||'').replace(/\D/g,''),numero=telefono.length===10?'57'+telefono:telefono;
+ const mensaje='Hola '+String(cliente.nombre||'')+', te compartimos el comprobante de tu compra en '+String(negocio.nombre||'la barbería')+'. ¡Gracias por preferirnos!';
  if(navigator.share&&navigator.canShare?.({files:[archivo]})){
-  await navigator.share({files:[archivo],title:'Comprobante de venta',text:mensaje});
-  return;
+  try{await navigator.share({files:[archivo],title:'Comprobante de venta',text:mensaje});return}
+  catch(error){if(error?.name==='AbortError')return}
  }
- doc.save(nombreArchivo);
+ const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=nombreArchivo;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1500);
  if(numero.length>=7)window.open('https://wa.me/'+numero+'?text='+encodeURIComponent(mensaje),'_blank','noopener');
  toast(numero.length>=7?'PDF descargado. Adjunta el archivo en WhatsApp para enviarlo al cliente.':'PDF descargado. El cliente no tiene teléfono registrado.',false);
 }
-
 async function detalleVenta(v){
  const admin=ADM.includes(S.perfil.rol);
  const[rd,rp,rc]=await Promise.all([sb.from('detalle_ventas').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id),sb.from('pagos').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id).order('fecha_hora'),admin?sb.from('cajas').select('id,fecha_apertura').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle():Promise.resolve({data:null,error:null})]);
