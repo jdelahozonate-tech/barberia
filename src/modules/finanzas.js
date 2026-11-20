@@ -174,32 +174,160 @@ async function gasto(cj){
   const{error}=await sb.from('gastos').insert({...f,valor,proveedor:f.proveedor||null,negocio_id:S.perfil.negocio_id,usuario_registro:S.perfil.id,caja_id:cajaActual.id});
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(error.message,true)}dlg.close();toast('Gasto guardado');caja()};
 }
-async function comisiones(){
- const[rd,rl]=await Promise.all([sb.from('detalle_ventas').select('id,subtotal,base_comision,porcentaje_comision_aplicado,comision_generada,ventas!inner(barbero_id,estado_venta,barberos(nombre))').eq('negocio_id',S.perfil.negocio_id).eq('ventas.estado_venta','PAGADA').gt('comision_generada',0).limit(1000),sb.from('comisiones').select('detalle_id').eq('negocio_id',S.perfil.negocio_id).limit(5000)]);
- if(rd.error)return toast(rd.error.message,true);if(rl.error)return toast(rl.error.message,true);
- const d=rd.data||[],l=rl.data||[];
- const hechos=new Set((l||[]).map(x=>x.detalle_id)),P={};
- d.filter(x=>!hechos.has(x.id)&&x.ventas.barbero_id).forEach(x=>{const b=x.ventas.barbero_id;P[b]=P[b]||{n:x.ventas.barberos?.nombre,t:0,L:[]};P[b].t+=Number(x.comision_generada);P[b].L.push(x)});
- const B=Object.entries(P);
- $('#main').innerHTML=`<div class="head"><h2>Comisiones</h2></div><p class="mute">Comisiones por pagar de ventas ya cobradas por completo.</p>
- ${B.length?B.map(([id,p])=>`<div class="row"><span><strong>${esc(p.n)}</strong><br><small>${p.L.length} servicio${p.L.length>1?'s':''}</small></span><span><strong>${dinero(p.t)}</strong><br><button class="btn" data-b="${id}">Liquidar</button></span></div>`).join(''):'<p class="empty">No hay comisiones pendientes.</p>'}`;
- document.querySelectorAll('[data-b]').forEach(b=>b.onclick=async()=>{
-  if(b.disabled)return;
-  const p=P[b.dataset.b];
-  if(!confirm('¿Liquidar '+dinero(p.t)+' a '+p.n+'?'))return;
-  b.disabled=true;
-  const ef=confirm('¿Se pagó en efectivo desde la caja?\nAceptar = efectivo. Cancelar = transferencia.');
-  const{data:cj,error:errorCaja}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
-  if(errorCaja){b.disabled=false;return toast('No fue posible verificar la caja: '+errorCaja.message,true)}
-  if(!cj?.id){b.disabled=false;return toast('Para liquidar comisiones, primero abre la caja.',true)}
-  const ahora=new Date().toISOString(),{error}=await sb.from('comisiones').insert(p.L.map(x=>({negocio_id:S.perfil.negocio_id,barbero_id:b.dataset.b,detalle_id:x.id,valor_base:x.base_comision??x.subtotal,valor_comision:x.comision_generada,estado_liquidacion:'LIQUIDADA',fecha_pago:ahora})));
-  if(error){b.disabled=false;return toast(error.message,true)}
-  const r=await sb.from('gastos').insert({negocio_id:S.perfil.negocio_id,categoria_gasto:'COMISIONES',descripcion:'Liquidación de comisión a '+p.n,valor:p.t,metodo_pago:ef?'EFECTIVO':'TRANSFERENCIA',usuario_registro:S.perfil.id,caja_id:cj?.id||null});
-  toast(r.error?'Se liquidó, pero no se registró en caja: '+r.error.message:'Comisión liquidada y registrada en caja',!!r.error);
-  comisiones()
- });
+function fechaLiquidacion(){
+ const z=S.negocio?.zona_horaria||'America/Bogota';
+ const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:z,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+ return p.year+'-'+p.month+'-'+p.day;
 }
-
+function movimientosAnticipo(movimientos){
+ const aplicados={};
+ movimientos.filter(m=>m.tipo_movimiento==='APLICACION_ANTICIPO').forEach(m=>{
+  aplicados[m.movimiento_origen_id]=(aplicados[m.movimiento_origen_id]||0)+Number(m.valor||0);
+ });
+ const saldos={};
+ movimientos.filter(m=>m.tipo_movimiento==='ANTICIPO').forEach(m=>{
+  const saldo=Math.max(0,Number(m.valor||0)-(aplicados[m.id]||0));
+  saldos[m.barbero_id]=(saldos[m.barbero_id]||0)+saldo;
+ });
+ return saldos;
+}
+async function comisiones(){
+ const nid=S.perfil.negocio_id,main=$('#main');
+ main.innerHTML='<div class="liquidation-shell"><div class="liquidation-loading">Preparando liquidaciones…</div></div>';
+ const [rd,rl,rm,rh,rb,rc]=await Promise.all([
+  sb.from('detalle_ventas').select('id,descripcion,cantidad,subtotal,base_comision,porcentaje_comision_aplicado,comision_generada,ventas!inner(id,fecha_hora,barbero_id,estado_venta,barberos(nombre))').eq('negocio_id',nid).eq('ventas.estado_venta','PAGADA').gt('comision_generada',0).order('id').limit(3000),
+  sb.from('comisiones').select('detalle_id').eq('negocio_id',nid).not('detalle_id','is',null).limit(10000),
+  sb.from('movimientos_liquidacion_barbero').select('id,barbero_id,tipo_movimiento,valor,movimiento_origen_id').eq('negocio_id',nid).in('tipo_movimiento',['ANTICIPO','APLICACION_ANTICIPO']).limit(10000),
+  sb.from('liquidaciones_barbero').select('id,barbero_id,fecha_liquidacion,total_neto,total_pagado,saldo_pendiente,estado_liquidacion,barberos(nombre)').eq('negocio_id',nid).order('creado_en',{ascending:false}).limit(30),
+  sb.from('barberos').select('id,nombre,modelo_pago').eq('negocio_id',nid).eq('estado','ACTIVO').order('nombre'),
+  sb.from('cajas').select('id').eq('negocio_id',nid).eq('estado_caja','ABIERTA').maybeSingle()
+ ]);
+ const error=[rd,rl,rm,rh,rb,rc].find(x=>x.error);
+ if(error)return toast('No fue posible preparar las liquidaciones: '+error.error.message,true);
+ const hechos=new Set((rl.data||[]).map(x=>x.detalle_id));
+ const avances=movimientosAnticipo(rm.data||[]);
+ const P={};
+ (rd.data||[]).filter(x=>!hechos.has(x.id)&&x.ventas?.barbero_id).forEach(x=>{
+  const id=x.ventas.barbero_id;
+  P[id]=P[id]||{n:x.ventas.barberos?.nombre||'Barbero',t:0,anticipos:avances[id]||0,L:[]};
+  P[id].t+=Number(x.comision_generada||0);P[id].L.push(x);
+ });
+ const B=Object.entries(P);
+ const totalComisiones=B.reduce((s,[,p])=>s+p.t,0);
+ const totalAnticipos=Object.values(avances).reduce((s,n)=>s+n,0);
+ const neto=B.reduce((s,[,p])=>s+Math.max(0,p.t-p.anticipos),0);
+ const fecha=fechaLiquidacion();
+ main.innerHTML='<div class="liquidation-shell">'+
+  '<header class="liquidation-header"><div><span class="liquidation-eyebrow">CONTROL DE PAGOS DEL EQUIPO</span><h2>Liquidaciones de barberos</h2><p>Comisiones disponibles únicamente de servicios pagados por completo.</p></div><div class="liquidation-actions"><button type="button" class="btn sec" id="liq-historial">Historial</button><button type="button" class="btn" id="liq-anticipo">Registrar anticipo</button></div></header>'+
+  '<section class="liquidation-kpis"><article><small>Comisiones por liquidar</small><strong>'+dinero(totalComisiones)+'</strong><span>Servicios cobrados completos</span></article><article><small>Anticipos pendientes</small><strong>'+dinero(totalAnticipos)+'</strong><span>Por descontar de futuras liquidaciones</span></article><article class="liquidation-kpi-primary"><small>Neto estimado del equipo</small><strong>'+dinero(neto)+'</strong><span>Después de anticipos registrados</span></article></section>'+
+  '<section class="liquidation-section-head"><div><h3>Liquidaciones pendientes</h3><p>Selecciona un barbero para revisar servicios, descuentos y pagos.</p></div><span>'+B.length+' barbero'+(B.length===1?'':'s')+'</span></section>'+
+  '<div class="liquidation-grid">'+(B.length?B.map(([id,p])=>{
+   const fechas=p.L.map(x=>new Date(x.ventas.fecha_hora).getTime()).filter(Number.isFinite);
+   const desde=fechas.length?new Date(Math.min(...fechas)).toLocaleDateString('es-CO',{day:'numeric',month:'short'}):'';
+   const hasta=fechas.length?new Date(Math.max(...fechas)).toLocaleDateString('es-CO',{day:'numeric',month:'short'}):'';
+   return '<article class="liquidation-card"><div class="liquidation-card-head"><div><span class="liquidation-eyebrow">BARBERO</span><h3>'+esc(p.n)+'</h3><small>'+p.L.length+' servicio'+(p.L.length===1?'':'s')+' · '+desde+(desde!==hasta?' – '+hasta:'')+'</small></div><span class="liquidation-status">Pendiente</span></div><div class="liquidation-card-values"><div><small>Comisiones</small><strong>'+dinero(p.t)+'</strong></div><div><small>Anticipos</small><strong class="liquidation-deduction">-'+dinero(p.anticipos)+'</strong></div></div><div class="liquidation-card-total"><span>Neto estimado</span><strong>'+dinero(Math.max(0,p.t-p.anticipos))+'</strong></div><button type="button" class="btn block" data-liquidar="'+id+'">Preparar liquidación</button></article>';
+  }).join(''):'<div class="liquidation-empty"><strong>Todo al día</strong><span>No hay comisiones pendientes de liquidar. Los servicios que aún tengan saldo no generan comisión.</span></div>')+'</div>'+
+  '<p class="liquidation-footnote">'+(rc.data?.id?'Caja abierta: los anticipos y pagos se registrarán en el turno activo.':'No hay caja abierta. Puedes preparar liquidaciones sin pago, pero para entregar dinero debes abrir Caja.')+'</p>'+
+  '</div>';
+ $('#liq-anticipo').onclick=()=>registrarAnticipo(rb.data||[]);
+ $('#liq-historial').onclick=()=>historialLiquidaciones();
+ document.querySelectorAll('[data-liquidar]').forEach(b=>b.onclick=()=>prepararLiquidacion(b.dataset.liquidar,P[b.dataset.liquidar],!!rc.data?.id));
+}
+function prepararLiquidacion(id,p,cajaAbierta){
+ const anticipo=Math.min(p.anticipos,p.t),neto=Math.max(0,p.t-anticipo);
+ const filas=p.L.slice().sort((a,b)=>new Date(a.ventas.fecha_hora)-new Date(b.ventas.fecha_hora)).map(x=>'<div class="liquidation-detail-row"><span><strong>'+esc(x.descripcion||'Servicio')+'</strong><small>'+new Date(x.ventas.fecha_hora).toLocaleDateString('es-CO',{day:'numeric',month:'short',year:'numeric'})+' · '+(x.porcentaje_comision_aplicado||0)+'% · '+Number(x.cantidad||1)+' unidad(es)</small></span><strong>'+dinero(x.comision_generada)+'</strong></div>').join('');
+ dlg.innerHTML='<form id="liq-form" class="liquidation-form"><header><span class="liquidation-eyebrow">CIERRE DIARIO</span><h2>Liquidar a '+esc(p.n)+'</h2><p>Revisa los servicios cobrados antes de confirmar.</p></header>'+
+  '<div class="liquidation-breakdown">'+filas+'</div>'+
+  '<label>Fecha de liquidación<input type="date" id="liq-fecha" value="'+fechaLiquidacion()+'" required></label>'+
+  '<div class="liquidation-summary-line"><span>Comisiones generadas</span><strong>'+dinero(p.t)+'</strong></div>'+
+  '<div class="liquidation-summary-line"><span>Anticipos pendientes por aplicar</span><strong class="liquidation-deduction">-'+dinero(anticipo)+'</strong></div>'+
+  '<label>Descuento adicional<input type="number" id="liq-descuento" min="0" max="'+neto+'" step="0.01" value="0" inputmode="decimal"></label>'+
+  '<label>Motivo del descuento<input id="liq-motivo" maxlength="180" placeholder="Ej. Herramienta perdida, ajuste acordado"></label>'+
+  '<div class="liquidation-net"><span>Neto después de descuentos y anticipos</span><strong id="liq-neto">'+dinero(neto)+'</strong></div>'+
+  '<label>Dinero que se entrega hoy<input type="number" id="liq-pago" min="0" step="0.01" value="'+(cajaAbierta?neto:0)+'" inputmode="decimal"></label>'+
+  '<label>Método de pago<select id="liq-metodo">'+METODOS+'</select></label>'+
+  '<label>Observaciones<textarea id="liq-observaciones" rows="2" placeholder="Observaciones de la liquidación"></textarea></label>'+
+  '<p class="liquidation-hint" id="liq-saldo"></p>'+
+  '<div class="acts"><button type="button" class="btn sec" id="liq-cerrar">Cancelar</button><button class="btn" id="liq-guardar">Confirmar liquidación</button></div></form>';
+ dlg.showModal();$('#liq-cerrar').onclick=()=>dlg.close();
+ const calc=()=>{
+  const descuento=Number($('#liq-descuento').value)||0,pago=Number($('#liq-pago').value)||0;
+  const disponible=Math.max(0,p.t-anticipo),total=Math.max(0,disponible-descuento),saldo=Math.max(0,total-pago);
+  $('#liq-neto').textContent=dinero(total);
+  $('#liq-saldo').textContent='Saldo que quedará pendiente: '+dinero(saldo);
+  return{descuento,pago,total,saldo};
+ };
+ $('#liq-descuento').oninput=calc;$('#liq-pago').oninput=calc;calc();
+ $('#liq-form').onsubmit=async e=>{
+  e.preventDefault();const b=$('#liq-guardar');if(b.disabled)return;
+  const c=calc(),motivo=$('#liq-motivo').value.trim();
+  if(!$('#liq-fecha').value)return toast('Selecciona la fecha de liquidación.',true);
+  if(!Number.isFinite(c.descuento)||c.descuento<0||c.descuento>disponibleMax(p,anticipo))return toast('El descuento supera el valor disponible.',true);
+  if(c.descuento>0&&motivo.length<3)return toast('Indica el motivo del descuento.',true);
+  if(!Number.isFinite(c.pago)||c.pago<0||c.pago>c.total)return toast('El pago de hoy no puede superar el neto.',true);
+  if(c.pago>0&&!cajaAbierta)return toast('Abre Caja para registrar el pago. También puedes dejar el pago en cero y liquidar el saldo después.',true);
+  b.disabled=true;
+  const descuentos=c.descuento>0?[{valor:c.descuento,motivo}]:[];
+  const{data,error}=await sb.rpc('liquidar_barbero',{p_barbero_id:id,p_fecha:$('#liq-fecha').value,p_descuentos:descuentos,p_pago_inicial:c.pago,p_metodo_pago:$('#liq-metodo').value,p_observaciones:$('#liq-observaciones').value.trim()||null});
+  if(error){b.disabled=false;return toast(traducir(error.message),true)}
+  dlg.close();toast('Liquidación registrada. Saldo pendiente: '+dinero(Number(data?.saldo_pendiente||0)));comisiones();
+ };
+}
+function disponibleMax(p,anticipo){return Math.max(0,p.t-anticipo)}
+async function registrarAnticipo(barberos){
+ dlg.innerHTML='<form id="anticipo-form" class="liquidation-form"><header><span class="liquidation-eyebrow">ADELANTO DE DINERO</span><h2>Registrar anticipo</h2><p>El valor se registra como egreso de Caja y se descontará de próximas liquidaciones.</p></header>'+
+  '<label>Barbero<select id="ant-barbero" required>'+barberos.map(b=>'<option value="'+b.id+'">'+esc(b.nombre)+'</option>').join('')+'</select></label>'+
+  '<label>Valor del anticipo<input id="ant-valor" type="number" min="1" step="0.01" inputmode="decimal" required></label>'+
+  '<label>Método de entrega<select id="ant-metodo">'+METODOS+'</select></label>'+
+  '<label>Motivo<input id="ant-motivo" maxlength="180" placeholder="Ej. Anticipo de la semana" required></label>'+
+  '<div class="acts"><button type="button" class="btn sec" id="ant-cerrar">Cancelar</button><button class="btn" id="ant-guardar">Registrar anticipo</button></div></form>';
+ dlg.showModal();$('#ant-cerrar').onclick=()=>dlg.close();
+ $('#anticipo-form').onsubmit=async e=>{
+  e.preventDefault();const b=$('#ant-guardar');if(b.disabled)return;
+  const valor=Number($('#ant-valor').value),motivo=$('#ant-motivo').value.trim();
+  if(!(valor>0)||motivo.length<3)return toast('Revisa el valor y el motivo del anticipo.',true);
+  b.disabled=true;
+  const{error}=await sb.rpc('registrar_anticipo_barbero',{p_barbero_id:$('#ant-barbero').value,p_valor:valor,p_motivo:motivo,p_metodo_pago:$('#ant-metodo').value});
+  if(error){b.disabled=false;return toast(traducir(error.message),true)}
+  dlg.close();toast('Anticipo registrado en Caja y en la cuenta del barbero.');comisiones();
+ };
+}
+async function historialLiquidaciones(){
+ const nid=S.perfil.negocio_id;
+ const[r,l]=await Promise.all([
+  sb.from('liquidaciones_barbero').select('*,barberos(nombre)').eq('negocio_id',nid).order('creado_en',{ascending:false}).limit(40),
+  sb.from('comisiones').select('barbero_id,fecha_pago,valor_comision,barberos(nombre)').eq('negocio_id',nid).eq('estado_liquidacion','LIQUIDADA').is('liquidacion_id',null).order('fecha_pago',{ascending:false}).limit(200)
+ ]);
+ if(r.error)return toast(r.error.message,true);if(l.error)return toast(l.error.message,true);
+ const grupos={};
+ (l.data||[]).forEach(x=>{const fecha=String(x.fecha_pago||'').slice(0,10),key=x.barbero_id+'|'+fecha;grupos[key]=grupos[key]||{nombre:x.barberos?.nombre||'Barbero',fecha,total:0,cantidad:0};grupos[key].total+=Number(x.valor_comision||0);grupos[key].cantidad++});
+ dlg.innerHTML='<div class="liquidation-history"><header><span class="liquidation-eyebrow">CONSULTA DE PAGOS</span><h2>Historial de liquidaciones</h2><p>Pagos diarios, abonos y saldos pendientes.</p></header>'+
+  ((r.data||[]).length?(r.data||[]).map(x=>'<button type="button" class="liquidation-history-row" data-historial="'+x.id+'"><span><strong>'+esc(x.barberos?.nombre||'Barbero')+'</strong><small>'+new Date(x.fecha_liquidacion+'T12:00:00').toLocaleDateString('es-CO',{dateStyle:'medium'})+' · '+bonito(x.estado_liquidacion)+'</small></span><span><strong>'+dinero(x.total_neto)+'</strong><small>Pagado '+dinero(x.total_pagado)+' · Saldo '+dinero(x.saldo_pendiente)+'</small></span></button>').join(''):'<p class="empty">Todavía no hay liquidaciones registradas.</p>')+
+  (Object.keys(grupos).length?'<h3>Liquidaciones anteriores</h3>'+Object.values(grupos).map(x=>'<div class="liquidation-history-row"><span><strong>'+esc(x.nombre)+'</strong><small>'+x.fecha+' · '+x.cantidad+' comisión(es)</small></span><strong>'+dinero(x.total)+'</strong></div>').join(''):'')+
+  '<div class="acts"><button type="button" class="btn sec" id="hist-cerrar">Cerrar</button></div></div>';
+ dlg.showModal();$('#hist-cerrar').onclick=()=>dlg.close();
+ document.querySelectorAll('[data-historial]').forEach(b=>b.onclick=()=>verLiquidacion((r.data||[]).find(x=>x.id===b.dataset.historial)));
+}
+async function verLiquidacion(l){
+ const{data:m,error}=await sb.from('movimientos_liquidacion_barbero').select('*').eq('negocio_id',S.perfil.negocio_id).eq('liquidacion_id',l.id).order('fecha_hora');
+ if(error)return toast(error.message,true);
+ const filas=(m||[]).map(x=>'<div class="liquidation-history-row"><span><strong>'+bonito(x.tipo_movimiento)+'</strong><small>'+esc(x.motivo||'')+' · '+new Date(x.fecha_hora).toLocaleDateString('es-CO')+'</small></span><strong>'+dinero(x.valor)+'</strong></div>').join('');
+ dlg.innerHTML='<div class="liquidation-history"><header><span class="liquidation-eyebrow">DETALLE DE LIQUIDACIÓN</span><h2>'+esc(l.barberos?.nombre||'Barbero')+'</h2><p>'+l.fecha_liquidacion+' · '+bonito(l.estado_liquidacion)+'</p></header>'+
+  '<div class="liquidation-summary-line"><span>Comisiones</span><strong>'+dinero(l.total_comisiones)+'</strong></div><div class="liquidation-summary-line"><span>Descuentos</span><strong class="liquidation-deduction">-'+dinero(l.total_descuentos)+'</strong></div><div class="liquidation-summary-line"><span>Anticipos aplicados</span><strong class="liquidation-deduction">-'+dinero(l.total_anticipos)+'</strong></div><div class="liquidation-summary-line"><span>Neto</span><strong>'+dinero(l.total_neto)+'</strong></div><div class="liquidation-summary-line"><span>Pagado</span><strong>'+dinero(l.total_pagado)+'</strong></div><div class="liquidation-net"><span>Saldo pendiente</span><strong>'+dinero(l.saldo_pendiente)+'</strong></div>'+
+  (filas?'<h3>Movimientos</h3>'+filas:'')+
+  (Number(l.saldo_pendiente)>0&&l.estado_liquidacion!=='ANULADA'?'<form id="abono-form"><label>Registrar abono<input id="abono-valor" type="number" min="0.01" max="'+Number(l.saldo_pendiente)+'" step="0.01" value="'+Number(l.saldo_pendiente)+'" required></label><label>Método<select id="abono-metodo">'+METODOS+'</select></label><label>Observación<input id="abono-motivo" value="Abono a liquidación"></label><button class="btn block" id="abono-guardar">Registrar abono</button></form>':'')+
+  '<div class="acts"><button type="button" class="btn sec" id="ver-cerrar">Volver</button></div></div>';
+ $('#ver-cerrar').onclick=()=>historialLiquidaciones();
+ const form=$('#abono-form');if(form)form.onsubmit=async e=>{
+  e.preventDefault();const b=$('#abono-guardar');if(b.disabled)return;
+  const valor=Number($('#abono-valor').value);
+  if(!(valor>0)||valor>Number(l.saldo_pendiente))return toast('El abono debe ser positivo y no superar el saldo.',true);
+  b.disabled=true;
+  const{error}=await sb.rpc('registrar_abono_liquidacion_barbero',{p_liquidacion_id:l.id,p_valor:valor,p_metodo_pago:$('#abono-metodo').value,p_motivo:$('#abono-motivo').value.trim()});
+  if(error){b.disabled=false;return toast(traducir(error.message),true)}
+  toast('Abono registrado en Caja');historialLiquidaciones();
+ };
+}
 
 async function misComisiones(){
  const b=S.perfil.barbero_id,main=$('#main');
