@@ -89,7 +89,7 @@ test('Ventas genera un comprobante PDF vertical tipo voucher con marca y descarg
   assert.match(ventas, /new File\(\[blob\],nombreArchivo,\{type:'application\/pdf'\}\)/);
   assert.match(ventas, /navigator\.canShare/);
   assert.match(ventas, /accion==='imprimir'/);
-  assert.match(ventas, /TOTAL PAGADO/);
+  assert.match(ventas, /ESTADO DE CUENTA/);
   assert.match(ventas, /Saldo pendiente/);
   assert.match(ventas, /No sustituye una factura electronica/);
   assert.match(ventas, /id="printpdf"/);
