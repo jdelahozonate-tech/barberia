@@ -49,7 +49,8 @@ function wa(c,conf){
 
 
 async function agenda(){
- const main=$('#main');
+ const main=$('#main'),esBarbero=S.perfil.rol==='BARBERO';
+ if(esBarbero)S.barberoAgenda=S.perfil.barbero_id||null;
  const vista=S.vistaAgenda||'dia',base=new Date(S.dia+'T12:00:00Z'),p=n=>String(n).padStart(2,'0'),fmt=d=>d.getUTCFullYear()+'-'+p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate()),sum=(d,n)=>{const x=new Date(d);x.setUTCDate(x.getUTCDate()+n);return x};
  let primero=new Date(base),ultimo;
  if(vista==='semana'){const offset=(base.getUTCDay()+6)%7;primero=sum(base,-offset);ultimo=sum(primero,7)}
@@ -58,7 +59,7 @@ async function agenda(){
  const desde=instanteNegocio(fmt(primero)+'T00:00').toISOString(),hasta=instanteNegocio(fmt(ultimo)+'T00:00').toISOString();
  let consulta=sb.from('citas').select('*,clientes(nombre,telefono),barberos(nombre),servicios(nombre,duracion_minutos)').eq('negocio_id',S.perfil.negocio_id).gte('inicio',desde).lt('inicio',hasta).order('inicio');
  if(S.barberoAgenda)consulta=consulta.eq('barbero_id',S.barberoAgenda);
- const [rCitas,rBarberos]=await Promise.all([mio(consulta),sb.from('barberos').select('id,nombre').eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').order('nombre')]);
+ let consultaBarberos=sb.from('barberos').select('id,nombre').eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO');if(esBarbero)consultaBarberos=consultaBarberos.eq('id',S.perfil.barbero_id);const [rCitas,rBarberos]=await Promise.all([mio(consulta),consultaBarberos.order('nombre')]);
  if(rCitas.error)return toast(rCitas.error.message,true);
  if(rBarberos.error)return toast(rBarberos.error.message,true);
  const data=rCitas.data||[],barberos=rBarberos.data||[],dias=[];
@@ -80,7 +81,7 @@ async function agenda(){
  main.innerHTML=`<div class="agenda-shell">
  <header class="agenda-header"><div><span class="agenda-eyebrow">GESTIÓN DE CITAS</span><h2>Agenda</h2><p>Organiza tu equipo y mantén cada reserva bajo control.</p></div><button class="btn agenda-nueva" id="nv"><span aria-hidden="true">＋</span> Nueva cita</button></header>
  <section class="agenda-resumen" aria-label="Resumen de citas"><div class="agenda-metrica"><span class="agenda-metrica-icon total">▦</span><span><small>Citas del período</small><strong>${data.length}</strong></span></div><div class="agenda-metrica"><span class="agenda-metrica-icon pendiente">◷</span><span><small>Pendientes</small><strong>${pendientes}</strong></span></div><div class="agenda-metrica"><span class="agenda-metrica-icon confirmada">✓</span><span><small>Confirmadas</small><strong>${confirmadas}</strong></span></div><div class="agenda-metrica"><span class="agenda-metrica-icon atendida">★</span><span><small>Atendidas</small><strong>${atendidas}</strong></span></div></section>
- <section class="agenda-toolbar"><div class="agenda-navegacion"><button class="btn sec agenda-flecha" id="pv" aria-label="Período anterior">‹</button><input type="date" id="dd" value="${S.dia}" aria-label="Seleccionar fecha"><button class="btn sec agenda-flecha" id="nx" aria-label="Período siguiente">›</button><span class="agenda-rango">${esc(rango)}</span></div><div class="agenda-filtros"><label for="va">Vista<select id="va"><option value="dia"${vista==='dia'?' selected':''}>Día</option><option value="semana"${vista==='semana'?' selected':''}>Semana</option><option value="mes"${vista==='mes'?' selected':''}>Mes</option></select></label><label for="fb">Barbero<select id="fb"><option value="">Todo el equipo</option>${barberos.map(b=>'<option value="'+b.id+'"'+(S.barberoAgenda===b.id?' selected':'')+'>'+esc(b.nombre)+'</option>').join('')}</select></label></div></section>
+ <section class="agenda-toolbar"><div class="agenda-navegacion"><button class="btn sec agenda-flecha" id="pv" aria-label="Período anterior">‹</button><input type="date" id="dd" value="${S.dia}" aria-label="Seleccionar fecha"><button class="btn sec agenda-flecha" id="nx" aria-label="Período siguiente">›</button><span class="agenda-rango">${esc(rango)}</span></div><div class="agenda-filtros"><label for="va">Vista<select id="va"><option value="dia"${vista==='dia'?' selected':''}>Día</option><option value="semana"${vista==='semana'?' selected':''}>Semana</option><option value="mes"${vista==='mes'?' selected':''}>Mes</option></select></label>${esBarbero?'':'<label for="fb">Barbero<select id="fb"><option value="">Todo el equipo</option>'+barberos.map(b=>'<option value="'+b.id+'"'+(S.barberoAgenda===b.id?' selected':'')+'>'+esc(b.nombre)+'</option>').join('')+'</select></label>'}</div></section>
  <div class="agenda-contenido">${contenido}</div>
  <footer class="agenda-leyenda"><span><i class="pendiente"></i>Pendiente</span><span><i class="confirmada"></i>Confirmada</span><span><i class="atendida"></i>Atendida</span><span><i class="cancelada"></i>Cancelada / No asistió</span></footer>
  </div>`;
@@ -88,14 +89,15 @@ async function agenda(){
  const mover=n=>{const d=vista==='mes'?new Date(Date.UTC(base.getUTCFullYear(),base.getUTCMonth()+n,1)):sum(base,n);S.dia=fmt(d);agenda()};
  $('#pv').onclick=()=>mover(anterior);$('#nx').onclick=()=>mover(siguiente);
  $('#dd').onchange=e=>{if(e.target.value){S.dia=e.target.value;agenda()}};
- $('#va').onchange=e=>{S.vistaAgenda=e.target.value;agenda()};$('#fb').onchange=e=>{S.barberoAgenda=e.target.value;agenda()};
+ $('#va').onchange=e=>{S.vistaAgenda=e.target.value;agenda()};const filtroBarbero=$('#fb');if(filtroBarbero)filtroBarbero.onchange=e=>{S.barberoAgenda=e.target.value;agenda()};
  $('#nv').onclick=nuevaCita;
  const vacio=$('#nv-vacio');if(vacio)vacio.onclick=nuevaCita;
  document.querySelectorAll('[data-fecha]').forEach(b=>b.onclick=()=>{S.dia=b.dataset.fecha;S.vistaAgenda='dia';agenda()});
  document.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>editarCita(data.find(x=>x.id===b.dataset.id)));
 }
 async function nuevaCita(){
- const rs=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre'],['servicios','id,nombre,duracion_minutos']].map(([t,s])=>sb.from(t).select(s).eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').order('nombre')));
+ const esBarbero=S.perfil.rol==='BARBERO';
+ const rs=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre'],['servicios','id,nombre,duracion_minutos']].map(([t,s])=>{let q=sb.from(t).select(s).eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO');if(t==='barberos'&&esBarbero)q=q.eq('id',S.perfil.barbero_id);return q.order('nombre')}));
  const fallo=rs.find(r=>r.error);if(fallo)return toast(traducir(fallo.error.message),true);
  const[cl,ba,se]=rs.map(r=>r.data||[]);
  if(!cl.length||!ba.length||!se.length)return toast('Antes de agendar crea al menos un cliente, un barbero y un servicio.',true);
@@ -104,7 +106,7 @@ async function nuevaCita(){
  dlg.innerHTML=`<form id="df"><h2>Nueva cita</h2>
  <label for="a1">Cliente</label><select id="a1" name="cliente_id" required>${op(cl)}</select>
  <label for="a2">Servicio</label><select id="a2" name="servicio_id" required>${op(se)}</select>
- <label for="a3">Barbero</label><select id="a3" name="barbero_id" required>${op(ba)}</select>
+ ${esBarbero?'<input type="hidden" id="a3" name="barbero_id" value="'+esc(S.perfil.barbero_id||'')+'">':'<label for="a3">Barbero</label><select id="a3" name="barbero_id" required>'+op(ba)+'</select>'}
  <label for="a4">Fecha y hora</label><input id="a4" name="inicio" type="datetime-local" min="${valorLocal(new Date()).slice(0,16)}" value="${loc}" required>
  <label for="a5">Observaciones</label><textarea id="a5" name="observaciones" rows="2"></textarea>
  <div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Agendar cita</button></div></form>`;
@@ -114,9 +116,10 @@ async function nuevaCita(){
   const i=instanteNegocio(f.inicio),dur=Number(se.find(s=>s.id===f.servicio_id)?.duracion_minutos||0),fin=new Date(i.getTime()+dur*6e4);
   const pasado=validarInicioFuturo(i);if(pasado){guardando=false;if(boton)boton.disabled=false;return toast(pasado,true)}
   if(!Number.isFinite(i.getTime())||!dur){guardando=false;if(boton)boton.disabled=false;return toast('La fecha o duración del servicio no es válida.',true)}
-  const disponibilidad=await validarDisponibilidad({barbero:f.barbero_id,cliente:f.cliente_id,inicio:i.toISOString(),fin:fin.toISOString()});
+  const barberoAsignado=esBarbero?S.perfil.barbero_id:f.barbero_id;
+  const disponibilidad=await validarDisponibilidad({barbero:barberoAsignado,cliente:f.cliente_id,inicio:i.toISOString(),fin:fin.toISOString()});
   if(disponibilidad){guardando=false;if(boton)boton.disabled=false;return toast(disponibilidad,true)}
-  const{error}=await sb.from('citas').insert({cliente_id:f.cliente_id,servicio_id:f.servicio_id,barbero_id:f.barbero_id,observaciones:f.observaciones||null,inicio:i.toISOString(),fin:fin.toISOString(),negocio_id:S.perfil.negocio_id,creado_por:S.perfil.id,origen:'APP'});
+  const{error}=await sb.from('citas').insert({cliente_id:f.cliente_id,servicio_id:f.servicio_id,barbero_id:barberoAsignado,observaciones:f.observaciones||null,inicio:i.toISOString(),fin:fin.toISOString(),negocio_id:S.perfil.negocio_id,creado_por:S.perfil.id,origen:'APP'});
   if(error){guardando=false;if(boton)boton.disabled=false;return toast(traducir(error.message),true)}
   dlg.close();toast('Cita agendada');S.dia=partesNegocio(i.toISOString()).fecha;agenda()};
 }
