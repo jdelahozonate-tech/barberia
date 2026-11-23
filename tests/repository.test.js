@@ -655,12 +655,11 @@ test('el catálogo de productos incorpora imágenes y pedidos públicos sin move
 
 test('los pedidos a proveedores se administran desde Pedidos y no descuentan stock al crearse', () => {
   const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
-  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
   const pedidos = readFileSync(resolve(root, 'src/modules/pedidos.js'), 'utf8');
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261120000000_pedidos_proveedores_notificaciones.sql'), 'utf8');
   const recepcion = readFileSync(resolve(root, 'supabase/migrations/20261120080000_pedidos_proveedores_recepcion.sql'), 'utf8');
   assert.match(pedidos, /pdfTexto/);
-  assert.match(ventas, /navigator\.canShare/);
+  assert.match(pedidos, /navigator\.share/);
   assert.match(pedidos, /recibir_pedido_proveedor/);
   assert.match(pedidos, /Confirmar recepción e ingresar inventario/);
   assert.doesNotMatch(productos.slice(productos.indexOf('const tabs='), productos.indexOf('async function productosVista')), /pedido_proveedor/);
