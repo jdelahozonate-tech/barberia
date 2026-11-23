@@ -76,13 +76,13 @@ test('Agenda bloquea citas y reprogramaciones con fecha u hora pasada', () => {
   assert.match(agenda, /Selecciona un horario futuro/);
 });
 
-test('Ventas genera un comprobante PDF vectorial con varias páginas, marca y descarga/impresión/compartir', () => {
+test('Ventas genera un comprobante PDF vertical tipo voucher con marca y descarga/impresión/compartir', () => {
   const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
   assert.match(ventas, /Registrar saldo pendiente \(fiado\)/);
   assert.match(ventas, /async function generarFacturaPDF/);
   assert.match(ventas, /async function cargarLogoComprobante/);
   assert.match(ventas, /function pdfTextoFactura\(datosVenta,logo\)/);
-  assert.match(ventas, /const W=612,H=792/);
+  assert.match(ventas, /const W=360/);\n  assert.match(ventas, /COMPROBANTE DE VENTA/);\n  assert.match(ventas, /SALDO PENDIENTE/);
   assert.match(ventas, /new Blob\(\[Uint8Array\.from\(pdf,c=>c\.charCodeAt\(0\)\)\],\{type:'application\/pdf'\}\)/);
   assert.match(ventas, /new File\(\[blob\],nombreArchivo,\{type:'application\/pdf'\}\)/);
   assert.match(ventas, /navigator\.canShare/);
