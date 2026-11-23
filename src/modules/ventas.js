@@ -139,15 +139,15 @@ async function nuevaVenta(pre,tipo='MIXTA'){
  <label>${esBarbero?'Servicio':'Servicios y productos'}</label><div id="lns">${lin()}</div><button type="button" class="link" id="ad">Agregar otro ítem</button>
  <label for="v3">Descuento</label><input id="v3" name="descuento" type="number" min="0" value="0" inputmode="decimal">
  <p class="tot" id="tt"></p>
- <label>Pagos recibidos</label><div id="pgs">${pl()}</div><button type="button" class="link" id="ap">Agregar otro método de pago</button>${S.negocio.permitir_saldos?'<label class="chk" style="margin-top:10px"><input type="checkbox" id="vfiado"> Registrar saldo pendiente (fiado)</label>':''}<p class="mute" id="fl"></p>
+ ${esBarbero?'<div class="info" style="margin:12px 0">El cobro del servicio quedará pendiente para que caja o administración registre el pago.</div>':'<label>Pagos recibidos</label><div id="pgs">'+pl()+'</div><button type="button" class="link" id="ap">Agregar otro método de pago</button>'+(S.negocio.permitir_saldos?'<label class="chk" style="margin-top:10px"><input type="checkbox" id="vfiado"> Registrar saldo pendiente (fiado)</label>':'')+'<p class="mute" id="fl"></p>'}
  <div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Cobrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  const calc=()=>{const L=[...document.querySelectorAll('#lns .ln')].map(l=>({i:items.find(x=>x.k===l.querySelector('select').value),q:Number(l.querySelector('input').value)}));const br=L.reduce((s,l)=>s+(l.i?l.i.p*l.q:NaN),0),ds=Number($('#v3').value);return{L,br,ds,t:br-ds}};
  const pagos=()=>[...document.querySelectorAll('#pgs .ln')].map(l=>({m:l.querySelector('select').value,v:Number(l.querySelector('input').value)||0,c:l.querySelector('.cu').value||null})).filter(x=>x.v>0);
  $('#pgs').onchange=e=>{if(e.target.tagName==='SELECT'&&!e.target.classList.contains('cu'))e.target.closest('.ln').querySelector('.cu').hidden=e.target.value==='EFECTIVO'||!cu.length};
  const ref=()=>{const c=calc(),f=$('#pgs .ln input');$('#tt').textContent='Total: '+dinero(c.t);
-  if(!f.dataset.m&&document.querySelectorAll('#pgs .ln').length===1)f.value=Math.max(0,c.t);
-  const rec=pagos().reduce((s,x)=>s+x.v,0),fiado=!!$('#vfiado')?.checked;$('#fl').textContent=rec<c.t?(fiado?'Saldo a crédito: ':'Falta por cobrar: ')+dinero(c.t-rec):rec>c.t?'Sobran '+dinero(rec-c.t):'Pago completo'};
+  if(f&&!f.dataset.m&&document.querySelectorAll('#pgs .ln').length===1)f.value=Math.max(0,c.t);
+  const rec=pagos().reduce((s,x)=>s+x.v,0),fiado=!!$('#vfiado')?.checked,estado=$('#fl');if(estado)estado.textContent=rec<c.t?(fiado?'Saldo a crédito: ':'Falta por cobrar: ')+dinero(c.t-rec):rec>c.t?'Sobran '+dinero(rec-c.t):'Pago completo'};
  $('#pgs').oninput=e=>{if(e.target.tagName==='INPUT')e.target.dataset.m=1};
  $('#df').oninput=ref;$('#df').onchange=ref;const fiado=$('#vfiado');if(fiado)fiado.onchange=ref;
  $('#ad').onclick=()=>{$('#lns').insertAdjacentHTML('beforeend',lin());ref()};
@@ -159,8 +159,9 @@ async function nuevaVenta(pre,tipo='MIXTA'){
   if(!c.L.length||c.L.some(l=>!l.i||!Number.isFinite(l.q)||l.q<=0||!Number.isFinite(l.i.p)||l.i.p<0)||!Number.isFinite(c.t)||!Number.isFinite(c.ds)||valoresPago.some(x=>!Number.isFinite(x)||x<0)||!Number.isFinite(pago)){guardando=false;if(boton)boton.disabled=false;return toast('Revisa las cantidades, precios y valores de pago. Deben ser números válidos y no negativos.',true)}
   if(c.ds<0||c.ds>c.L.reduce((s,l)=>s+l.i.p*l.q,0)){guardando=false;if(boton)boton.disabled=false;return toast('El descuento debe estar entre cero y el subtotal.',true)}
   if(pago>c.t){guardando=false;if(boton)boton.disabled=false;return toast('El pago no puede superar el total.',true)}
-  if(pago<c.t&&(!S.negocio.permitir_saldos||!$('#vfiado')?.checked)){guardando=false;if(boton)boton.disabled=false;return toast(S.negocio.permitir_saldos?'Para dejar saldo pendiente, activa la opción de fiado.':'Esta barbería no permite saldos pendientes. Recibe el pago completo.',true)}
-  if(pago<c.t&&!f.cliente_id){guardando=false;if(boton)boton.disabled=false;return toast('Para registrar una venta fiada debes seleccionar el cliente responsable de la deuda.',true)}
+  const cobroPendienteBarbero=esBarbero&&tipo==='SERVICIOS'&&PG.length===0;
+  if(pago<c.t&&!cobroPendienteBarbero&&(!S.negocio.permitir_saldos||!$('#vfiado')?.checked)){guardando=false;if(boton)boton.disabled=false;return toast(S.negocio.permitir_saldos?'Para dejar saldo pendiente, activa la opción de fiado.':'Esta barbería no permite saldos pendientes. Recibe el pago completo.',true)}
+  if(pago<c.t&&!f.cliente_id){guardando=false;if(boton)boton.disabled=false;return toast(esBarbero?'Selecciona el cliente al que se le asignará el cobro.':'Para registrar una venta fiada debes seleccionar el cliente responsable de la deuda.',true)}
   if(cu.length&&PG.some(x=>x.m!=='EFECTIVO'&&!x.c)){guardando=false;if(boton)boton.disabled=false;return toast('Elige la cuenta donde entró cada pago que no es en efectivo.',true)}
   const{data:cajaActual,error:errorCajaActual}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
   if(errorCajaActual){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorCajaActual.message),true)}
