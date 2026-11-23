@@ -78,25 +78,25 @@ test('Agenda bloquea citas y reprogramaciones con fecha u hora pasada', () => {
 
 test('Ventas genera y comparte el comprobante como imagen JPG, no como PDF', () => {
   const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
-  assert.match(ventas, /Registrar saldo pendiente \\(fiado\\)/);
+  assert.match(ventas, /Registrar saldo pendiente \(fiado\)/);
   assert.match(ventas, /async function generarImagenComprobante/);
   assert.match(ventas, /async function cargarLogoComprobante/);
-  assert.match(ventas, /function imagenComprobante\\(datosVenta,logo\\)/);
+  assert.match(ventas, /function imagenComprobante\(datosVenta,logo\)/);
   assert.match(ventas, /COMPROBANTE DE VENTA/);
   assert.match(ventas, /SALDO PENDIENTE/);
-  assert.match(ventas, /canvas\\.toBlob/);
+  assert.match(ventas, /canvas\.toBlob/);
   assert.match(ventas, /type:'image\/jpeg'/);
-  assert.match(ventas, /new File\\(\\[blob\\],nombreArchivo,\\{type:'image\/jpeg'\\}\\)/);
-  assert.match(ventas, /navigator\\.canShare/);
+  assert.match(ventas, /new File\(\[blob\],nombreArchivo,\{type:'image\/jpeg'\}\)/);
+  assert.match(ventas, /navigator\.canShare/);
   assert.match(ventas, /ESTADO DE CUENTA/);
   assert.match(ventas, /Saldo pendiente/);
   assert.match(ventas, /No sustituye una factura electrónica/);
   assert.match(ventas, /id="shareimage"/);
   assert.match(ventas, /id="image"/);
   assert.doesNotMatch(ventas, /application\/pdf|generarFacturaPDF|pdfTextoFactura|Descargar PDF|Compartir PDF/);
-  assert.doesNotMatch(ventas, /window\\.print\\(/);
-  assert.doesNotMatch(ventas, /window\\.open\\('about:blank'/);
-  assert.doesNotMatch(ventas, /cdnjs\\.cloudflare\\.com\/ajax\/libs\/jspdf/);
+  assert.doesNotMatch(ventas, /window\.print\(/);
+  assert.doesNotMatch(ventas, /window\.open\('about:blank'/);
+  assert.doesNotMatch(ventas, /cdnjs\.cloudflare\.com\/ajax\/libs\/jspdf/);
 });
 
 test('La anulación de ventas exige la misma caja abierta del turno', () => {
@@ -659,7 +659,7 @@ test('los pedidos a proveedores se administran desde Pedidos y no descuentan sto
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261120000000_pedidos_proveedores_notificaciones.sql'), 'utf8');
   const recepcion = readFileSync(resolve(root, 'supabase/migrations/20261120080000_pedidos_proveedores_recepcion.sql'), 'utf8');
   assert.match(pedidos, /pdfTexto/);
-  assert.match(pedidos, /navigator\.share/);
+  assert.match(ventas, /navigator\.canShare/);
   assert.match(pedidos, /recibir_pedido_proveedor/);
   assert.match(pedidos, /Confirmar recepción e ingresar inventario/);
   assert.doesNotMatch(productos.slice(productos.indexOf('const tabs='), productos.indexOf('async function productosVista')), /pedido_proveedor/);
