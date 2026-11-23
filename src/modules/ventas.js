@@ -34,6 +34,7 @@ function rangoVentas(filtro,desde,hasta){
  return {desde:instanteZona(a+'T00:00'),hasta:instanteZona(b+'T00:00'),a,b};
 }
 async function ventas(){
+ const esBarbero=S.perfil.rol==='BARBERO';
  const filtro=S.filtroVentas||'HOY',desde=S.ventasDesde||fechaEnZona(),hasta=S.ventasHasta||desde;
  const rango=rangoVentas(filtro,desde,hasta);
  const[{data,error},{data:citas,error:errorCitas}]=await Promise.all([
@@ -65,15 +66,15 @@ async function ventas(){
  const etiquetasTipo={PRODUCTOS:'Productos',SERVICIOS:'Servicios',MIXTA:'Mixta',OTRA:'Sin clasificar'};
  const coloresTipo={PRODUCTOS:'background:#e8f5ec;color:#176b36;border:1px solid #b9e1c5',SERVICIOS:'background:#eaf1ff;color:#2454a6;border:1px solid #c5d6fb',MIXTA:'background:#fff3df;color:#8a5200;border:1px solid #f0d4a3',OTRA:'background:#f1f2f4;color:#555;border:1px solid #ddd'};
  const activa=k=>filtro===k?'':'sec';
- $('#main').innerHTML=`<div class="head"><h2>Ventas</h2><button class="btn" id="nv">Nueva venta</button></div>
- <div class="product-tabs"><button class="btn sec" id="vp">Venta de productos</button><button class="btn sec" id="vs">Venta de servicios</button><button class="btn sec" id="vm">Venta mixta</button></div>
+ $('#main').innerHTML=`<div class="head"><h2>${esBarbero?'Cobros de servicios':'Ventas'}</h2><button class="btn" id="nv">${esBarbero?'Registrar servicio':'Nueva venta'}</button></div>
+ ${esBarbero?'':'<div class="product-tabs"><button class="btn sec" id="vp">Venta de productos</button><button class="btn sec" id="vs">Venta de servicios</button><button class="btn sec" id="vm">Venta mixta</button></div>'}
  <section><h3>Filtros</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;align-items:end;max-width:680px">
  <label for="filtro-periodo" style="display:grid;gap:5px">Período
  <select id="filtro-periodo" style="width:100%;min-width:0;padding:10px;border:1px solid var(--borde,#ccc);border-radius:8px;background:var(--panel,#fff);color:inherit">
  <option value="HOY" data-filtro-ventas="HOY" ${filtro==='HOY'?'selected':''}>Hoy</option><option value="SEMANA" data-filtro-ventas="SEMANA" ${filtro==='SEMANA'?'selected':''}>Esta semana</option><option value="MES" data-filtro-ventas="MES" ${filtro==='MES'?'selected':''}>Este mes</option><option value="PERSONALIZADO" data-filtro-ventas="PERSONALIZADO" ${filtro==='PERSONALIZADO'?'selected':''}>Personalizado</option></select></label>
- <label for="filtro-tipo-venta" style="display:grid;gap:5px">Tipo de venta
+ ${esBarbero?'':'<label for="filtro-tipo-venta" style="display:grid;gap:5px">Tipo de venta
  <select id="filtro-tipo-venta" aria-label="Filtrar por tipo de venta" style="width:100%;min-width:0;padding:10px;border:1px solid var(--borde,#ccc);border-radius:8px;background:var(--panel,#fff);color:inherit">
- <option value="TODOS" data-tipo-venta="TODOS" ${tipoFiltro==='TODOS'?'selected':''}>Todas</option><option value="PRODUCTOS" data-tipo-venta="PRODUCTOS" ${tipoFiltro==='PRODUCTOS'?'selected':''}>Productos</option><option value="SERVICIOS" data-tipo-venta="SERVICIOS" ${tipoFiltro==='SERVICIOS'?'selected':''}>Servicios</option><option value="MIXTA" data-tipo-venta="MIXTA" ${tipoFiltro==='MIXTA'?'selected':''}>Mixtas</option></select></label>
+ <option value="TODOS" data-tipo-venta="TODOS" ${tipoFiltro==='TODOS'?'selected':''}>Todas</option><option value="PRODUCTOS" data-tipo-venta="PRODUCTOS" ${tipoFiltro==='PRODUCTOS'?'selected':''}>Productos</option><option value="SERVICIOS" data-tipo-venta="SERVICIOS" ${tipoFiltro==='SERVICIOS'?'selected':''}>Servicios</option><option value="MIXTA" data-tipo-venta="MIXTA" ${tipoFiltro==='MIXTA'?'selected':''}>Mixtas</option></select></label>'}
  </div>
  <div class="dia" id="rango-personalizado" style="${filtro==='PERSONALIZADO'?'':'display:none'};margin-top:10px"><label>Desde <input type="date" id="ventas-desde" value="${esc(desde)}"></label><label>Hasta <input type="date" id="ventas-hasta" value="${esc(hasta)}"></label><button class="btn" id="aplicar-rango">Aplicar</button></div>
  </section>
@@ -86,10 +87,8 @@ async function ventas(){
   const tipo=tipoVenta(v),estilo=coloresTipo[tipo]||coloresTipo.OTRA;
   return `<button class="row" data-id="${v.id}" style="border-left:4px solid ${tipo==='PRODUCTOS'?'#299653':tipo==='SERVICIOS'?'#4779d1':tipo==='MIXTA'?'#d99a35':'#999'};padding-left:12px"><span><strong>${esc(v.clientes?.nombre||'Cliente de paso')}</strong> <span style="display:inline-block;margin:3px 0;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${estilo}">${etiquetasTipo[tipo]||'Sin clasificar'}</span><br><small>${new Date(v.fecha_hora).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})} · Cobrado: ${dinero(v.total_pagado)}</small><br><small>${conceptos||'Sin detalle'}</small>${Number(v.descuento)>0?'<br><small>Descuento: '+dinero(v.descuento)+'</small>':''}${saldo?'<br><small>Saldo pendiente: '+dinero(v.saldo_pendiente)+' · Deudor: '+esc(v.clientes?.nombre||'Cliente de paso')+'</small>':''}</span><strong>${dinero(v.total_venta)}</strong></button>`;
  }).join(''):'<p class="empty">No hay ventas en el período seleccionado.</p>'}</section>`;
- $('#nv').onclick=()=>nuevaVenta();
- $('#vp').onclick=()=>nuevaVenta(null,'PRODUCTOS');
- $('#vs').onclick=()=>nuevaVenta(null,'SERVICIOS');
- $('#vm').onclick=()=>nuevaVenta(null,'MIXTA');
+ $('#nv').onclick=()=>nuevaVenta(null,esBarbero?'SERVICIOS':'MIXTA');
+ const vp=$('#vp'),vs=$('#vs'),vm=$('#vm');if(vp)vp.onclick=()=>nuevaVenta(null,'PRODUCTOS');if(vs)vs.onclick=()=>nuevaVenta(null,'SERVICIOS');if(vm)vm.onclick=()=>nuevaVenta(null,'MIXTA');
  const selectorTipo=$('#filtro-tipo-venta');if(selectorTipo)selectorTipo.onchange=()=>{S.filtroTipoVenta=selectorTipo.value;ventas()};
  const selectorPeriodo=$('#filtro-periodo');if(selectorPeriodo)selectorPeriodo.onchange=()=>{S.filtroVentas=selectorPeriodo.value;ventas()};
  const aplicar=$('#aplicar-rango');if(aplicar)aplicar.onclick=()=>{const a=$('#ventas-desde').value,b=$('#ventas-hasta').value;if(!a||!b||a>b)return toast('Selecciona un rango de fechas válido.',true);S.ventasDesde=a;S.ventasHasta=b;S.filtroVentas='PERSONALIZADO';ventas()};
@@ -110,6 +109,8 @@ async function cobrarCitaPendiente(c){
  nuevaVenta({cliente_id:c.cliente_id,barbero_id:c.barbero_id,servicio_id:c.servicio_id,cita_id:c.id,fee},'AGENDA');
 }
 async function nuevaVenta(pre,tipo='MIXTA'){
+ const esBarbero=S.perfil.rol==='BARBERO';
+ if(esBarbero){tipo='SERVICIOS';pre={...(pre||{}),barbero_id:S.perfil.barbero_id};}
  if(pre?.cita_id){
   const{data:cita,error:errorCita}=await sb.from('citas').select('estado').eq('negocio_id',S.perfil.negocio_id).eq('id',pre.cita_id).maybeSingle();
   if(errorCita)return toast(traducir(errorCita.message),true);
@@ -123,7 +124,7 @@ async function nuevaVenta(pre,tipo='MIXTA'){
  if(!cajaInicial?.id)return toast('Para registrar una venta, primero abre la caja.',true);
  const respuestas=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre,modelo_pago,porcentaje_comision'],['servicios','id,nombre,precio'],['productos','id,nombre,precio_venta,costo_unitario,vendible'],['cuentas','id,nombre,detalle']].map(([t,campos])=>{let q=sb.from(t).select(campos).eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO');if(t==='productos')q=q.eq('vendible',true);return q.order('nombre')}));
  const fallo=respuestas.find(r=>r.error);if(fallo)return toast(traducir(fallo.error.message),true);
- const[cl,ba,se,pr,cu]=respuestas.map(r=>r.data||[]);
+ const[cl,barberosCargados,se,productosCargados,cu]=respuestas.map(r=>r.data||[]),ba=esBarbero?barberosCargados.filter(x=>x.id===S.perfil.barbero_id):barberosCargados,pr=esBarbero?[]:productosCargados;
  if(!se.length&&!pr.length)return toast('Primero crea un servicio o un producto.',true);
  const todos=[...se.map(x=>({k:'s:'+x.id,n:x.nombre,p:Number(x.precio)})),...pr.map(x=>({k:'p:'+x.id,n:x.nombre,p:Number(x.precio_venta)}))];
  const items=todos.filter(x=>tipo==='PRODUCTOS'?x.k.startsWith('p:'):tipo==='SERVICIOS'?x.k.startsWith('s:'):true);
@@ -134,8 +135,8 @@ async function nuevaVenta(pre,tipo='MIXTA'){
  const pl=()=>`<div class="ln"><select aria-label="Método de pago">${METODOS}</select><input type="number" min="0" inputmode="decimal" aria-label="Valor recibido"><select class="cu" hidden style="grid-column:1/-1" aria-label="Cuenta donde entró el pago"><option value="">Elige la cuenta donde entró</option>${cu.map(x=>`<option value="${x.id}">${esc(x.nombre)}${x.detalle?' ('+esc(x.detalle)+')':''}</option>`).join('')}</select></div>`;
  dlg.innerHTML=`<form id="df"><h2>${pre?.cita_id?'Cobrar cita':tipo==='PRODUCTOS'?'Venta de productos':tipo==='SERVICIOS'?'Venta de servicios':'Nueva venta'}</h2>
  <label for="v1">Cliente</label><select id="v1" name="cliente_id"><option value="">Cliente de paso</option>${op(cl)}</select>
- <label for="v2">Barbero</label><select id="v2" name="barbero_id"><option value="">Sin barbero</option>${op(ba)}</select>
- <label>Servicios y productos</label><div id="lns">${lin()}</div><button type="button" class="link" id="ad">Agregar otro ítem</button>
+ ${esBarbero?'<input type="hidden" id="v2" name="barbero_id" value="'+esc(S.perfil.barbero_id||'')+'">':'<label for="v2">Barbero</label><select id="v2" name="barbero_id"><option value="">Sin barbero</option>'+op(ba)+'</select>'}
+ <label>${esBarbero?'Servicio':'Servicios y productos'}</label><div id="lns">${lin()}</div><button type="button" class="link" id="ad">Agregar otro ítem</button>
  <label for="v3">Descuento</label><input id="v3" name="descuento" type="number" min="0" value="0" inputmode="decimal">
  <p class="tot" id="tt"></p>
  <label>Pagos recibidos</label><div id="pgs">${pl()}</div><button type="button" class="link" id="ap">Agregar otro método de pago</button>${S.negocio.permitir_saldos?'<label class="chk" style="margin-top:10px"><input type="checkbox" id="vfiado"> Registrar saldo pendiente (fiado)</label>':''}<p class="mute" id="fl"></p>
