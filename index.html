@@ -728,7 +728,7 @@ const NOTIF=crearModuloNotificaciones({ $, sb, S, esc, toast });
 
 /* ---------- Acceso ---------- */
 /* ---------- Estructura ---------- */
-const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['pedidos','Pedidos'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Inventario'],['caja','Caja',1],['comisiones','Liquidaciones',1],['reportes','Reportes',1],['ajustes','Ajustes',2],['miscom','Mis comisiones',3],['miperfil','Mi perfil',3]];
+const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['pedidos','Pedidos'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Inventario'],['caja','Caja',1],['comisiones','Liquidaciones',1],['reportes','Reportes',1],['ajustes','Ajustes',2],['crearcliente','Crear cliente',3],['miscom','Mis comisiones',3],['miperfil','Mi perfil',3]];
 const { pantallaAuth, cargar, aviso } = crearModuloAcceso({ $, app, sb, S, esc, traducir, toast, waNum, shell });
 function avatarPerfil(){
  const nombre=String(S.perfil.nombre||'Usuario').trim(),iniciales=nombre.split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'U';
@@ -738,7 +738,7 @@ function avatarPerfil(){
 function shell(){
  const avatar=avatarPerfil(),nombre=esc(S.perfil.nombre||'Usuario'),rol=esc(String(S.perfil.rol||'').toLowerCase());
  app.innerHTML=`<div class="pole"></div><div class="bar"><div class="bar-brand"><button type="button" class="menu-toggle" id="menu-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>${S.negocio.logo_url?`<img src="${esc(S.negocio.logo_url)}" alt="${esc(S.negocio.nombre)}" class="business-logo">`:`<strong>${esc(S.negocio.nombre)}</strong>`}</div><span class="bar-user">${avatar}<span class="bar-user-copy"><strong>${nombre}</strong><small>${rol}</small></span><button type="button" class="link light notif-bell" id="campana-notificaciones" aria-label="Notificaciones">♢</button><button class="link light" id="out">Salir</button></span></div>
- <div class="nav-backdrop" id="nav-backdrop"></div><nav class="nav" aria-label="Menú principal"><div class="nav-profile">${avatar}<span><strong>${nombre}</strong><small>${rol}</small></span></div>${MENU.filter(m=>!m[2]||(m[2]===3?S.perfil.rol==='BARBERO':m[2]===2?ADM.includes(S.perfil.rol):ADM.includes(S.perfil.rol))).map(([k,l])=>`<button data-v="${k}">${l}</button>`).join('')}</nav><div class="wrap">${aviso()}<main id="main"></main></div>`;
+ <div class="nav-backdrop" id="nav-backdrop"></div><nav class="nav" aria-label="Menú principal"><div class="nav-profile">${avatar}<span><strong>${nombre}</strong><small>${rol}</small></span></div>${(S.perfil.rol==='BARBERO'?MENU.filter(m=>['inicio','agenda','crearcliente','ventas','miscom','miperfil'].includes(m[0])):MENU.filter(m=>!m[2]||(m[2]===2?ADM.includes(S.perfil.rol):ADM.includes(S.perfil.rol)))).map(([k,l])=>`<button data-v="${k}">${k==='ventas'&&S.perfil.rol==='BARBERO'?'Cobrar servicios':l}</button>`).join('')}</nav><div class="wrap">${aviso()}<main id="main"></main></div>`;
  $('#out').onclick=()=>{NOTIF.detener();sb.auth.signOut()};
  const nav=$('nav.nav'),backdrop=$('#nav-backdrop'),toggle=$('#menu-toggle');
  const cerrarMenu=()=>{nav.classList.remove('open');backdrop.classList.remove('show');toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Abrir menú');document.body.classList.remove('menu-open')};
@@ -748,7 +748,7 @@ function shell(){
  document.querySelectorAll('nav.nav button[data-v]').forEach(b=>b.onclick=()=>{S.vista=b.dataset.v;cerrarMenu();ir()});
  ir();
 }
-function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.vista));({inicio,agenda,ventas,productos,pedidos:pedidosProductos,caja,comisiones,reportes,ajustes,miscom:misComisiones,miperfil:miPerfil}[S.vista]||(()=>crud(S.vista)))()}
+function ir(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.vista));({inicio,agenda,ventas,productos,pedidos:pedidosProductos,caja,comisiones,reportes,ajustes,crearcliente:()=>crud('clientes'),miscom:misComisiones,miperfil:miPerfil}[S.vista]||(()=>crud(S.vista)))()}
 
 /* ---------- Clientes, barberos y servicios ---------- */
 const ADM=['ADMINISTRADOR','SUPERVISOR'];
