@@ -269,144 +269,75 @@ async function cargarLogoComprobante(url){
   return {width:canvas.width,height:canvas.height,data:binario};
  }catch(error){return null}
 }
-function pdfTextoFactura(datosVenta,logo){
-  const ascii=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,' ');
-  const escapar=x=>ascii(x).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
-  const W=360,azul=[0.075,0.145,0.255],dorado=[0.78,0.61,0.28],gris=[0.95,0.96,0.97],texto=[0.13,0.18,0.25],suave=[0.40,0.45,0.52],verde=[0.13,0.43,0.29],rojo=[0.65,0.18,0.16];
-  const detalles=datosVenta.detalles||[],pagos=datosVenta.pagos||[],resumen=datosVenta.resumen||{};
-  const moneda=n=>dinero(Number(n)||0);
-  const envolver=(valor,max=39)=>{
-   const palabras=ascii(valor).split(/\s+/),lineas=[];let actual='';
-   palabras.forEach(p=>{if(!p)return;if(actual&&actual.length+1+p.length>max){lineas.push(actual);actual=p}else actual+=(actual?' ':'')+p});
-   if(actual)lineas.push(actual);return lineas.length?lineas:[''];
-  };
-  const filas=detalles.map(item=>({item,lineas:envolver(item.descripcion||'Servicio o producto',39).slice(0,2),alto:30+(envolver(item.descripcion||'Servicio o producto',39).length>1?10:0)}));
-  const H=Math.max(620,Math.ceil(570+filas.reduce((s,x)=>s+x.alto,0)+Math.max(1,pagos.length)*34));
-  const color=c=>c.map(n=>n.toFixed(3)).join(' ');
-  const rect=(x,y,w,h,c)=>'q '+color(c)+' rg '+x+' '+(H-y-h)+' '+w+' '+h+' re f Q\n';
-  const linea=(x1,y1,x2,y2,c=dorado,grosor=0.7)=>'q '+color(c)+' RG '+grosor+' w '+x1+' '+(H-y1)+' m '+x2+' '+(H-y2)+' l S Q\n';
-  const t=(valor,x,y,tam=8,c=texto,bold=false)=>'BT /'+(bold?'F2':'F1')+' '+tam+' Tf '+color(c)+' rg 1 0 0 1 '+x+' '+(H-y)+' Tm ('+escapar(valor)+') Tj ET\n';
-  const derecha=(valor,x,y,tam=8,c=texto,bold=false)=>{const s=ascii(valor);return t(s,x-s.length*tam*0.51,y,tam,c,bold)};
-  const objetos=[],poner=(id,valor)=>objetos[id]=valor;
-  poner(1,'<< /Type /Catalog /Pages 2 0 R >>');poner(2,'');
-  poner(3,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
-  poner(4,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
-  let imagenId=null;
-  if(logo?.data){imagenId=5;poner(imagenId,'<< /Type /XObject /Subtype /Image /Width '+logo.width+' /Height '+logo.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+logo.data.length+' >>\nstream\n'+logo.data+'\nendstream')}
-  const c=[];
-  c.push(rect(0,0,W,7,dorado));
-  if(imagenId){
-   const maxW=48,maxH=42,ratio=Math.min(maxW/logo.width,maxH/logo.height),iw=logo.width*ratio,ih=logo.height*ratio;
-   c.push('q '+iw.toFixed(2)+' 0 0 '+ih.toFixed(2)+' 22 '+(H-22-ih).toFixed(2)+' cm /Im1 Do Q\n');
-  }
-  c.push(t(S.negocio?.nombre||'DH BARBER',imagenId?82:22,35,17,azul,true));
-  c.push(t('BARBERIA · ESTILO · CUIDADO PERSONAL',imagenId?82:22,50,6.5,suave));
-  c.push(linea(20,68,340,68,dorado,1));
-  c.push(t('COMPROBANTE DE VENTA',20,94,11,azul,true));
-  const estado=ascii(datosVenta.estado||'PENDIENTE').toUpperCase(),estadoColor=estado==='PAGADO'?verde:estado==='ANULADA'?rojo:dorado;
-  const estadoAncho=Math.max(58,estado.length*5.4+18);
-  c.push(rect(W-20-estadoAncho,78,estadoAncho,23,gris));
-  c.push(t(estado, W-20-estadoAncho+9,93,7.5,estadoColor,true));
-  c.push(t('No. '+(datosVenta.numero||'—'),20,119,8,texto,true));
-  c.push(t(datosVenta.fecha||'',20,134,7.5,suave));
-  let y=151;
-  c.push(rect(20,y,320,67,gris));
-  c.push(t('CLIENTE',31,y+15,6.5,suave,true));
-  c.push(t(String(datosVenta.cliente?.nombre||'Cliente de paso').slice(0,43),31,y+30,9,texto,true));
-  c.push(t('TELEFONO',31,y+46,6,suave,true));
-  c.push(t(String(datosVenta.cliente?.telefono||'No registrado').slice(0,24),92,y+46,7.5,texto));
-  c.push(t('ATENDIDO POR',218,y+46,6,suave,true));
-  c.push(derecha(String(datosVenta.barbero?.nombre||'No asignado').slice(0,20),329,y+46,7,texto,true));
-  y+=88;
-  c.push(t('DETALLE',20,y,8,azul,true));y+=12;
-  c.push(rect(20,y,320,20,azul));
-  c.push(t('PRODUCTO / SERVICIO',29,y+13,6.5,[1,1,1],true));
-  c.push(t('VALOR',285,y+13,6.5,[1,1,1],true));y+=20;
-  if(!filas.length){c.push(t('No hay productos ni servicios registrados.',29,y+17,7,suave));y+=29}
-  filas.forEach((fila,i)=>{
-   const item=fila.item,cantidad=Number(item.cantidad)||0,unitario=Number(item.precio_unitario)||0,subtotal=Number(item.subtotal??cantidad*unitario)||0;
-   if(i%2===0)c.push(rect(20,y,320,fila.alto,gris));
-   fila.lineas.forEach((lineaTexto,j)=>c.push(t(lineaTexto,29,y+12+j*10,7.2,texto,j===0)));
-   c.push(t(cantidad.toLocaleString('es-CO')+' × '+moneda(unitario),29,y+fila.alto-5,6,suave));
-   c.push(derecha(moneda(subtotal),330,y+16,7.5,texto,true));
-   c.push(linea(20,y+fila.alto,340,y+fila.alto,[0.88,0.90,0.92],0.4));y+=fila.alto;
-  });
-  y+=16;
-  c.push(t('RESUMEN DE PAGO',20,y,8,azul,true));y+=12;
-  const resumenLineas=[
-   ['Subtotal',moneda(resumen.subtotal)],
-   ...(Number(resumen.descuento)>0?[['Descuento','- '+moneda(resumen.descuento)]]:[]),
-   ['Total de la venta',moneda(resumen.total)],
-   ['Total pagado',moneda(resumen.pagado)]
-  ];
-  resumenLineas.forEach((r,i)=>{
-   if(i===2)c.push(linea(20,y-10,340,y-10,dorado,0.8));
-   c.push(t(r[0],25,y,7.5,i===2?azul:texto,i===2));
-   c.push(derecha(r[1],335,y,7.5,i===2?azul:texto,true));y+=17;
-  });
-  c.push(rect(20,y-5,320,35,resumen.saldo>0?gris:[0.93,0.96,0.94]));
-  c.push(t(resumen.saldo>0?'SALDO PENDIENTE':'ESTADO DE CUENTA',30,y+8,7,resumen.saldo>0?dorado:verde,true));
-  c.push(derecha(resumen.saldo>0?moneda(resumen.saldo):'PAGADO',330,y+17,11,resumen.saldo>0?dorado:verde,true));y+=44;
-  c.push(t('PAGOS REGISTRADOS',20,y,8,azul,true));y+=12;
-  if(!pagos.length){c.push(t('No se registran pagos asociados.',25,y+10,7,suave));y+=22}
-  else pagos.forEach((p,i)=>{
-   const fechaPago=new Date(p.fecha_hora).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});
-   const metodo=ascii(bonito(p.metodo_pago||'No registrado')).slice(0,30);
-   if(i%2===0)c.push(rect(20,y,320,27,gris));
-   c.push(t(fechaPago+' · '+metodo,27,y+17,6.8,texto));
-   c.push(derecha(moneda(p.valor_pago),332,y+17,7,texto,true));y+=29;
-  });
-  y+=13;
-  c.push(linea(20,y,340,y,dorado,0.8));y+=22;
-  c.push(t('¡GRACIAS POR PREFERIRNOS!',20,y,9,azul,true));y+=14;
-  c.push(t('Agradecemos tu confianza. Te esperamos pronto.',20,y,6.8,suave));y+=18;
-  c.push(t('Comprobante comercial. No sustituye una factura electronica',20,y,5.8,suave));
-  c.push(t('de venta autorizada por la DIAN.',20,y+9,5.8,suave));
-  c.push(t('DH BARBER',20,y+27,6,dorado,true));
-  const firstPageId=imagenId?6:5,pageId=firstPageId,contentId=pageId+1;
-  poner(pageId,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+W+' '+H+'] /Resources << /Font << /F1 3 0 R /F2 4 0 R >>'+(imagenId?' /XObject << /Im1 '+imagenId+' 0 R >>':'')+' >> /Contents '+contentId+' 0 R >>');
-  const stream=c.join('');
-  poner(contentId,'<< /Length '+stream.length+' >>\nstream\n'+stream+'\nendstream');
-  poner(2,'<< /Type /Pages /Kids ['+pageId+' 0 R] /Count 1 >>');
-  let pdf='%PDF-1.4\n',offsets=[0];
-  for(let i=1;i<objetos.length;i++){offsets.push(pdf.length);pdf+=i+' 0 obj\n'+objetos[i]+'\nendobj\n'}
-  const xref=pdf.length;pdf+='xref\n0 '+objetos.length+'\n0000000000 65535 f \n';
-  for(let i=1;i<offsets.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
-  pdf+='trailer\n<< /Size '+objetos.length+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF';
-  return new Blob([Uint8Array.from(pdf,c=>c.charCodeAt(0))],{type:'application/pdf'});
+function imagenComprobante(datosVenta,logo){
+ const W=720,pad=40,azul='#132541',dorado='#c79c48',gris='#f2f4f6',texto='#212e40',suave='#66717f',verde='#21704a',rojo='#a62e29';
+ const detalles=datosVenta.detalles||[],pagos=datosVenta.pagos||[],resumen=datosVenta.resumen||{};
+ const moneda=n=>dinero(Number(n)||0);
+ const envolver=(valor,max=43)=>{const palabras=String(valor??'').split(/\s+/),lineas=[];let actual='';palabras.forEach(p=>{if(!p)return;if(actual&&actual.length+p.length>max){lineas.push(actual);actual=p}else actual+=(actual?' ':'')+p});if(actual)lineas.push(actual);return lineas.length?lineas:['']};
+ const filas=detalles.map(item=>({item,lineas:envolver(item.descripcion||'Servicio o producto',43).slice(0,2)}));
+ const altoFilas=filas.reduce((s,f)=>s+68+(f.lineas.length>1?18:0),0);
+ const H=Math.max(1120,900+altoFilas+pagos.length*58);
+ const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
+ const c=canvas.getContext('2d');if(!c)throw new Error('No fue posible preparar la imagen del comprobante.');
+ c.fillStyle='#fff';c.fillRect(0,0,W,H);
+ const txt=(s,x,y,size=20,color=texto,bold=false,align='left')=>{c.fillStyle=color;c.font=(bold?'700 ':'500 ')+size+'px Arial, sans-serif';c.textAlign=align;c.fillText(String(s??''),x,y)};
+ const rect=(x,y,w,h,color,r=12)=>{c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill()};
+ const line=(y,color='#e0e4e8')=>{c.strokeStyle=color;c.lineWidth=2;c.beginPath();c.moveTo(pad,y);c.lineTo(W-pad,y);c.stroke()};
+ c.fillStyle=dorado;c.fillRect(0,0,W,14);
+ let logoY=42;
+ if(logo?.data){try{const img=new Image();img.src='data:image/jpeg;base64,'+btoa(logo.data);if(img.complete&&img.naturalWidth){const sc=Math.min(112/img.width,100/img.height);c.drawImage(img,42,38,img.width*sc,img.height*sc);logoY=160}}catch{}}
+ txt(S.negocio?.nombre||'DH BARBER',logoY===160?176:42,88,34,azul,true);
+ txt('BARBERÍA · ESTILO · CUIDADO PERSONAL',logoY===160?176:42,120,14,suave);
+ line(174,dorado);
+ txt('COMPROBANTE DE VENTA',pad,224,25,azul,true);
+ const estado=String(datosVenta.estado||'PENDIENTE').toUpperCase(),estadoColor=estado==='PAGADO'?verde:estado==='ANULADA'?rojo:dorado;
+ rect(490,188,190,48,gris,20);txt(estado,585,219,17,estadoColor,true,'center');
+ txt('No. '+(datosVenta.numero||'—'),pad,266,18,texto,true);
+ txt(datosVenta.fecha||'',pad,298,16,suave);
+ let y=338;
+ rect(pad,y,W-pad*2,132,gris,14);
+ txt('CLIENTE',62,y+35,14,suave,true);txt(String(datosVenta.cliente?.nombre||'Cliente de paso').slice(0,46),62,y+70,22,texto,true);
+ txt('TELÉFONO',62,y+108,13,suave,true);txt(String(datosVenta.cliente?.telefono||'No registrado').slice(0,22),180,y+108,16,texto);
+ txt('ATENDIDO POR',430,y+108,13,suave,true);txt(String(datosVenta.barbero?.nombre||'No asignado').slice(0,20),658,y+108,16,texto,true,'right');
+ y+=184;txt('DETALLE',pad,y,20,azul,true);y+=26;
+ rect(pad,y,W-pad*2,44,azul,8);txt('PRODUCTO / SERVICIO',58,y+29,15,'#fff',true);txt('VALOR',662,y+29,15,'#fff',true,'right');y+=44;
+ if(!filas.length){txt('No hay productos ni servicios registrados.',58,y+36,16,suave);y+=60}
+ filas.forEach((f,i)=>{const item=f.item,h=68+(f.lineas.length>1?18:0);if(i%2===0)rect(pad,y,W-pad*2,h,'#f7f8fa',6);
+  f.lineas.forEach((s,j)=>txt(s,58,y+25+j*21,16,texto,j===0));
+  txt((Number(item.cantidad)||0).toLocaleString('es-CO')+' × '+moneda(item.precio_unitario),58,y+h-10,13,suave);
+  txt(moneda(item.subtotal??(Number(item.cantidad)*Number(item.precio_unitario))),662,y+31,17,texto,true,'right');y+=h;line(y);});
+ y+=34;txt('RESUMEN DE PAGO',pad,y,20,azul,true);y+=32;
+ const resumenLineas=[['Subtotal',moneda(resumen.subtotal)],...(Number(resumen.descuento)>0?[['Descuento','- '+moneda(resumen.descuento)]]:[]),['Total de la venta',moneda(resumen.total)],['Total pagado',moneda(resumen.pagado)]];
+ resumenLineas.forEach((r,i)=>{if(i===2)line(y-12,dorado);txt(r[0],58,y,17,i===2?azul:texto,i===2);txt(r[1],662,y,17,i===2?azul:texto,true,'right');y+=39});
+ rect(pad,y-8,W-pad*2,76,resumen.saldo>0?gris:'#edf5ef',12);
+ txt(resumen.saldo>0?'SALDO PENDIENTE':'ESTADO DE CUENTA',60,y+23,15,resumen.saldo>0?dorado:verde,true);
+ txt(resumen.saldo>0?moneda(resumen.saldo):'PAGADO',660,y+49,25,resumen.saldo>0?dorado:verde,true,'right');y+=104;
+ txt('PAGOS REGISTRADOS',pad,y,20,azul,true);y+=28;
+ if(!pagos.length){txt('No se registran pagos asociados.',58,y+20,15,suave);y+=46}
+ else pagos.forEach((p,i)=>{if(i%2===0)rect(pad,y,W-pad*2,48,gris,6);const fecha=new Date(p.fecha_hora).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});txt(fecha+' · '+bonito(p.metodo_pago||'No registrado'),58,y+30,15,texto);txt(moneda(p.valor_pago),662,y+30,16,texto,true,'right');y+=54});
+ y+=24;line(y,dorado);y+=48;txt('¡GRACIAS POR PREFERIRNOS!',pad,y,23,azul,true);y+=34;
+ txt('Agradecemos tu confianza. Te esperamos pronto.',pad,y,16,suave);y+=34;
+ txt('Comprobante comercial. No sustituye una factura electrónica',pad,y,13,suave);y+=20;txt('de venta autorizada por la DIAN.',pad,y,13,suave);y+=36;txt('DH BARBER',pad,y,15,dorado,true);
+ const final= document.createElement('canvas');final.width=W;final.height=y+36;final.getContext('2d').drawImage(canvas,0,0);return final;
 }
-async function generarFacturaPDF(v,detalles,pagos,accion='compartir'){
+async function generarImagenComprobante(v,detalles,pagos,accion='compartir'){
  const negocio=S.negocio||{},cliente=v.clientes||{},barbero=v.barberos||{};
- const total=Number(v.total_venta)||0,pagado=Number(v.total_pagado)||0;
- const saldo=Math.max(0,Number(v.saldo_pendiente??(total-pagado))||0);
- let estado='PENDIENTE';
- if(v.estado_venta==='ANULADA')estado='ANULADA';
- else if(saldo<=0||v.estado_venta==='PAGADA')estado='PAGADO';
- else if(pagado>0)estado='ABONADO';
+ const total=Number(v.total_venta)||0,pagado=Number(v.total_pagado)||0,saldo=Math.max(0,Number(v.saldo_pendiente??(total-pagado))||0);
+ let estado='PENDIENTE';if(v.estado_venta==='ANULADA')estado='ANULADA';else if(saldo<=0||v.estado_venta==='PAGADA')estado='PAGADO';else if(pagado>0)estado='ABONADO';
  const numero='V-'+String(v.id||'').replace(/-/g,'').slice(0,12).toUpperCase();
  const subtotal=Number(v.total_bruto??(detalles||[]).reduce((s,x)=>s+(Number(x.subtotal??(Number(x.cantidad)*Number(x.precio_unitario)))||0),0));
- const descuento=Math.max(0,Number(v.descuento)||0);
- const logo=await cargarLogoComprobante(negocio.logo_url||'./logo-dhbarber.png');
- const datos={
-  fecha:new Intl.DateTimeFormat('es-CO',{dateStyle:'medium',timeStyle:'short',timeZone:negocio.zona_horaria||'America/Bogota'}).format(new Date(v.fecha_hora)),
-  numero,estado,cliente,barbero,detalles:detalles||[],pagos:pagos||[],
-  resumen:{subtotal,descuento,total,pagado,saldo}
- };
- const blob=pdfTextoFactura(datos,logo),nombreArchivo='Comprobante-'+String(v.id).slice(0,8).toUpperCase()+'.pdf';
- const archivo=new File([blob],nombreArchivo,{type:'application/pdf'});
+ const descuento=Math.max(0,Number(v.descuento)||0),logo=await cargarLogoComprobante(negocio.logo_url||'./logo-dhbarber.png');
+ const datos={fecha:new Intl.DateTimeFormat('es-CO',{dateStyle:'medium',timeStyle:'short',timeZone:negocio.zona_horaria||'America/Bogota'}).format(new Date(v.fecha_hora)),numero,estado,cliente,barbero,detalles:detalles||[],pagos:pagos||[],resumen:{subtotal,descuento,total,pagado,saldo}};
+ const canvas=imagenComprobante(datos,logo),blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('El navegador no pudo crear la imagen.')),'image/jpeg',0.94));
+ const nombreArchivo='Comprobante-'+String(v.id).slice(0,8).toUpperCase()+'.jpg',archivo=new File([blob],nombreArchivo,{type:'image/jpeg'});
  const telefono=String(cliente.telefono||'').replace(/\D/g,''),numeroTelefono=telefono.length===10?'57'+telefono:telefono;
  const mensaje='Hola '+String(cliente.nombre||'')+', te compartimos el comprobante de tu compra en '+String(negocio.nombre||'DH BARBER')+'. ¡Gracias por preferirnos!';
- if(accion==='compartir'&&navigator.share&&navigator.canShare?.({files:[archivo]})){
-  try{await navigator.share({files:[archivo],title:'Comprobante de venta',text:mensaje});return}
-  catch(error){if(error?.name==='AbortError')return}
- }
- const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=nombreArchivo;document.body.appendChild(a);a.click();a.remove();
- setTimeout(()=>URL.revokeObjectURL(url),60000);
- if(accion==='compartir'&&numeroTelefono.length>=7){
-  window.open('https://wa.me/'+numeroTelefono+'?text='+encodeURIComponent(mensaje),'_blank','noopener');
-  toast('PDF descargado. Adjunta el archivo en WhatsApp para enviarlo al cliente.',false);
- }else toast('PDF descargado correctamente.',false);
+ if(accion==='compartir'&&navigator.share&&navigator.canShare?.({files:[archivo]})){try{await navigator.share({files:[archivo],title:'Comprobante de venta',text:mensaje});return}catch(error){if(error?.name==='AbortError')return}}
+ const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=nombreArchivo;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+ if(accion==='compartir'&&numeroTelefono.length>=7){window.open('https://wa.me/'+numeroTelefono+'?text='+encodeURIComponent(mensaje),'_blank','noopener');toast('Imagen descargada. Adjunta el comprobante en WhatsApp para enviarlo al cliente.',false)}
+ else toast('Imagen del comprobante descargada correctamente.',false);
 }
+
 async function detalleVenta(v){
  const admin=ADM.includes(S.perfil.rol);
  const[rd,rp,rc]=await Promise.all([sb.from('detalle_ventas').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id),sb.from('pagos').select('*').eq('negocio_id',S.perfil.negocio_id).eq('venta_id',v.id).order('fecha_hora'),admin?sb.from('cajas').select('id,fecha_apertura').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle():Promise.resolve({data:null,error:null})]);
@@ -420,11 +351,11 @@ async function detalleVenta(v){
  ${fila('Total',dinero(v.total_venta),'tot')}${fila('Pagado',dinero(v.total_pagado))}${fila('Saldo',dinero(v.saldo_pendiente))}
  ${p.length?'<label>Pagos</label>'+p.map(x=>fila(bonito(x.metodo_pago)+', '+hora(x.fecha_hora),dinero(x.valor_pago))).join(''):''}
  ${abierta?`<label for="pg">Registrar otro pago</label><div class="ln"><input id="pg" type="number" min="1" inputmode="decimal" value="${v.saldo_pendiente}"><select id="mp" aria-label="Método">${METODOS}</select></div><button type="button" class="btn block" id="rp">Registrar pago</button>`:''}
- ${v.estado_venta!=='ANULADA'?'<div class="acts" style="flex-wrap:wrap"><button type="button" class="btn" id="pdf">Descargar PDF</button><button type="button" class="btn sec" id="sharepdf">Compartir PDF</button></div>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button>'+(puedeAnular?'<button type="button" class="btn sec block" id="an">Anular venta</button>':'<p class="info">Esta venta pertenece a una caja cerrada, a otro turno o no tiene una caja histórica verificable. No se puede anular desde la caja actual.</p>'):''}
+ ${v.estado_venta!=='ANULADA'?'<div class="acts" style="flex-wrap:wrap"><button type="button" class="btn" id="image">Descargar imagen</button><button type="button" class="btn sec" id="shareimage">Compartir imagen</button></div>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button>'+(puedeAnular?'<button type="button" class="btn sec block" id="an">Anular venta</button>':'<p class="info">Esta venta pertenece a una caja cerrada, a otro turno o no tiene una caja histórica verificable. No se puede anular desde la caja actual.</p>'):''}
  <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
- const ejecutarPDF=(id,accion)=>{const b=$(id);if(!b)return;b.onclick=async()=>{if(b.disabled)return;b.disabled=true;try{await generarFacturaPDF(v,d,p,accion)}catch(error){if(error?.name!=='AbortError')toast('No se pudo generar el PDF: '+(error.message||'Error inesperado'),true)}finally{b.disabled=false}}};
- ejecutarPDF('#pdf','descargar');ejecutarPDF('#sharepdf','compartir');
+ const ejecutarImagen=(id,accion)=>{const b=$(id);if(!b)return;b.onclick=async()=>{if(b.disabled)return;b.disabled=true;try{await generarImagenComprobante(v,d,p,accion)}catch(error){if(error?.name!=='AbortError')toast('No se pudo generar la imagen: '+(error.message||'Error inesperado'),true)}finally{b.disabled=false}}};
+ ejecutarImagen('#image','descargar');ejecutarImagen('#shareimage','compartir');
  if(abierta)$('#rp').onclick=async()=>{const b=$('#rp');if(b.disabled)return;const n=Number($('#pg').value);
   if(!(n>0)||n>v.saldo_pendiente)return toast('El pago debe ser mayor a cero y no superar el saldo.',true);
   b.disabled=true;
