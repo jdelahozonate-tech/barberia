@@ -281,7 +281,7 @@ function pdfTextoFactura(datosVenta,logo){
    if(actual)lineas.push(actual);return lineas.length?lineas:[''];
   };
   const filas=detalles.map(item=>({item,lineas:envolver(item.descripcion||'Servicio o producto',39).slice(0,2),alto:30+(envolver(item.descripcion||'Servicio o producto',39).length>1?10:0)}));
-  const H=Math.max(570,Math.ceil(500+filas.reduce((s,x)=>s+x.alto,0)+Math.max(1,pagos.length)*34));
+  const H=Math.max(620,Math.ceil(570+filas.reduce((s,x)=>s+x.alto,0)+Math.max(1,pagos.length)*34));
   const color=c=>c.map(n=>n.toFixed(3)).join(' ');
   const rect=(x,y,w,h,c)=>'q '+color(c)+' rg '+x+' '+(H-y-h)+' '+w+' '+h+' re f Q\n';
   const linea=(x1,y1,x2,y2,c=dorado,grosor=0.7)=>'q '+color(c)+' RG '+grosor+' w '+x1+' '+(H-y1)+' m '+x2+' '+(H-y2)+' l S Q\n';
