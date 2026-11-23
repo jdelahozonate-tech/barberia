@@ -85,18 +85,18 @@ test('Ventas genera y comparte el comprobante como imagen JPG, no como PDF', () 
   assert.match(ventas, /COMPROBANTE DE VENTA/);
   assert.match(ventas, /SALDO PENDIENTE/);
   assert.match(ventas, /canvas\\.toBlob/);
-  assert.match(ventas, /type:'image\\/jpeg'/);
-  assert.match(ventas, /new File\\(\\[blob\\],nombreArchivo,\\{type:'image\\/jpeg'\\}\\)/);
+  assert.match(ventas, /type:'image\/jpeg'/);
+  assert.match(ventas, /new File\\(\\[blob\\],nombreArchivo,\\{type:'image\/jpeg'\\}\\)/);
   assert.match(ventas, /navigator\\.canShare/);
   assert.match(ventas, /ESTADO DE CUENTA/);
   assert.match(ventas, /Saldo pendiente/);
   assert.match(ventas, /No sustituye una factura electrónica/);
   assert.match(ventas, /id="shareimage"/);
   assert.match(ventas, /id="image"/);
-  assert.doesNotMatch(ventas, /application\\/pdf|generarFacturaPDF|pdfTextoFactura|Descargar PDF|Compartir PDF/);
+  assert.doesNotMatch(ventas, /application\/pdf|generarFacturaPDF|pdfTextoFactura|Descargar PDF|Compartir PDF/);
   assert.doesNotMatch(ventas, /window\\.print\\(/);
   assert.doesNotMatch(ventas, /window\\.open\\('about:blank'/);
-  assert.doesNotMatch(ventas, /cdnjs\\.cloudflare\\.com\\/ajax\\/libs\\/jspdf/);
+  assert.doesNotMatch(ventas, /cdnjs\\.cloudflare\\.com\/ajax\/libs\/jspdf/);
 });
 
 test('La anulación de ventas exige la misma caja abierta del turno', () => {
