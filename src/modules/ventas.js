@@ -270,34 +270,34 @@ async function cargarLogoComprobante(url){
  }catch(error){return null}
 }
 function pdfTextoFactura(datosVenta,logo){
-  const ascii=x=>String(x??'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^\\x20-\\x7E]/g,' ');
-  const escapar=x=>ascii(x).replace(/\\\\/g,'\\\\\\\\').replace(/\\(/g,'\\\\(').replace(/\\)/g,'\\\\)');
+  const ascii=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,' ');
+  const escapar=x=>ascii(x).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
   const W=360,azul=[0.075,0.145,0.255],dorado=[0.78,0.61,0.28],gris=[0.95,0.96,0.97],texto=[0.13,0.18,0.25],suave=[0.40,0.45,0.52],verde=[0.13,0.43,0.29],rojo=[0.65,0.18,0.16];
   const detalles=datosVenta.detalles||[],pagos=datosVenta.pagos||[],resumen=datosVenta.resumen||{};
   const moneda=n=>dinero(Number(n)||0);
   const envolver=(valor,max=39)=>{
-   const palabras=ascii(valor).split(/\\s+/),lineas=[];let actual='';
+   const palabras=ascii(valor).split(/\s+/),lineas=[];let actual='';
    palabras.forEach(p=>{if(!p)return;if(actual&&actual.length+1+p.length>max){lineas.push(actual);actual=p}else actual+=(actual?' ':'')+p});
    if(actual)lineas.push(actual);return lineas.length?lineas:[''];
   };
   const filas=detalles.map(item=>({item,lineas:envolver(item.descripcion||'Servicio o producto',39).slice(0,2),alto:30+(envolver(item.descripcion||'Servicio o producto',39).length>1?10:0)}));
   const H=Math.max(570,Math.ceil(500+filas.reduce((s,x)=>s+x.alto,0)+Math.max(1,pagos.length)*34));
   const color=c=>c.map(n=>n.toFixed(3)).join(' ');
-  const rect=(x,y,w,h,c)=>'q '+color(c)+' rg '+x+' '+(H-y-h)+' '+w+' '+h+' re f Q\\n';
-  const linea=(x1,y1,x2,y2,c=dorado,grosor=0.7)=>'q '+color(c)+' RG '+grosor+' w '+x1+' '+(H-y1)+' m '+x2+' '+(H-y2)+' l S Q\\n';
-  const t=(valor,x,y,tam=8,c=texto,bold=false)=>'BT /'+(bold?'F2':'F1')+' '+tam+' Tf '+color(c)+' rg 1 0 0 1 '+x+' '+(H-y)+' Tm ('+escapar(valor)+') Tj ET\\n';
+  const rect=(x,y,w,h,c)=>'q '+color(c)+' rg '+x+' '+(H-y-h)+' '+w+' '+h+' re f Q\n';
+  const linea=(x1,y1,x2,y2,c=dorado,grosor=0.7)=>'q '+color(c)+' RG '+grosor+' w '+x1+' '+(H-y1)+' m '+x2+' '+(H-y2)+' l S Q\n';
+  const t=(valor,x,y,tam=8,c=texto,bold=false)=>'BT /'+(bold?'F2':'F1')+' '+tam+' Tf '+color(c)+' rg 1 0 0 1 '+x+' '+(H-y)+' Tm ('+escapar(valor)+') Tj ET\n';
   const derecha=(valor,x,y,tam=8,c=texto,bold=false)=>{const s=ascii(valor);return t(s,x-s.length*tam*0.51,y,tam,c,bold)};
   const objetos=[],poner=(id,valor)=>objetos[id]=valor;
   poner(1,'<< /Type /Catalog /Pages 2 0 R >>');poner(2,'');
   poner(3,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
   poner(4,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
   let imagenId=null;
-  if(logo?.data){imagenId=5;poner(imagenId,'<< /Type /XObject /Subtype /Image /Width '+logo.width+' /Height '+logo.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+logo.data.length+' >>\\nstream\\n'+logo.data+'\\nendstream')}
+  if(logo?.data){imagenId=5;poner(imagenId,'<< /Type /XObject /Subtype /Image /Width '+logo.width+' /Height '+logo.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+logo.data.length+' >>\nstream\n'+logo.data+'\nendstream')}
   const c=[];
   c.push(rect(0,0,W,7,dorado));
   if(imagenId){
    const maxW=48,maxH=42,ratio=Math.min(maxW/logo.width,maxH/logo.height),iw=logo.width*ratio,ih=logo.height*ratio;
-   c.push('q '+iw.toFixed(2)+' 0 0 '+ih.toFixed(2)+' 22 '+(H-22-ih).toFixed(2)+' cm /Im1 Do Q\\n');
+   c.push('q '+iw.toFixed(2)+' 0 0 '+ih.toFixed(2)+' 22 '+(H-22-ih).toFixed(2)+' cm /Im1 Do Q\n');
   }
   c.push(t(S.negocio?.nombre||'DH BARBER',imagenId?82:22,35,17,azul,true));
   c.push(t('BARBERIA · ESTILO · CUIDADO PERSONAL',imagenId?82:22,50,6.5,suave));
@@ -366,13 +366,13 @@ function pdfTextoFactura(datosVenta,logo){
   const firstPageId=imagenId?6:5,pageId=firstPageId,contentId=pageId+1;
   poner(pageId,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+W+' '+H+'] /Resources << /Font << /F1 3 0 R /F2 4 0 R >>'+(imagenId?' /XObject << /Im1 '+imagenId+' 0 R >>':'')+' >> /Contents '+contentId+' 0 R >>');
   const stream=c.join('');
-  poner(contentId,'<< /Length '+stream.length+' >>\\nstream\\n'+stream+'\\nendstream');
+  poner(contentId,'<< /Length '+stream.length+' >>\nstream\n'+stream+'\nendstream');
   poner(2,'<< /Type /Pages /Kids ['+pageId+' 0 R] /Count 1 >>');
-  let pdf='%PDF-1.4\\n',offsets=[0];
-  for(let i=1;i<objetos.length;i++){offsets.push(pdf.length);pdf+=i+' 0 obj\\n'+objetos[i]+'\\nendobj\\n'}
-  const xref=pdf.length;pdf+='xref\\n0 '+objetos.length+'\\n0000000000 65535 f \\n';
-  for(let i=1;i<offsets.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \\n';
-  pdf+='trailer\\n<< /Size '+objetos.length+' /Root 1 0 R >>\\nstartxref\\n'+xref+'\\n%%EOF';
+  let pdf='%PDF-1.4\n',offsets=[0];
+  for(let i=1;i<objetos.length;i++){offsets.push(pdf.length);pdf+=i+' 0 obj\n'+objetos[i]+'\nendobj\n'}
+  const xref=pdf.length;pdf+='xref\n0 '+objetos.length+'\n0000000000 65535 f \n';
+  for(let i=1;i<offsets.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+  pdf+='trailer\n<< /Size '+objetos.length+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF';
   return new Blob([Uint8Array.from(pdf,c=>c.charCodeAt(0))],{type:'application/pdf'});
 }
 async function generarFacturaPDF(v,detalles,pagos,accion='compartir',ventanaImpresion=null){
