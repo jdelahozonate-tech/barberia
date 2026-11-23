@@ -76,7 +76,7 @@ test('Agenda bloquea citas y reprogramaciones con fecha u hora pasada', () => {
   assert.match(agenda, /Selecciona un horario futuro/);
 });
 
-test('Ventas genera un comprobante PDF vertical tipo voucher con marca y descarga/impresión/compartir', () => {
+test('Ventas genera un comprobante PDF vertical tipo voucher con marca y descarga/compartir', () => {
   const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
   assert.match(ventas, /Registrar saldo pendiente \(fiado\)/);
   assert.match(ventas, /async function generarFacturaPDF/);
@@ -88,13 +88,13 @@ test('Ventas genera un comprobante PDF vertical tipo voucher con marca y descarg
   assert.match(ventas, /new Blob\(\[Uint8Array\.from\(pdf,c=>c\.charCodeAt\(0\)\)\],\{type:'application\/pdf'\}\)/);
   assert.match(ventas, /new File\(\[blob\],nombreArchivo,\{type:'application\/pdf'\}\)/);
   assert.match(ventas, /navigator\.canShare/);
-  assert.match(ventas, /accion==='imprimir'/);
   assert.match(ventas, /ESTADO DE CUENTA/);
   assert.match(ventas, /Saldo pendiente/);
   assert.match(ventas, /No sustituye una factura electronica/);
-  assert.match(ventas, /id="printpdf"/);
   assert.match(ventas, /id="sharepdf"/);
   assert.doesNotMatch(ventas, /window\.print\(/);
+  assert.doesNotMatch(ventas, /window\.open\('about:blank'/);
+  assert.doesNotMatch(ventas, /id="printpdf"/);
   assert.doesNotMatch(ventas, /cdnjs\.cloudflare\.com\/ajax\/libs\/jspdf/);
 });
 
