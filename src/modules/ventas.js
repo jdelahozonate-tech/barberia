@@ -269,7 +269,7 @@ async function cargarLogoComprobante(url){
   return {width:canvas.width,height:canvas.height,data:binario};
  }catch(error){return null}
 }
-function imagenComprobante(datosVenta,logo){
+async function imagenComprobante(datosVenta,logo){
  const W=720,pad=40,azul='#132541',dorado='#c79c48',gris='#f2f4f6',texto='#212e40',suave='#66717f',verde='#21704a',rojo='#a62e29';
  const detalles=datosVenta.detalles||[],pagos=datosVenta.pagos||[],resumen=datosVenta.resumen||{};
  const moneda=n=>dinero(Number(n)||0);
@@ -285,7 +285,7 @@ function imagenComprobante(datosVenta,logo){
  const line=(y,color='#e0e4e8')=>{c.strokeStyle=color;c.lineWidth=2;c.beginPath();c.moveTo(pad,y);c.lineTo(W-pad,y);c.stroke()};
  c.fillStyle=dorado;c.fillRect(0,0,W,14);
  let logoY=42;
- if(logo?.data){try{const img=new Image();img.src='data:image/jpeg;base64,'+btoa(logo.data);if(img.complete&&img.naturalWidth){const sc=Math.min(112/img.width,100/img.height);c.drawImage(img,42,38,img.width*sc,img.height*sc);logoY=160}}catch{}}
+ if(logo?.data){try{const img=new Image();img.src='data:image/jpeg;base64,'+btoa(logo.data);await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject});if(img.naturalWidth){const sc=Math.min(112/img.width,100/img.height);c.drawImage(img,42,38,img.width*sc,img.height*sc);logoY=160}}catch{}}
  txt(S.negocio?.nombre||'DH BARBER',logoY===160?176:42,88,34,azul,true);
  txt('BARBERÍA · ESTILO · CUIDADO PERSONAL',logoY===160?176:42,120,14,suave);
  line(174,dorado);
@@ -328,7 +328,7 @@ async function generarImagenComprobante(v,detalles,pagos,accion='compartir'){
  const subtotal=Number(v.total_bruto??(detalles||[]).reduce((s,x)=>s+(Number(x.subtotal??(Number(x.cantidad)*Number(x.precio_unitario)))||0),0));
  const descuento=Math.max(0,Number(v.descuento)||0),logo=await cargarLogoComprobante(negocio.logo_url||'./logo-dhbarber.png');
  const datos={fecha:new Intl.DateTimeFormat('es-CO',{dateStyle:'medium',timeStyle:'short',timeZone:negocio.zona_horaria||'America/Bogota'}).format(new Date(v.fecha_hora)),numero,estado,cliente,barbero,detalles:detalles||[],pagos:pagos||[],resumen:{subtotal,descuento,total,pagado,saldo}};
- const canvas=imagenComprobante(datos,logo),blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('El navegador no pudo crear la imagen.')),'image/jpeg',0.94));
+ const canvas=await imagenComprobante(datos,logo),blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('El navegador no pudo crear la imagen.')),'image/jpeg',0.94));
  const nombreArchivo='Comprobante-'+String(v.id).slice(0,8).toUpperCase()+'.jpg',archivo=new File([blob],nombreArchivo,{type:'image/jpeg'});
  const telefono=String(cliente.telefono||'').replace(/\D/g,''),numeroTelefono=telefono.length===10?'57'+telefono:telefono;
  const mensaje='Hola '+String(cliente.nombre||'')+', te compartimos el comprobante de tu compra en '+String(negocio.nombre||'DH BARBER')+'. ¡Gracias por preferirnos!';
