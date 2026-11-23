@@ -186,8 +186,8 @@ CREATE POLICY ventas_barbero_rollback ON public.ventas
     AND creado_por = auth.uid()
     AND estado_venta = 'PENDIENTE'
     AND total_pagado = 0
-    AND NOT EXISTS (SELECT 1 FROM public.detalle_ventas d WHERE d.venta_id = id AND d.negocio_id = negocio_id)
-    AND NOT EXISTS (SELECT 1 FROM public.pagos pg WHERE pg.venta_id = id AND pg.negocio_id = negocio_id)
+    AND NOT EXISTS (SELECT 1 FROM public.detalle_ventas d WHERE d.venta_id = ventas.id AND d.negocio_id = ventas.negocio_id)
+    AND NOT EXISTS (SELECT 1 FROM public.pagos pg WHERE pg.venta_id = ventas.id AND pg.negocio_id = ventas.negocio_id)
   );
 
 CREATE OR REPLACE FUNCTION public.proteger_venta_barbero()
@@ -211,6 +211,7 @@ BEGIN
       OR NEW.cita_id IS DISTINCT FROM OLD.cita_id
       OR NEW.fecha_hora IS DISTINCT FROM OLD.fecha_hora
       OR NEW.descuento IS DISTINCT FROM OLD.descuento
+      OR (NEW.total_bruto IS DISTINCT FROM OLD.total_bruto AND pg_trigger_depth() <= 1)
       OR NEW.total_pagado IS DISTINCT FROM OLD.total_pagado
       OR NEW.metodo_pago_principal IS DISTINCT FROM OLD.metodo_pago_principal
       OR NEW.estado_venta IS DISTINCT FROM OLD.estado_venta
@@ -312,4 +313,45 @@ CREATE POLICY pagos_admin_update ON public.pagos
   WITH CHECK (negocio_id = public.mi_negocio() AND public.mi_rol() IN ('ADMINISTRADOR','SUPERVISOR'));
 CREATE POLICY pagos_admin_delete ON public.pagos
   FOR DELETE TO authenticated
+  USING (negocio_id = public.mi_negocio() AND public.mi_rol() IN ('ADMINISTRADOR','SUPERVISOR'));
+
+-- Horarios y ausencias: un barbero solo consulta su propia disponibilidad.
+DROP POLICY IF EXISTS leer ON public.horarios_barbero;
+DROP POLICY IF EXISTS horarios_admin_select ON public.horarios_barbero;
+DROP POLICY IF EXISTS horarios_barbero_select ON public.horarios_barbero;
+CREATE POLICY horarios_admin_select ON public.horarios_barbero
+  FOR SELECT TO authenticated
+  USING (negocio_id = public.mi_negocio() AND public.mi_rol() IN ('ADMINISTRADOR','SUPERVISOR'));
+CREATE POLICY horarios_barbero_select ON public.horarios_barbero
+  FOR SELECT TO authenticated
+  USING (
+    negocio_id = public.mi_negocio()
+    AND public.mi_rol() = 'BARBERO'
+    AND barbero_id = (SELECT p.barbero_id FROM public.perfiles p WHERE p.id = auth.uid() AND p.negocio_id = public.mi_negocio())
+  );
+DROP POLICY IF EXISTS leer ON public.ausencias_barbero;
+DROP POLICY IF EXISTS ausencias_admin_select ON public.ausencias_barbero;
+DROP POLICY IF EXISTS ausencias_barbero_select ON public.ausencias_barbero;
+CREATE POLICY ausencias_admin_select ON public.ausencias_barbero
+  FOR SELECT TO authenticated
+  USING (negocio_id = public.mi_negocio() AND public.mi_rol() IN ('ADMINISTRADOR','SUPERVISOR'));
+CREATE POLICY ausencias_barbero_select ON public.ausencias_barbero
+  FOR SELECT TO authenticated
+  USING (
+    negocio_id = public.mi_negocio()
+    AND public.mi_rol() = 'BARBERO'
+    AND barbero_id = (SELECT p.barbero_id FROM public.perfiles p WHERE p.id = auth.uid() AND p.negocio_id = public.mi_negocio())
+  );
+
+-- Datos de perfil y catálogo: no mostrar fichas de otros empleados ni productos al barbero.
+DROP POLICY IF EXISTS ver_perfiles ON public.perfiles;
+CREATE POLICY ver_perfiles ON public.perfiles
+  FOR SELECT TO authenticated
+  USING (
+    id = auth.uid()
+    OR (negocio_id = public.mi_negocio() AND public.mi_rol() IN ('ADMINISTRADOR','SUPERVISOR'))
+  );
+DROP POLICY IF EXISTS leer ON public.productos;
+CREATE POLICY leer ON public.productos
+  FOR SELECT TO authenticated
   USING (negocio_id = public.mi_negocio() AND public.mi_rol() IN ('ADMINISTRADOR','SUPERVISOR'));
