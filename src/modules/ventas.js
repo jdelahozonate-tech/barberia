@@ -375,7 +375,7 @@ function pdfTextoFactura(datosVenta,logo){
   pdf+='trailer\n<< /Size '+objetos.length+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF';
   return new Blob([Uint8Array.from(pdf,c=>c.charCodeAt(0))],{type:'application/pdf'});
 }
-async function generarFacturaPDF(v,detalles,pagos,accion='compartir',ventanaImpresion=null){
+async function generarFacturaPDF(v,detalles,pagos,accion='compartir'){
  const negocio=S.negocio||{},cliente=v.clientes||{},barbero=v.barberos||{};
  const total=Number(v.total_venta)||0,pagado=Number(v.total_pagado)||0;
  const saldo=Math.max(0,Number(v.saldo_pendiente??(total-pagado))||0);
@@ -396,11 +396,6 @@ async function generarFacturaPDF(v,detalles,pagos,accion='compartir',ventanaImpr
  const archivo=new File([blob],nombreArchivo,{type:'application/pdf'});
  const telefono=String(cliente.telefono||'').replace(/\D/g,''),numeroTelefono=telefono.length===10?'57'+telefono:telefono;
  const mensaje='Hola '+String(cliente.nombre||'')+', te compartimos el comprobante de tu compra en '+String(negocio.nombre||'DH BARBER')+'. ¡Gracias por preferirnos!';
- if(accion==='imprimir'){
-  if(!ventanaImpresion)throw new Error('El navegador bloqueó la apertura del PDF. Descárgalo para imprimirlo.');
-  const url=URL.createObjectURL(blob);ventanaImpresion.location.href=url;
-  setTimeout(()=>URL.revokeObjectURL(url),60000);return;
- }
  if(accion==='compartir'&&navigator.share&&navigator.canShare?.({files:[archivo]})){
   try{await navigator.share({files:[archivo],title:'Comprobante de venta',text:mensaje});return}
   catch(error){if(error?.name==='AbortError')return}
@@ -425,11 +420,11 @@ async function detalleVenta(v){
  ${fila('Total',dinero(v.total_venta),'tot')}${fila('Pagado',dinero(v.total_pagado))}${fila('Saldo',dinero(v.saldo_pendiente))}
  ${p.length?'<label>Pagos</label>'+p.map(x=>fila(bonito(x.metodo_pago)+', '+hora(x.fecha_hora),dinero(x.valor_pago))).join(''):''}
  ${abierta?`<label for="pg">Registrar otro pago</label><div class="ln"><input id="pg" type="number" min="1" inputmode="decimal" value="${v.saldo_pendiente}"><select id="mp" aria-label="Método">${METODOS}</select></div><button type="button" class="btn block" id="rp">Registrar pago</button>`:''}
- ${v.estado_venta!=='ANULADA'?'<div class="acts" style="flex-wrap:wrap"><button type="button" class="btn" id="pdf">Descargar PDF</button><button type="button" class="btn sec" id="printpdf">Imprimir PDF</button><button type="button" class="btn sec" id="sharepdf">Compartir PDF</button></div>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button>'+(puedeAnular?'<button type="button" class="btn sec block" id="an">Anular venta</button>':'<p class="info">Esta venta pertenece a una caja cerrada, a otro turno o no tiene una caja histórica verificable. No se puede anular desde la caja actual.</p>'):''}
+ ${v.estado_venta!=='ANULADA'?'<div class="acts" style="flex-wrap:wrap"><button type="button" class="btn" id="pdf">Descargar PDF</button><button type="button" class="btn sec" id="sharepdf">Compartir PDF</button></div>':''}${admin&&v.estado_venta!=='ANULADA'?'<button type="button" class="btn block" id="ed">Editar venta</button>'+(puedeAnular?'<button type="button" class="btn sec block" id="an">Anular venta</button>':'<p class="info">Esta venta pertenece a una caja cerrada, a otro turno o no tiene una caja histórica verificable. No se puede anular desde la caja actual.</p>'):''}
  <div class="acts"><button type="button" class="btn sec" id="cx">Cerrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
- const ejecutarPDF=(id,accion)=>{const b=$(id);if(!b)return;b.onclick=async()=>{if(b.disabled)return;b.disabled=true;let ventana=null;try{if(accion==='imprimir'){ventana=window.open('about:blank','_blank');if(!ventana)throw new Error('El navegador bloqueó la ventana. Usa Descargar PDF para imprimirlo.')}await generarFacturaPDF(v,d,p,accion,ventana)}catch(error){if(ventana&&!ventana.closed)ventana.close();if(error?.name!=='AbortError')toast('No se pudo generar el PDF: '+(error.message||'Error inesperado'),true)}finally{b.disabled=false}}};
- ejecutarPDF('#pdf','descargar');ejecutarPDF('#printpdf','imprimir');ejecutarPDF('#sharepdf','compartir');
+ const ejecutarPDF=(id,accion)=>{const b=$(id);if(!b)return;b.onclick=async()=>{if(b.disabled)return;b.disabled=true;try{await generarFacturaPDF(v,d,p,accion)}catch(error){if(error?.name!=='AbortError')toast('No se pudo generar el PDF: '+(error.message||'Error inesperado'),true)}finally{b.disabled=false}}};
+ ejecutarPDF('#pdf','descargar');ejecutarPDF('#sharepdf','compartir');
  if(abierta)$('#rp').onclick=async()=>{const b=$('#rp');if(b.disabled)return;const n=Number($('#pg').value);
   if(!(n>0)||n>v.saldo_pendiente)return toast('El pago debe ser mayor a cero y no superar el saldo.',true);
   b.disabled=true;
