@@ -82,7 +82,9 @@ test('Ventas genera un comprobante PDF vertical tipo voucher con marca y descarg
   assert.match(ventas, /async function generarFacturaPDF/);
   assert.match(ventas, /async function cargarLogoComprobante/);
   assert.match(ventas, /function pdfTextoFactura\(datosVenta,logo\)/);
-  assert.match(ventas, /const W=360/);\n  assert.match(ventas, /COMPROBANTE DE VENTA/);\n  assert.match(ventas, /SALDO PENDIENTE/);
+  assert.match(ventas, /const W=360/);
+  assert.match(ventas, /COMPROBANTE DE VENTA/);
+  assert.match(ventas, /SALDO PENDIENTE/);
   assert.match(ventas, /new Blob\(\[Uint8Array\.from\(pdf,c=>c\.charCodeAt\(0\)\)\],\{type:'application\/pdf'\}\)/);
   assert.match(ventas, /new File\(\[blob\],nombreArchivo,\{type:'application\/pdf'\}\)/);
   assert.match(ventas, /navigator\.canShare/);
