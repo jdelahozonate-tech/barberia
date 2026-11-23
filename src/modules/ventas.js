@@ -144,15 +144,15 @@ async function nuevaVenta(pre,tipo='MIXTA'){
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  const calc=()=>{const L=[...document.querySelectorAll('#lns .ln')].map(l=>({i:items.find(x=>x.k===l.querySelector('select').value),q:Number(l.querySelector('input').value)}));const br=L.reduce((s,l)=>s+(l.i?l.i.p*l.q:NaN),0),ds=Number($('#v3').value);return{L,br,ds,t:br-ds}};
  const pagos=()=>[...document.querySelectorAll('#pgs .ln')].map(l=>({m:l.querySelector('select').value,v:Number(l.querySelector('input').value)||0,c:l.querySelector('.cu').value||null})).filter(x=>x.v>0);
- $('#pgs').onchange=e=>{if(e.target.tagName==='SELECT'&&!e.target.classList.contains('cu'))e.target.closest('.ln').querySelector('.cu').hidden=e.target.value==='EFECTIVO'||!cu.length};
+ const pagosEl=$('#pgs');if(pagosEl)pagosEl.onchange=e=>{if(e.target.tagName==='SELECT'&&!e.target.classList.contains('cu'))e.target.closest('.ln').querySelector('.cu').hidden=e.target.value==='EFECTIVO'||!cu.length};
  const ref=()=>{const c=calc(),f=$('#pgs .ln input');$('#tt').textContent='Total: '+dinero(c.t);
   if(f&&!f.dataset.m&&document.querySelectorAll('#pgs .ln').length===1)f.value=Math.max(0,c.t);
   const rec=pagos().reduce((s,x)=>s+x.v,0),fiado=!!$('#vfiado')?.checked,estado=$('#fl');if(estado)estado.textContent=rec<c.t?(fiado?'Saldo a crédito: ':'Falta por cobrar: ')+dinero(c.t-rec):rec>c.t?'Sobran '+dinero(rec-c.t):'Pago completo'};
- $('#pgs').oninput=e=>{if(e.target.tagName==='INPUT')e.target.dataset.m=1};
+ if(pagosEl)pagosEl.oninput=e=>{if(e.target.tagName==='INPUT')e.target.dataset.m=1};
  $('#df').oninput=ref;$('#df').onchange=ref;const fiado=$('#vfiado');if(fiado)fiado.onchange=ref;
  $('#ad').onclick=()=>{$('#lns').insertAdjacentHTML('beforeend',lin());ref()};
  $('#lns').onclick=e=>{if(e.target.classList.contains('rm')){if(document.querySelectorAll('#lns .ln').length===1)return toast('La venta debe tener al menos un ítem.',true);e.target.closest('.ln').remove();ref()}};
- $('#ap').onclick=()=>{const rec=pagos().reduce((s,x)=>s+x.v,0);$('#pgs').insertAdjacentHTML('beforeend',pl());$('#pgs .ln:last-child input').value=Math.max(0,calc().t-rec)||'';ref()};ref();
+ const agregarPago=$('#ap');if(agregarPago)agregarPago.onclick=()=>{const rec=pagos().reduce((s,x)=>s+x.v,0);$('#pgs').insertAdjacentHTML('beforeend',pl());$('#pgs .ln:last-child input').value=Math.max(0,calc().t-rec)||'';ref()};ref();
  if(pre){$('#v1').value=pre.cliente_id||'';$('#v2').value=pre.barbero_id||'';const ls=()=>document.querySelectorAll('#lns .ln select');if(pre.servicio_id)ls()[0].value='s:'+pre.servicio_id;if(pre.fee&&items.some(x=>x.k==='s:'+pre.fee)){$('#ad').click();ls()[1].value='s:'+pre.fee}ref()}
  let guardando=false;
  $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;guardando=true;const f=Object.fromEntries(new FormData(e.target)),c=calc(),PG=pagos(),pago=PG.reduce((s,x)=>s+x.v,0),valoresPago=[...document.querySelectorAll('#pgs .ln input')].map(x=>Number(x.value));
