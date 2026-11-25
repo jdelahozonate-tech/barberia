@@ -28,25 +28,24 @@ function onboarding(){
   b.disabled=false;if(error)return toast(traducir(error.message),true);cargar()};
 }
 async function cargar(){
- const{data:auth,error:errorAuth}=await sb.auth.getUser();
+ // getSession lee la sesión local (sin ida y vuelta a la red); la seguridad real la aplica RLS en cada consulta.
+ const{data:ses,error:errorAuth}=await sb.auth.getSession();
  if(errorAuth)return toast(traducir(errorAuth.message),true);
- if(!auth?.user)return pantallaAuth();
- const{data:p,error}=await sb.from('perfiles').select('*,negocios(*)').eq('id',auth.user.id).maybeSingle();
+ const user=ses?.session?.user;
+ if(!user)return pantallaAuth();
+ const{data:p,error}=await sb.from('perfiles').select('*,negocios(*)').eq('id',user.id).maybeSingle();
  if(error)return toast(error.message,true);
  if(!p)return onboarding();
- const{data:su,error:errorSus}=await sb.rpc('mi_suscripcion');
+ // Suscripción y foto del perfil en paralelo.
+ const consultaFoto=p.foto_url||p.avatar_url?Promise.resolve({data:null})
+  :p.barbero_id?sb.from('barberos').select('foto_url').eq('negocio_id',p.negocio_id).eq('id',p.barbero_id).maybeSingle()
+  :user.email?sb.from('barberos').select('foto_url').eq('negocio_id',p.negocio_id).ilike('correo',user.email).maybeSingle()
+  :Promise.resolve({data:null});
+ const[{data:su,error:errorSus},{data:barberoFoto}]=await Promise.all([sb.rpc('mi_suscripcion'),consultaFoto]);
  if(errorSus)return toast('No fue posible verificar el estado de la suscripción: '+traducir(errorSus.message),true);
  S.sus=su;
  if(!su||su.dias<0||su.estado!=='ACTIVA'||!p.negocios)return bloqueada(su);
- let fotoPerfil=p.foto_url||p.avatar_url||null;
- if(p.barbero_id){
-  const{data:barberoFoto}=await sb.from('barberos').select('foto_url').eq('negocio_id',p.negocio_id).eq('id',p.barbero_id).maybeSingle();
-  fotoPerfil=fotoPerfil||barberoFoto?.foto_url||null;
- }else if(auth.user.email){
-  // Algunos administradores también trabajan como barberos: buscar su foto por el correo de acceso.
-  const{data:barberoFoto}=await sb.from('barberos').select('foto_url').eq('negocio_id',p.negocio_id).ilike('correo',auth.user.email).maybeSingle();
-  fotoPerfil=fotoPerfil||barberoFoto?.foto_url||null;
- }
+ const fotoPerfil=p.foto_url||p.avatar_url||barberoFoto?.foto_url||null;
  S.perfil={...p,foto_url:fotoPerfil};S.negocio=p.negocios;shell();
 }
 
