@@ -47,8 +47,8 @@ test('la navegación móvil usa un menú lateral y muestra la foto existente del
   assert.ok(index.includes('main{padding:16px 14px 28px}'));
   assert.ok(acceso.includes('p.foto_url||p.avatar_url'));
   assert.ok(acceso.includes("from('barberos').select('foto_url')"));
-  assert.ok(acceso.includes(".ilike('correo',auth.user.email)"));
-  assert.ok(acceso.includes("else if(auth.user.email)"));
+  assert.ok(acceso.includes(".ilike('correo',user.email)"));
+  assert.ok(acceso.includes("user.email?sb.from"));
   assert.ok(acceso.includes('S.perfil={...p,foto_url:fotoPerfil}'));
 });
 
@@ -78,25 +78,25 @@ test('Agenda bloquea citas y reprogramaciones con fecha u hora pasada', () => {
 
 test('Ventas genera y comparte el comprobante como imagen JPG, no como PDF', () => {
   const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
-  assert.match(ventas, /Registrar saldo pendiente \\(fiado\\)/);
+  assert.match(ventas, /Registrar saldo pendiente \(fiado\)/);
   assert.match(ventas, /async function generarImagenComprobante/);
   assert.match(ventas, /async function cargarLogoComprobante/);
-  assert.match(ventas, /function imagenComprobante\\(datosVenta,logo\\)/);
+  assert.match(ventas, /function imagenComprobante\(datosVenta,logo\)/);
   assert.match(ventas, /COMPROBANTE DE VENTA/);
   assert.match(ventas, /SALDO PENDIENTE/);
-  assert.match(ventas, /canvas\\.toBlob/);
-  assert.match(ventas, /type:'image\\/jpeg'/);
-  assert.match(ventas, /new File\\(\\[blob\\],nombreArchivo,\\{type:'image\\/jpeg'\\}\\)/);
-  assert.match(ventas, /navigator\\.canShare/);
+  assert.match(ventas, /canvas\.toBlob/);
+  assert.match(ventas, /type:'image\/jpeg'/);
+  assert.match(ventas, /new File\(\[blob\],nombreArchivo,\{type:'image\/jpeg'\}\)/);
+  assert.match(ventas, /navigator\.canShare/);
   assert.match(ventas, /ESTADO DE CUENTA/);
   assert.match(ventas, /Saldo pendiente/);
   assert.match(ventas, /No sustituye una factura electrónica/);
   assert.match(ventas, /id="shareimage"/);
   assert.match(ventas, /id="image"/);
-  assert.doesNotMatch(ventas, /application\\/pdf|generarFacturaPDF|pdfTextoFactura|Descargar PDF|Compartir PDF/);
-  assert.doesNotMatch(ventas, /window\\.print\\(/);
-  assert.doesNotMatch(ventas, /window\\.open\\('about:blank'/);
-  assert.doesNotMatch(ventas, /cdnjs\\.cloudflare\\.com\\/ajax\\/libs\\/jspdf/);
+  assert.doesNotMatch(ventas, /application\/pdf|generarFacturaPDF|pdfTextoFactura|Descargar PDF|Compartir PDF/);
+  assert.doesNotMatch(ventas, /window\.print\(/);
+  assert.doesNotMatch(ventas, /window\.open\('about:blank'/);
+  assert.doesNotMatch(ventas, /cdnjs\.cloudflare\.com\/ajax\/libs\/jspdf/);
 });
 
 test('La anulación de ventas exige la misma caja abierta del turno', () => {
@@ -147,7 +147,7 @@ test('Reportes ofrece informes gerenciales y exportación PDF y Excel', () => {
   assert.match(index, /\['reportes','Reportes',1\]/);
   assert.match(index, /crearModuloReportes/);
   assert.match(sw, /src\/modules\/reportes\.js/);
-  assert.match(sw, /barberia-v24/);
+  assert.match(sw, /barberia-v25/);
 });
 
 test('Las comisiones históricas de ventas no pagadas se limpian', () => {
@@ -308,7 +308,7 @@ test('el acceso no habilita la aplicación si falla la verificación de suscripc
     $: () => ({ innerHTML: '' }),
     app: { innerHTML: '' },
     sb: {
-      auth: { getUser: async () => ({ data: { user: { id: 'u1' } }, error: null }) },
+      auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } }, error: null }) },
       from: tabla => { assert.equal(tabla, 'perfiles'); return perfilQuery; },
       rpc: async nombre => {
         assert.equal(nombre, 'mi_suscripcion');
@@ -601,7 +601,7 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(index, /const \{ productos \} = crearModuloProductos/);
   assert.match(index, /pedidos: pedidosProductos/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v24/);
+  assert.match(sw, /barberia-v25/);
   assert.match(sw, /src\/modules\/pedidos\.js/);
 });
 
@@ -730,7 +730,7 @@ test('los perfiles de barberos permiten fotografía privada de administración y
   assert.match(index, /miperfil:miPerfil/);
   assert.match(sql, /CREATE POLICY barberos_perfil_propio/);
   assert.match(sql, /barberos_fotos_insertar/);
-  assert.match(sw, /barberia-v24/);
+  assert.match(sw, /barberia-v25/);
 });
 
 

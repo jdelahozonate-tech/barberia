@@ -197,7 +197,7 @@ BEGIN
   IF v_caja IS NULL THEN RAISE EXCEPTION 'Abre la caja antes de entregar un anticipo.'; END IF;
 
   INSERT INTO public.gastos(negocio_id,categoria_gasto,descripcion,valor,metodo_pago,usuario_registro,caja_id)
-  VALUES(v_negocio,'COMISIONES','Anticipo a '+v_nombre+': '+trim(p_motivo),p_valor,v_metodo,auth.uid(),v_caja)
+  VALUES(v_negocio,'COMISIONES','Anticipo a '||v_nombre||': '||trim(p_motivo),p_valor,v_metodo,auth.uid(),v_caja)
   RETURNING id INTO v_gasto;
 
   INSERT INTO public.movimientos_liquidacion_barbero(
@@ -381,7 +381,7 @@ BEGIN
 
   IF v_pago>0 THEN
     INSERT INTO public.gastos(negocio_id,categoria_gasto,descripcion,valor,metodo_pago,usuario_registro,caja_id)
-    VALUES(v_negocio,'COMISIONES','Liquidación a '+v_nombre,p_pago_inicial,v_metodo,auth.uid(),v_caja)
+    VALUES(v_negocio,'COMISIONES','Liquidación a '||v_nombre,p_pago_inicial,v_metodo,auth.uid(),v_caja)
     RETURNING id INTO v_gasto;
 
     INSERT INTO public.movimientos_liquidacion_barbero(
@@ -442,7 +442,7 @@ BEGIN
   IF v_caja IS NULL THEN RAISE EXCEPTION 'Abre la caja antes de registrar un abono.'; END IF;
 
   INSERT INTO public.gastos(negocio_id,categoria_gasto,descripcion,valor,metodo_pago,usuario_registro,caja_id)
-  VALUES(v_negocio,'COMISIONES','Abono a liquidación de barbero '+v_liquidacion.barbero_id::text,p_valor,v_metodo,auth.uid(),v_caja)
+  VALUES(v_negocio,'COMISIONES','Abono a liquidación de barbero '||v_liquidacion.barbero_id::text,p_valor,v_metodo,auth.uid(),v_caja)
   RETURNING id INTO v_gasto;
 
   INSERT INTO public.movimientos_liquidacion_barbero(
