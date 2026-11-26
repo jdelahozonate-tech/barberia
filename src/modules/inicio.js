@@ -60,16 +60,17 @@ function crearModuloInicioCompleto(deps) {
    ['citas',q('citas','inicio,estado,barbero_id,barberos(nombre),clientes(nombre)').gte('inicio',A).lt('inicio',B).order('inicio')],
    ['hoy',q('citas','inicio,estado,barbero_id,barberos(nombre),clientes(nombre)').gte('inicio',hoy.toISOString()).lt('inicio',manana.toISOString()).order('inicio')],
    ['barberos',q('barberos','id,nombre,estado').order('nombre')],
-   ['stock',q('stock_actual','nombre,existencias,stock_minimo').order('nombre')]
+   ['stock',q('stock_actual','nombre,existencias,stock_minimo').order('nombre')],
+   ['obsequios',q('movimientos_inventario','cantidad,costo_unitario,fecha_hora').eq('tipo_movimiento','OBSEQUIO').gte('fecha_hora',A).lt('fecha_hora',B).order('id')]
   ];
   const respuestas=await Promise.all(fuentes.map(([n,query])=>todos(query,n)));
   if(id!==ejecucion||!main.isConnected)return;
   const fallo=respuestas.find(x=>x.error);if(fallo){main.innerHTML='<div class="dp-progress">No se pudo cargar el panel: '+esc(fallo.error.message)+'</div>';return}
   let etapa='calculando indicadores';
   try{
-   const[V0,D0,P0,G0,C0,CT0,B0,ST0]=respuestas.map(x=>x.data||[]),sel=S.barberoDash||'todos';
+   const[V0,D0,P0,G0,C0,CT0,B0,ST0,O0]=respuestas.map(x=>x.data||[]),sel=S.barberoDash||'todos';
    const V=sel==='todos'?V0:V0.filter(x=>x.barbero_id===sel),D=sel==='todos'?D0:D0.filter(x=>x.ventas?.barbero_id===sel),P=sel==='todos'?P0:P0.filter(x=>x.ventas?.barbero_id===sel),C=sel==='todos'?C0:C0.filter(x=>x.barbero_id===sel),CT=sel==='todos'?CT0:CT0.filter(x=>x.barbero_id===sel);
-   const G=G0.filter(x=>!['COMISIONES','PRODUCTOS'].includes(x.categoria_gasto)),neto=suma(V,x=>x.total_venta),descuentos=suma(V,x=>x.descuento),bruto=neto+descuentos,costo=suma(D.filter(x=>x.tipo_item==='PRODUCTO'),x=>Number(x.costo_unitario||0)*Number(x.cantidad||0)),com=suma(D,x=>x.comision_generada),gast=suma(G,x=>x.valor),util=neto-costo-com-gast,recaudo=suma(P,x=>x.valor_pago),nVentas=V.length,ticket=nVentas?neto/nVentas:0,margen=neto?util/neto*100:0;
+   const G=G0.filter(x=>!['COMISIONES','PRODUCTOS'].includes(x.categoria_gasto)),neto=suma(V,x=>x.total_venta),descuentos=suma(V,x=>x.descuento),bruto=neto+descuentos,costo=suma(D.filter(x=>x.tipo_item==='PRODUCTO'),x=>Number(x.costo_unitario||0)*Number(x.cantidad||0)),com=suma(D,x=>x.comision_generada),gast=suma(G,x=>x.valor),O=sel==='todos'?O0:[],obsequios=suma(O,x=>Number(x.cantidad||0)*Number(x.costo_unitario||0)),util=neto-costo-com-gast-obsequios,recaudo=suma(P,x=>x.valor_pago),nVentas=V.length,ticket=nVentas?neto/nVentas:0,margen=neto?util/neto*100:0;
    const atendidas=C.filter(x=>x.estado==='ATENDIDA').length,gestion=C.filter(x=>['PENDIENTE','CONFIRMADA'].includes(x.estado)).length,hoyPend=CT.filter(x=>['PENDIENTE','CONFIRMADA'].includes(x.estado)).length,hoyAtend=CT.filter(x=>x.estado==='ATENDIDA').length,activos=B0.filter(x=>x.estado==='ACTIVO').length,bajo=ST0.filter(x=>Number(x.existencias)<=Number(x.stock_minimo));
    const pay={};P.forEach(x=>{const k=bonitoSeguro(x.metodo_pago)||'Sin método';pay[k]=(pay[k]||0)+Number(x.valor_pago||0)});
    const payList=Object.entries(pay).map(([nombre,valor])=>({nombre,valor})).sort((a,b)=>b.valor-a.valor);
@@ -83,6 +84,7 @@ function crearModuloInicioCompleto(deps) {
    P.forEach(x=>{dia(localFecha(new Date(x.fecha_hora))).recaudo+=Number(x.valor_pago||0)});
    G.forEach(x=>{dia(localFecha(new Date(x.fecha_hora))).gastos+=Number(x.valor||0)});
    C.forEach(x=>{dia(localFecha(new Date(x.inicio))).citas++});
+   O.forEach(x=>{const d=dia(localFecha(new Date(x.fecha_hora)));d.costos+=Number(x.cantidad||0)*Number(x.costo_unitario||0)});
    Object.values(dias).forEach(d=>{d.utilidad+=d.ventas-d.gastos-d.costos});
    const serie=Object.values(dias).sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(-31),periodo=RG.find(x=>x[0]===rg)?.[1]||'Periodo personalizado';
    const opts='<option value="todos">Todo el equipo</option>'+B0.filter(x=>x.estado==='ACTIVO').map(x=>'<option value="'+esc(x.id)+'"'+(x.id===sel?' selected':'')+'>'+esc(x.nombre)+'</option>').join('');
@@ -97,7 +99,7 @@ function crearModuloInicioCompleto(deps) {
    '<div class="dp-layout"><section class="dp-card"><h3>Recaudo por medio de pago</h3><p class="dp-caption">Método registrado</p>'+ranking(payList)+'</section><section class="dp-card"><h3>Barberos con más ventas</h3><p class="dp-caption">Ingresos asociados a detalles vendidos</p>'+ranking(topBarberos)+'</section></div>'+
    '<div class="dp-layout"><section class="dp-card"><h3>Servicios más vendidos</h3><p class="dp-caption">Valor vendido por servicio</p>'+ranking(topServicios)+'</section><section class="dp-card"><h3>Alertas de inventario</h3><p class="dp-caption">Productos iguales o por debajo del mínimo</p>'+(bajo.length?'<table class="dp-table"><tbody>'+bajo.slice(0,8).map(x=>'<tr><td>'+esc(x.nombre)+'</td><td>'+Number(x.existencias)+' / '+Number(x.stock_minimo)+' mín.</td></tr>').join('')+'</tbody></table>':'<p class="dp-empty">No hay productos por debajo del mínimo.</p>')+(bajo.length>8?'<p class="dp-caption">Y '+(bajo.length-8)+' productos más.</p>':'')+'</section></div>'+
    '<section class="dp-card"><h3>Últimas ventas del periodo</h3><p class="dp-caption">Ventas no anuladas</p>'+(recent.length?'<table class="dp-table"><tbody>'+recent.map(x=>'<tr><td>Venta '+esc(String(x.id).slice(0,8))+'<small>'+esc(new Date(x.fecha_hora).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}))+'</small></td><td>'+dinero(x.total_venta)+'</td></tr>').join('')+'</tbody></table>':'<p class="dp-empty">No hay ventas en el periodo.</p>')+'</section>'+
-   '<p class="dp-foot">Criterio: utilidad estimada = ventas netas − costo de productos vendidos − comisiones generadas − gastos operativos registrados. Los pagos se muestran por fecha de recaudo. Las compras de inventario y liquidaciones de comisiones se excluyen para evitar duplicidad.</p></section>';
+   '<p class="dp-foot">Criterio: utilidad estimada = ventas netas − costo de productos vendidos − costo de obsequios ('+dinero(obsequios)+') − comisiones generadas − gastos operativos registrados. Los pagos se muestran por fecha de recaudo. Las compras de inventario y liquidaciones de comisiones se excluyen para evitar duplicidad.</p></section>';
    const pintar=key=>{const el=$('#dp-grafica');if(el)el.innerHTML=grafica(serie,key)};
    const cards=Array.from(main.querySelectorAll('[data-metric]'));cards.forEach(t=>t.addEventListener('click',()=>{cards.forEach(o=>{const a=o===t;o.classList.toggle('active',a);o.setAttribute('aria-pressed',String(a))});pintar(t.dataset.metric)}));pintar('ingresos');
    $('#dp-rango').onchange=x=>{S.rg=x.target.value;informe()};$('#dp-barbero').onchange=x=>{S.barberoDash=x.target.value;informe()};
@@ -236,7 +238,8 @@ async function informe(){
   ['detalles de ventas',sb.from('detalle_ventas').select('tipo_item,descripcion,cantidad,subtotal,costo_unitario,comision_generada,ventas!inner(estado_venta,fecha_hora,barberos(nombre))').eq('negocio_id',S.perfil.negocio_id).neq('ventas.estado_venta','ANULADA').gte('ventas.fecha_hora',A).lt('ventas.fecha_hora',B).order('id',{ascending:true})],
   ['pagos',sb.from('pagos').select('valor_pago,metodo_pago,fecha_hora,cuentas(nombre),ventas!inner(estado_venta)').eq('negocio_id',S.perfil.negocio_id).eq('estado_pago','REGISTRADO').neq('ventas.estado_venta','ANULADA').gte('fecha_hora',A).lt('fecha_hora',B).order('id',{ascending:true})],
   ['gastos',sb.from('gastos').select('categoria_gasto,descripcion,valor,metodo_pago,estado_gasto,fecha_hora').eq('negocio_id',S.perfil.negocio_id).eq('estado_gasto','REGISTRADO').gte('fecha_hora',A).lt('fecha_hora',B).order('id',{ascending:true})],
-  ['citas',sb.from('citas').select('inicio,estado').eq('negocio_id',S.perfil.negocio_id).gte('inicio',A).lt('inicio',B).order('id',{ascending:true})]
+  ['citas',sb.from('citas').select('inicio,estado').eq('negocio_id',S.perfil.negocio_id).gte('inicio',A).lt('inicio',B).order('id',{ascending:true})],
+  ['obsequios',sb.from('movimientos_inventario').select('cantidad,costo_unitario,fecha_hora').eq('negocio_id',S.perfil.negocio_id).eq('tipo_movimiento','OBSEQUIO').gte('fecha_hora',A).lt('fecha_hora',B).order('id',{ascending:true})]
  ];
  let pendientes=fuentes.map(x=>x[0]);
  $('#inf').innerHTML='<p class="empty">Consultando: '+pendientes.join(', ')+'…</p>';
@@ -258,13 +261,13 @@ async function informe(){
  const panelEtapa=mensaje=>{const panel=$('#inf');if(panel)panel.innerHTML='<p class="empty">'+mensaje+'</p>'};
  panelEtapa('Consultas completas. Validando datos…');
  await new Promise(resolve=>setTimeout(resolve,0));
- const[V,D,P,G,C]=respuestas.map(r=>r.data||[]);
+ const[V,D,P,G,C,O]=respuestas.map(r=>r.data||[]);
  etapa='calculando ventas, costos y gastos';
  panelEtapa('Calculando ventas, costos y gastos…');
  await new Promise(resolve=>setTimeout(resolve,0));
  const sum=(a,f)=>a.reduce((t,x)=>t+Number(f(x)||0),0),cl=x=>Number(x.costo_unitario)*Number(x.cantidad)+Number(x.comision_generada);
  const bruto=sum(D,x=>x.subtotal),desc=sum(V,x=>x.descuento),neto=bruto-desc,costo=sum(D,x=>Number(x.costo_unitario)*Number(x.cantidad)),com=sum(D,x=>x.comision_generada);
- const gast=sum(G.filter(x=>!['COMISIONES','PRODUCTOS'].includes(x.categoria_gasto)),x=>x.valor),util=neto-costo-com-gast;
+ const gast=sum(G.filter(x=>!['COMISIONES','PRODUCTOS'].includes(x.categoria_gasto)),x=>x.valor),obsequios=sum(O,x=>Number(x.cantidad||0)*Number(x.costo_unitario||0)),util=neto-costo-com-gast-obsequios;
  const grp=(a,k,f)=>{const m={};a.forEach(x=>{const n=k(x);m[n]=m[n]||{n,c:0,i:0,k:0};f(m[n],x)});return Object.values(m)};
  const lin=(g,e)=>fila2(esc(g.n)+'<br><small>'+g.c+' '+e+', ingresos '+dinero(g.i)+', costo '+dinero(g.k)+'</small>',dinero(g.i-g.k));
  const mg=(a,k,e,flt)=>grp(a.filter(flt||(()=>true)),k,(g,x)=>{g.c+=Number(x.cantidad||0);g.i+=Number(x.subtotal||0);g.k+=cl(x)}).sort((p,q)=>(q.i-q.k)-(p.i-p.k)).map(g=>lin(g,e));
@@ -278,6 +281,7 @@ async function informe(){
  P.forEach(x=>{dia(fecha(new Date(x.fecha_hora))).recaudo+=Number(x.valor_pago||0)});
  G.filter(x=>!['COMISIONES','PRODUCTOS'].includes(x.categoria_gasto)).forEach(x=>{const d=dia(fecha(new Date(x.fecha_hora)));d.gastos+=Number(x.valor||0)});
  C.forEach(x=>{const d=dia(fecha(new Date(x.inicio)));d.citas++;if(x.estado==='ATENDIDA')d.atendidas=(d.atendidas||0)+1});
+ O.forEach(x=>{dia(fecha(new Date(x.fecha_hora))).costos+=Number(x.cantidad||0)*Number(x.costo_unitario||0)});
  Object.values(dias).forEach(d=>{d.utilidad=d.ventas-d.costos-d.gastos});
  const serie=Object.entries(dias).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14),cobrado=sum(P,x=>x.valor_pago),ticket=V.length?neto/V.length:0;
  etapa='dibujando el informe';panelEtapa('Mostrando resultados…');await new Promise(resolve=>setTimeout(resolve,0));
@@ -308,7 +312,7 @@ async function informe(){
  </div>
  <div class="dash-grid">${barras('Rentabilidad por barbero',topBarberos)}${barras('Servicios con mayor margen',topServicios)}</div>
  <div class="dash-section"><h3>Detalle de rentabilidad por producto</h3>${sec('',mg(D,x=>x.descripcion,'unidades',x=>x.tipo_item==='PRODUCTO').slice(0,8))}</div>
- <div class="dash-note">Criterio contable: la utilidad mostrada es estimada con ventas netas menos costo de productos vendidos, comisiones y gastos operativos registrados. Las compras de inventario y liquidaciones de comisiones no se descuentan otra vez para evitar duplicidad.</div>
+ <div class="dash-note">Criterio contable: la utilidad mostrada es estimada con ventas netas menos costo de productos vendidos, costo de obsequios (${dinero(obsequios)}), comisiones y gastos operativos registrados. Las compras de inventario y liquidaciones de comisiones no se descuentan otra vez para evitar duplicidad.</div>
  <div class="dash-section"><h3>Recaudo por cuenta</h3>${sec('',pc)}</div>`;
  const metricas={
   ingresos:{titulo:'Comportamiento del negocio',descripcion:'Ventas por día y Gastos por día · últimos 14 días del periodo.',campo:'ventas',moneda:true},
