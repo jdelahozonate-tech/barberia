@@ -34,6 +34,7 @@ function rangoVentas(filtro,desde,hasta){
  return {desde:instanteZona(a+'T00:00'),hasta:instanteZona(b+'T00:00'),a,b};
 }
 async function ventas(){
+ const esBarbero=S.perfil.rol==='BARBERO';
  const filtro=S.filtroVentas||'HOY',desde=S.ventasDesde||fechaEnZona(),hasta=S.ventasHasta||desde;
  const rango=rangoVentas(filtro,desde,hasta);
  const[{data,error},{data:citas,error:errorCitas}]=await Promise.all([
@@ -65,13 +66,13 @@ async function ventas(){
  const etiquetasTipo={PRODUCTOS:'Productos',SERVICIOS:'Servicios',MIXTA:'Mixta',OTRA:'Sin clasificar'};
  const coloresTipo={PRODUCTOS:'background:#e8f5ec;color:#176b36;border:1px solid #b9e1c5',SERVICIOS:'background:#eaf1ff;color:#2454a6;border:1px solid #c5d6fb',MIXTA:'background:#fff3df;color:#8a5200;border:1px solid #f0d4a3',OTRA:'background:#f1f2f4;color:#555;border:1px solid #ddd'};
  const activa=k=>filtro===k?'':'sec';
- $('#main').innerHTML=`<div class="head"><h2>Ventas</h2><button class="btn" id="nv">Nueva venta</button></div>
- <div class="product-tabs"><button class="btn sec" id="vp">Venta de productos</button><button class="btn sec" id="vs">Venta de servicios</button><button class="btn sec" id="vm">Venta mixta</button></div>
+ $('#main').innerHTML=`<div class="head"><h2>${esBarbero?'Cobros de servicios':'Ventas'}</h2><button class="btn" id="nv">${esBarbero?'Registrar servicio':'Nueva venta'}</button></div>
+ ${esBarbero?'':'<div class="product-tabs"><button class="btn sec" id="vp">Venta de productos</button><button class="btn sec" id="vs">Venta de servicios</button><button class="btn sec" id="vm">Venta mixta</button></div>'}
  <section><h3>Filtros</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;align-items:end;max-width:680px">
  <label for="filtro-periodo" style="display:grid;gap:5px">Período
  <select id="filtro-periodo" style="width:100%;min-width:0;padding:10px;border:1px solid var(--borde,#ccc);border-radius:8px;background:var(--panel,#fff);color:inherit">
  <option value="HOY" data-filtro-ventas="HOY" ${filtro==='HOY'?'selected':''}>Hoy</option><option value="SEMANA" data-filtro-ventas="SEMANA" ${filtro==='SEMANA'?'selected':''}>Esta semana</option><option value="MES" data-filtro-ventas="MES" ${filtro==='MES'?'selected':''}>Este mes</option><option value="PERSONALIZADO" data-filtro-ventas="PERSONALIZADO" ${filtro==='PERSONALIZADO'?'selected':''}>Personalizado</option></select></label>
- <label for="filtro-tipo-venta" style="display:grid;gap:5px">Tipo de venta
+ <label for="filtro-tipo-venta" style="display:${esBarbero?'none':'grid'};gap:5px">Tipo de venta
  <select id="filtro-tipo-venta" aria-label="Filtrar por tipo de venta" style="width:100%;min-width:0;padding:10px;border:1px solid var(--borde,#ccc);border-radius:8px;background:var(--panel,#fff);color:inherit">
  <option value="TODOS" data-tipo-venta="TODOS" ${tipoFiltro==='TODOS'?'selected':''}>Todas</option><option value="PRODUCTOS" data-tipo-venta="PRODUCTOS" ${tipoFiltro==='PRODUCTOS'?'selected':''}>Productos</option><option value="SERVICIOS" data-tipo-venta="SERVICIOS" ${tipoFiltro==='SERVICIOS'?'selected':''}>Servicios</option><option value="MIXTA" data-tipo-venta="MIXTA" ${tipoFiltro==='MIXTA'?'selected':''}>Mixtas</option></select></label>
  </div>
@@ -84,12 +85,10 @@ async function ventas(){
   const items=detallesPorVenta[v.id]||[],conceptos=items.map(x=>esc(x.descripcion)+(Number(x.cantidad)!==1?' × '+x.cantidad:'')).join(' · ');
   const saldo=Number(v.saldo_pendiente)>0&&v.estado_venta!=='ANULADA';
   const tipo=tipoVenta(v),estilo=coloresTipo[tipo]||coloresTipo.OTRA;
-  return `<button class="row" data-id="${v.id}" style="border-left:4px solid ${tipo==='PRODUCTOS'?'#299653':tipo==='SERVICIOS'?'#4779d1':tipo==='MIXTA'?'#d99a35':'#999'};padding-left:12px"><span><strong>${esc(v.clientes?.nombre||'Cliente de paso')}</strong> <span style="display:inline-block;margin:3px 0;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${estilo}">${etiquetasTipo[tipo]||'Sin clasificar'}</span><br><small>${new Date(v.fecha_hora).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})} · Cobrado: ${dinero(v.total_pagado)}</small><br><small>${conceptos||'Sin detalle'}</small>${Number(v.descuento)>0?'<br><small>Descuento: '+dinero(v.descuento)+'</small>':''}${saldo?'<br><small>Saldo pendiente: '+dinero(v.saldo_pendiente)+' · Deudor: '+esc(v.clientes?.nombre||'Cliente de paso')+'</small>':''}</span><strong>${dinero(v.total_venta)}</strong></button>`;
+  return `<button class="row" data-id="${v.id}" style="border-left:4px solid ${tipo==='PRODUCTOS'?'#299653':tipo==='SERVICIOS'?'#4779d1':tipo==='MIXTA'?'#d99a35':'#999'};padding-left:12px"><span><strong>${esc(v.clientes?.nombre||'Cliente de paso')}</strong> <span style="display:inline-block;margin:3px 0;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${estilo}">${etiquetasTipo[tipo]||'Sin clasificar'}</span><br><small>${new Date(v.fecha_hora).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})} · Cobrado: ${dinero(v.total_pagado)}</small><br><small>${conceptos||'Sin detalle'}</small>${Number(v.descuento)>0?'<br><small>Descuento: '+dinero(v.descuento)+'</small>':''}${saldo?'<br><small>'+(esBarbero?'Pendiente de pago en caja: ':'Saldo pendiente: ')+dinero(v.saldo_pendiente)+(esBarbero?'':' · Deudor: '+esc(v.clientes?.nombre||'Cliente de paso'))+'</small>':''}</span><strong>${dinero(v.total_venta)}</strong></button>`;
  }).join(''):'<p class="empty">No hay ventas en el período seleccionado.</p>'}</section>`;
- $('#nv').onclick=()=>nuevaVenta();
- $('#vp').onclick=()=>nuevaVenta(null,'PRODUCTOS');
- $('#vs').onclick=()=>nuevaVenta(null,'SERVICIOS');
- $('#vm').onclick=()=>nuevaVenta(null,'MIXTA');
+ $('#nv').onclick=()=>nuevaVenta(null,esBarbero?'SERVICIOS':'MIXTA');
+ const vp=$('#vp'),vs=$('#vs'),vm=$('#vm');if(vp)vp.onclick=()=>nuevaVenta(null,'PRODUCTOS');if(vs)vs.onclick=()=>nuevaVenta(null,'SERVICIOS');if(vm)vm.onclick=()=>nuevaVenta(null,'MIXTA');
  const selectorTipo=$('#filtro-tipo-venta');if(selectorTipo)selectorTipo.onchange=()=>{S.filtroTipoVenta=selectorTipo.value;ventas()};
  const selectorPeriodo=$('#filtro-periodo');if(selectorPeriodo)selectorPeriodo.onchange=()=>{S.filtroVentas=selectorPeriodo.value;ventas()};
  const aplicar=$('#aplicar-rango');if(aplicar)aplicar.onclick=()=>{const a=$('#ventas-desde').value,b=$('#ventas-hasta').value;if(!a||!b||a>b)return toast('Selecciona un rango de fechas válido.',true);S.ventasDesde=a;S.ventasHasta=b;S.filtroVentas='PERSONALIZADO';ventas()};
@@ -110,6 +109,8 @@ async function cobrarCitaPendiente(c){
  nuevaVenta({cliente_id:c.cliente_id,barbero_id:c.barbero_id,servicio_id:c.servicio_id,cita_id:c.id,fee},'AGENDA');
 }
 async function nuevaVenta(pre,tipo='MIXTA'){
+ const esBarbero=S.perfil.rol==='BARBERO';
+ if(esBarbero){tipo='SERVICIOS';pre={...(pre||{}),barbero_id:S.perfil.barbero_id};}
  if(pre?.cita_id){
   const{data:cita,error:errorCita}=await sb.from('citas').select('estado').eq('negocio_id',S.perfil.negocio_id).eq('id',pre.cita_id).maybeSingle();
   if(errorCita)return toast(traducir(errorCita.message),true);
@@ -118,12 +119,11 @@ async function nuevaVenta(pre,tipo='MIXTA'){
   if(errorExistente)return toast(traducir(errorExistente.message),true);
   if(existente?.length)return toast('Esta cita ya tiene una venta asociada.',true);
  }
- const{data:cajaInicial,error:errorCajaInicial}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
- if(errorCajaInicial)return toast(traducir(errorCajaInicial.message),true);
- if(!cajaInicial?.id)return toast('Para registrar una venta, primero abre la caja.',true);
- const respuestas=await Promise.all([['clientes','id,nombre'],['barberos','id,nombre,modelo_pago,porcentaje_comision'],['servicios','id,nombre,precio'],['productos','id,nombre,precio_venta,costo_unitario,vendible'],['cuentas','id,nombre,detalle']].map(([t,campos])=>{let q=sb.from(t).select(campos).eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO');if(t==='productos')q=q.eq('vendible',true);return q.order('nombre')}));
+ if(!esBarbero){const{data:cajaInicial,error:errorCajaInicial}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();if(errorCajaInicial)return toast(traducir(errorCajaInicial.message),true);if(!cajaInicial?.id)return toast('Para registrar una venta, primero abre la caja.',true)}
+ const consultas=[['clientes','id,nombre'],['barberos','id,nombre,modelo_pago,porcentaje_comision'],['servicios','id,nombre,precio'],['productos','id,nombre,precio_venta,costo_unitario,vendible'],['cuentas','id,nombre,detalle']].filter(([t])=>!esBarbero||!['productos','cuentas'].includes(t));
+ const respuestas=await Promise.all(consultas.map(([t,campos])=>{let q=sb.from(t).select(campos).eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO');if(t==='productos')q=q.eq('vendible',true);return q.order('nombre')}));
  const fallo=respuestas.find(r=>r.error);if(fallo)return toast(traducir(fallo.error.message),true);
- const[cl,ba,se,pr,cu]=respuestas.map(r=>r.data||[]);
+ const[cl,barberosCargados,se,productosCargados=[],cuentasCargadas=[]]=respuestas.map(r=>r.data||[]),ba=esBarbero?barberosCargados.filter(x=>x.id===S.perfil.barbero_id):barberosCargados,pr=esBarbero?[]:productosCargados,cu=esBarbero?[]:cuentasCargadas;
  if(!se.length&&!pr.length)return toast('Primero crea un servicio o un producto.',true);
  const todos=[...se.map(x=>({k:'s:'+x.id,n:x.nombre,p:Number(x.precio)})),...pr.map(x=>({k:'p:'+x.id,n:x.nombre,p:Number(x.precio_venta)}))];
  const items=todos.filter(x=>tipo==='PRODUCTOS'?x.k.startsWith('p:'):tipo==='SERVICIOS'?x.k.startsWith('s:'):true);
@@ -134,36 +134,35 @@ async function nuevaVenta(pre,tipo='MIXTA'){
  const pl=()=>`<div class="ln"><select aria-label="Método de pago">${METODOS}</select><input type="number" min="0" inputmode="decimal" aria-label="Valor recibido"><select class="cu" hidden style="grid-column:1/-1" aria-label="Cuenta donde entró el pago"><option value="">Elige la cuenta donde entró</option>${cu.map(x=>`<option value="${x.id}">${esc(x.nombre)}${x.detalle?' ('+esc(x.detalle)+')':''}</option>`).join('')}</select></div>`;
  dlg.innerHTML=`<form id="df"><h2>${pre?.cita_id?'Cobrar cita':tipo==='PRODUCTOS'?'Venta de productos':tipo==='SERVICIOS'?'Venta de servicios':'Nueva venta'}</h2>
  <label for="v1">Cliente</label><select id="v1" name="cliente_id"><option value="">Cliente de paso</option>${op(cl)}</select>
- <label for="v2">Barbero</label><select id="v2" name="barbero_id"><option value="">Sin barbero</option>${op(ba)}</select>
- <label>Servicios y productos</label><div id="lns">${lin()}</div><button type="button" class="link" id="ad">Agregar otro ítem</button>
+ ${esBarbero?'<input type="hidden" id="v2" name="barbero_id" value="'+esc(S.perfil.barbero_id||'')+'">':'<label for="v2">Barbero</label><select id="v2" name="barbero_id"><option value="">Sin barbero</option>'+op(ba)+'</select>'}
+ <label>${esBarbero?'Servicio':'Servicios y productos'}</label><div id="lns">${lin()}</div><button type="button" class="link" id="ad">Agregar otro ítem</button>
  <label for="v3">Descuento</label><input id="v3" name="descuento" type="number" min="0" value="0" inputmode="decimal">
  <p class="tot" id="tt"></p>
- <label>Pagos recibidos</label><div id="pgs">${pl()}</div><button type="button" class="link" id="ap">Agregar otro método de pago</button>${S.negocio.permitir_saldos?'<label class="chk" style="margin-top:10px"><input type="checkbox" id="vfiado"> Registrar saldo pendiente (fiado)</label>':''}<p class="mute" id="fl"></p>
+ ${esBarbero?'<div class="info" style="margin:12px 0">El cobro del servicio quedará pendiente para que caja o administración registre el pago.</div>':'<label>Pagos recibidos</label><div id="pgs">'+pl()+'</div><button type="button" class="link" id="ap">Agregar otro método de pago</button>'+(S.negocio.permitir_saldos?'<label class="chk" style="margin-top:10px"><input type="checkbox" id="vfiado"> Registrar saldo pendiente (fiado)</label>':'')+'<p class="mute" id="fl"></p>'}
  <div class="acts"><button type="button" class="btn sec" id="cx">Cancelar</button><button class="btn">Cobrar</button></div></form>`;
  dlg.showModal();$('#cx').onclick=()=>dlg.close();
  const calc=()=>{const L=[...document.querySelectorAll('#lns .ln')].map(l=>({i:items.find(x=>x.k===l.querySelector('select').value),q:Number(l.querySelector('input').value)}));const br=L.reduce((s,l)=>s+(l.i?l.i.p*l.q:NaN),0),ds=Number($('#v3').value);return{L,br,ds,t:br-ds}};
  const pagos=()=>[...document.querySelectorAll('#pgs .ln')].map(l=>({m:l.querySelector('select').value,v:Number(l.querySelector('input').value)||0,c:l.querySelector('.cu').value||null})).filter(x=>x.v>0);
- $('#pgs').onchange=e=>{if(e.target.tagName==='SELECT'&&!e.target.classList.contains('cu'))e.target.closest('.ln').querySelector('.cu').hidden=e.target.value==='EFECTIVO'||!cu.length};
+ const pagosEl=$('#pgs');if(pagosEl)pagosEl.onchange=e=>{if(e.target.tagName==='SELECT'&&!e.target.classList.contains('cu'))e.target.closest('.ln').querySelector('.cu').hidden=e.target.value==='EFECTIVO'||!cu.length};
  const ref=()=>{const c=calc(),f=$('#pgs .ln input');$('#tt').textContent='Total: '+dinero(c.t);
-  if(!f.dataset.m&&document.querySelectorAll('#pgs .ln').length===1)f.value=Math.max(0,c.t);
-  const rec=pagos().reduce((s,x)=>s+x.v,0),fiado=!!$('#vfiado')?.checked;$('#fl').textContent=rec<c.t?(fiado?'Saldo a crédito: ':'Falta por cobrar: ')+dinero(c.t-rec):rec>c.t?'Sobran '+dinero(rec-c.t):'Pago completo'};
- $('#pgs').oninput=e=>{if(e.target.tagName==='INPUT')e.target.dataset.m=1};
+  if(f&&!f.dataset.m&&document.querySelectorAll('#pgs .ln').length===1)f.value=Math.max(0,c.t);
+  const rec=pagos().reduce((s,x)=>s+x.v,0),fiado=!!$('#vfiado')?.checked,estado=$('#fl');if(estado)estado.textContent=rec<c.t?(fiado?'Saldo a crédito: ':'Falta por cobrar: ')+dinero(c.t-rec):rec>c.t?'Sobran '+dinero(rec-c.t):'Pago completo'};
+ if(pagosEl)pagosEl.oninput=e=>{if(e.target.tagName==='INPUT')e.target.dataset.m=1};
  $('#df').oninput=ref;$('#df').onchange=ref;const fiado=$('#vfiado');if(fiado)fiado.onchange=ref;
  $('#ad').onclick=()=>{$('#lns').insertAdjacentHTML('beforeend',lin());ref()};
  $('#lns').onclick=e=>{if(e.target.classList.contains('rm')){if(document.querySelectorAll('#lns .ln').length===1)return toast('La venta debe tener al menos un ítem.',true);e.target.closest('.ln').remove();ref()}};
- $('#ap').onclick=()=>{const rec=pagos().reduce((s,x)=>s+x.v,0);$('#pgs').insertAdjacentHTML('beforeend',pl());$('#pgs .ln:last-child input').value=Math.max(0,calc().t-rec)||'';ref()};ref();
+ const agregarPago=$('#ap');if(agregarPago)agregarPago.onclick=()=>{const rec=pagos().reduce((s,x)=>s+x.v,0);$('#pgs').insertAdjacentHTML('beforeend',pl());$('#pgs .ln:last-child input').value=Math.max(0,calc().t-rec)||'';ref()};ref();
  if(pre){$('#v1').value=pre.cliente_id||'';$('#v2').value=pre.barbero_id||'';const ls=()=>document.querySelectorAll('#lns .ln select');if(pre.servicio_id)ls()[0].value='s:'+pre.servicio_id;if(pre.fee&&items.some(x=>x.k==='s:'+pre.fee)){$('#ad').click();ls()[1].value='s:'+pre.fee}ref()}
  let guardando=false;
  $('#df').onsubmit=async e=>{e.preventDefault();if(guardando)return;const boton=e.target.querySelector('button[type="submit"],button:not([type])');if(boton)boton.disabled=true;guardando=true;const f=Object.fromEntries(new FormData(e.target)),c=calc(),PG=pagos(),pago=PG.reduce((s,x)=>s+x.v,0),valoresPago=[...document.querySelectorAll('#pgs .ln input')].map(x=>Number(x.value));
   if(!c.L.length||c.L.some(l=>!l.i||!Number.isFinite(l.q)||l.q<=0||!Number.isFinite(l.i.p)||l.i.p<0)||!Number.isFinite(c.t)||!Number.isFinite(c.ds)||valoresPago.some(x=>!Number.isFinite(x)||x<0)||!Number.isFinite(pago)){guardando=false;if(boton)boton.disabled=false;return toast('Revisa las cantidades, precios y valores de pago. Deben ser números válidos y no negativos.',true)}
   if(c.ds<0||c.ds>c.L.reduce((s,l)=>s+l.i.p*l.q,0)){guardando=false;if(boton)boton.disabled=false;return toast('El descuento debe estar entre cero y el subtotal.',true)}
   if(pago>c.t){guardando=false;if(boton)boton.disabled=false;return toast('El pago no puede superar el total.',true)}
-  if(pago<c.t&&(!S.negocio.permitir_saldos||!$('#vfiado')?.checked)){guardando=false;if(boton)boton.disabled=false;return toast(S.negocio.permitir_saldos?'Para dejar saldo pendiente, activa la opción de fiado.':'Esta barbería no permite saldos pendientes. Recibe el pago completo.',true)}
-  if(pago<c.t&&!f.cliente_id){guardando=false;if(boton)boton.disabled=false;return toast('Para registrar una venta fiada debes seleccionar el cliente responsable de la deuda.',true)}
+  const cobroPendienteBarbero=esBarbero&&tipo==='SERVICIOS'&&PG.length===0;
+  if(pago<c.t&&!cobroPendienteBarbero&&(!S.negocio.permitir_saldos||!$('#vfiado')?.checked)){guardando=false;if(boton)boton.disabled=false;return toast(S.negocio.permitir_saldos?'Para dejar saldo pendiente, activa la opción de fiado.':'Esta barbería no permite saldos pendientes. Recibe el pago completo.',true)}
+  if(pago<c.t&&!f.cliente_id){guardando=false;if(boton)boton.disabled=false;return toast(esBarbero?'Selecciona el cliente al que se le asignará el cobro.':'Para registrar una venta fiada debes seleccionar el cliente responsable de la deuda.',true)}
   if(cu.length&&PG.some(x=>x.m!=='EFECTIVO'&&!x.c)){guardando=false;if(boton)boton.disabled=false;return toast('Elige la cuenta donde entró cada pago que no es en efectivo.',true)}
-  const{data:cajaActual,error:errorCajaActual}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();
-  if(errorCajaActual){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorCajaActual.message),true)}
-  if(!cajaActual?.id){guardando=false;if(boton)boton.disabled=false;return toast('La caja se cerró. Abre una caja para registrar la venta.',true)}
+  if(!esBarbero){const{data:cajaActual,error:errorCajaActual}=await sb.from('cajas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('estado_caja','ABIERTA').maybeSingle();if(errorCajaActual){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorCajaActual.message),true)}if(!cajaActual?.id){guardando=false;if(boton)boton.disabled=false;return toast('La caja se cerró. Abre una caja para registrar la venta.',true)}}
   if(pre?.cita_id){const{data:citaActual,error:errorCitaActual}=await sb.from('citas').select('estado').eq('negocio_id',S.perfil.negocio_id).eq('id',pre.cita_id).maybeSingle();if(errorCitaActual){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorCitaActual.message),true)}if(!['PENDIENTE','CONFIRMADA','ATENDIDA'].includes(citaActual?.estado)){guardando=false;if(boton)boton.disabled=false;return toast('La cita ya no está disponible para cobro.',true)}const{data:duplicada,error:errorDuplicada}=await sb.from('ventas').select('id').eq('negocio_id',S.perfil.negocio_id).eq('cita_id',pre.cita_id).neq('estado_venta','ANULADA').limit(1);if(errorDuplicada){guardando=false;if(boton)boton.disabled=false;return toast(traducir(errorDuplicada.message),true)}if(duplicada?.length){guardando=false;if(boton)boton.disabled=false;return toast('Esta cita ya fue cobrada.',true)}}
   const bar=ba.find(x=>x.id===f.barbero_id),nid=S.perfil.negocio_id;
   const{data:v,error}=await sb.from('ventas').insert({negocio_id:nid,cliente_id:f.cliente_id||null,barbero_id:f.barbero_id||null,descuento:c.ds,metodo_pago_principal:(PG.slice().sort((a,b)=>b.v-a.v)[0]?.m)||'EFECTIVO',creado_por:S.perfil.id,cita_id:pre?.cita_id||null}).select('id').single();
@@ -178,7 +177,7 @@ async function nuevaVenta(pre,tipo='MIXTA'){
   if(!r.error&&PG.length)r=await sb.from('pagos').insert(PG.map(x=>({negocio_id:nid,venta_id:v.id,valor_pago:x.v,metodo_pago:x.m,cuenta_id:x.c,recibido_por:S.perfil.id})));
   if(r.error){const rollback=await sb.from('ventas').delete().eq('negocio_id',nid).eq('id',v.id);guardando=false;if(boton)boton.disabled=false;return toast(rollback.error?'No se completó la venta y tampoco pudo revertirse automáticamente: '+r.error.message+' / '+rollback.error.message:'No se completó la venta; se revirtió el registro inicial. '+r.error.message,true)}
   if(pre?.cita_id){const{data:citaMarcada,error:errorCitaMarcada}=await sb.from('citas').update({estado:'ATENDIDA'}).eq('negocio_id',nid).eq('id',pre.cita_id).in('estado',['PENDIENTE','CONFIRMADA','ATENDIDA']).select('id').maybeSingle();if(errorCitaMarcada||!citaMarcada){dlg.close();toast('La venta quedó registrada, pero no se pudo actualizar la cita a ATENDIDA. Revisa la Agenda.',true);return}}
-  dlg.close();toast('Venta registrada');ventas()};
+  dlg.close();toast(esBarbero?'Cobro asignado. Queda pendiente de pago en caja.':'Venta registrada');ventas()};
 }
 async function editarVenta(v, actuales){
  if(!ADM.includes(S.perfil.rol))return toast('Solo administración puede editar ventas.',true);

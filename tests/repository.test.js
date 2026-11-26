@@ -876,3 +876,24 @@ test('el inventario clasifica artículos, calcula utilidad y convierte compras p
   assert.match(index, /\['productos','Inventario'\]/);
   assert.match(index, /\.inventory-purchase-line/);
 });
+
+
+test('el perfil BARBERO tiene menú propio, agenda y cobros de servicios pendientes', () => {
+  const index = readFileSync(resolve(root, 'index.html'), 'utf8');
+  const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
+  const catalogos = readFileSync(resolve(root, 'src/modules/catalogos.js'), 'utf8');
+  const ventas = readFileSync(resolve(root, 'src/modules/ventas.js'), 'utf8');
+  const sqlVentas = readFileSync(resolve(root, 'supabase/migrations/20261123195434_barbero_permisos_ventas.sql'), 'utf8');
+  const sqlDetalles = readFileSync(resolve(root, 'supabase/migrations/20261123195435_barbero_permisos_detalles.sql'), 'utf8');
+  const sqlPagos = readFileSync(resolve(root, 'supabase/migrations/20261123195436_barbero_permisos_pagos.sql'), 'utf8');
+  assert.ok(index.includes("['inicio','agenda','crearcliente','ventas','miscom','miperfil']"));
+  assert.ok(index.includes("crearcliente:()=>crud('clientes')"));
+  assert.match(agenda, /if\(t==='barberos'&&esBarbero\)q=q\.eq\('id',S\.perfil\.barbero_id\)/);
+  assert.ok(catalogos.includes("soloCrearCliente=k==='clientes'&&S.perfil.rol==='BARBERO'"));
+  assert.ok(catalogos.includes('Ya existe un cliente con ese teléfono: '));
+  assert.ok(ventas.includes('El cobro del servicio quedará pendiente para que caja o administración registre el pago.'));
+  assert.ok(ventas.includes("const cobroPendienteBarbero=esBarbero&&tipo==='SERVICIOS'&&PG.length===0;"));
+  assert.ok(sqlVentas.includes('ventas_barbero_insert'));
+  assert.ok(sqlDetalles.includes("tipo_item = 'SERVICIO'"));
+  assert.ok(sqlPagos.includes('pagos_admin_insert'));
+});
