@@ -1,6 +1,6 @@
 // Centro de notificaciones en tiempo real mientras la aplicación está abierta.
 export function crearModuloNotificaciones({ $, sb, S, esc, toast }) {
- const BASE={citas_30m:true,citas_15m:false,stock_bajo:true,stock_agotado:true,pedidos_clientes:true,cuentas_vencer:true};
+ const BASE={citas_nuevas:true,citas_30m:true,citas_15m:false,stock_bajo:true,stock_agotado:true,pedidos_clientes:true,cuentas_vencer:true};
  let preferencias={...BASE},avisos=[],timer=null,consultando=false;
  const clave=()=> 'barberia_notif_'+S.perfil.negocio_id;
  const leidas=()=>{try{return JSON.parse(localStorage.getItem(clave())||'{}')}catch{return {}}};
@@ -9,6 +9,11 @@ export function crearModuloNotificaciones({ $, sb, S, esc, toast }) {
   vistos[id]=Date.now();localStorage.setItem(clave(),JSON.stringify(vistos));
   avisos.unshift({id,titulo,detalle,tipo,fecha:new Date()});avisos=avisos.slice(0,60);
   pintarCampana();
+  if(tipo==='cita-nueva'){
+   try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch{}
+   try{if('Notification' in window&&Notification.permission==='granted')new Notification(titulo,{body:detalle,icon:'icon-192.png',tag:id})}catch{}
+   toast(titulo+' · '+detalle);
+  }
  };
  function pintarCampana(){
   const b=$('#campana-notificaciones');if(!b)return;
@@ -36,6 +41,10 @@ export function crearModuloNotificaciones({ $, sb, S, esc, toast }) {
      if(preferencias.citas_30m&&faltan<=30&&faltan>=29)registrar('cita30_'+c.id,c.clientes?.nombre||'Próxima cita','Tu cita es en aproximadamente 30 minutos · '+(c.servicios?.nombre||'Servicio'),'cita');
      if(preferencias.citas_15m&&faltan<=15&&faltan>=14)registrar('cita15_'+c.id,c.clientes?.nombre||'Próxima cita','Tu cita es en aproximadamente 15 minutos · '+(c.servicios?.nombre||'Servicio'),'cita');
     });
+   }
+   if(preferencias.citas_nuevas){
+    const{data:nuevas,error:errorNuevas}=await sb.from('citas').select('id,inicio,clientes(nombre),servicios(nombre),barberos(nombre)').eq('negocio_id',S.perfil.negocio_id).eq('estado','PENDIENTE').gte('inicio',ahora.toISOString()).order('inicio').limit(50);
+    if(!errorNuevas)(nuevas||[]).forEach(c=>registrar('nueva_'+c.id,'Cita nueva por confirmar',(c.clientes?.nombre||'Cliente')+' · '+new Date(c.inicio).toLocaleString('es-CO',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+' · '+(c.servicios?.nombre||'Servicio')+(c.barberos?.nombre?' con '+c.barberos.nombre:''),'cita-nueva'));
    }
    if(preferencias.stock_bajo||preferencias.stock_agotado){
     const{data:ps,error:ep}=await sb.from('productos').select('id,nombre,stock_minimo,control_stock,estado').eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').eq('control_stock',true);
@@ -67,8 +76,8 @@ export function crearModuloNotificaciones({ $, sb, S, esc, toast }) {
   $('#limpiar-notif').onclick=()=>{avisos=[];pintarCampana();panel.hidden=true};
  }
  function iniciar(){
-  const campana=$('#campana-notificaciones');if(campana)campana.onclick=abrir;
-  cargarPreferencias().finally(()=>{revisar();if(timer)clearInterval(timer);timer=setInterval(revisar,60000)});
+  const campana=$('#campana-notificaciones');if(campana)campana.onclick=()=>{try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission()}catch{}abrir()};
+  cargarPreferencias().finally(()=>{revisar();if(timer)clearInterval(timer);timer=setInterval(revisar,30000)});
  }
  function detener(){if(timer)clearInterval(timer);timer=null}
  return { iniciar, detener, abrir, cargarPreferencias, guardarPreferencias, revisar };

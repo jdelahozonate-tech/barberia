@@ -147,7 +147,7 @@ test('Reportes ofrece informes gerenciales y exportación PDF y Excel', () => {
   assert.match(index, /\['reportes','Reportes',1\]/);
   assert.match(index, /crearModuloReportes/);
   assert.match(sw, /src\/modules\/reportes\.js/);
-  assert.match(sw, /barberia-v25/);
+  assert.match(sw, /barberia-v26/);
 });
 
 test('Las comisiones históricas de ventas no pagadas se limpian', () => {
@@ -353,7 +353,7 @@ test('equipo, agenda y cierres limitan operaciones al negocio y bloquean escritu
   const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
   const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
   assert.match(equipo, /from\('perfiles'\)[\s\S]*?eq\('negocio_id',S\.perfil\.negocio_id\)/);
-  assert.match(equipo, /from\('horarios_barbero'\)\.delete\(\)\.eq\('negocio_id',S\.perfil\.negocio_id\)/);
+  assert.match(equipo, /rpc\('guardar_horarios_barbero'/);
   assert.match(equipo, /let guardando=false/);
   assert.match(equipo, /let creando=false/);
   assert.match(equipo, /Completa la hora de entrada y salida/);
@@ -601,7 +601,7 @@ test('el módulo de productos integra proveedores, compras, pagos e historial de
   assert.match(index, /const \{ productos \} = crearModuloProductos/);
   assert.match(index, /pedidos: pedidosProductos/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v25/);
+  assert.match(sw, /barberia-v26/);
   assert.match(sw, /src\/modules\/pedidos\.js/);
 });
 
@@ -689,7 +689,7 @@ test('preferencias y centro de notificaciones están integrados y cacheados', ()
   assert.match(index, /campana-notificaciones/);
   assert.match(ajustes, /citas_30m/);
   assert.match(ajustes, /stock_agotado/);
-  assert.match(notif, /setInterval\(revisar,60000\)/);
+  assert.match(notif, /setInterval\(revisar,30000\)/);
   assert.match(notif, /from\('citas'\)/);
   assert.match(notif, /from\('stock_actual'\)/);
   assert.match(sql, /preferencias_notificaciones/);
@@ -730,7 +730,7 @@ test('los perfiles de barberos permiten fotografía privada de administración y
   assert.match(index, /miperfil:miPerfil/);
   assert.match(sql, /CREATE POLICY barberos_perfil_propio/);
   assert.match(sql, /barberos_fotos_insertar/);
-  assert.match(sw, /barberia-v25/);
+  assert.match(sw, /barberia-v26/);
 });
 
 
