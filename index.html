@@ -729,7 +729,7 @@ const NOTIF=crearModuloNotificaciones({ $, sb, S, esc, toast });
 
 /* ---------- Acceso ---------- */
 /* ---------- Estructura ---------- */
-const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['pedidos','Pedidos'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Inventario'],['caja','Caja',1],['comisiones','Liquidaciones',1],['reportes','Reportes',1],['ajustes','Ajustes',2],['crearcliente','Crear cliente',3],['miscom','Mis comisiones',3],['miperfil','Mi perfil',3]];
+const MENU=[['inicio','Inicio'],['agenda','Agenda'],['ventas','Ventas'],['clientes','Clientes'],['barberos','Barberos'],['servicios','Servicios'],['productos','Inventario'],['caja','Caja',1],['comisiones','Liquidaciones',1],['reportes','Reportes',1],['ajustes','Ajustes',2],['crearcliente','Crear cliente',3],['miscom','Mis comisiones',3],['miperfil','Mi perfil',3]];
 const { pantallaAuth, cargar, aviso } = crearModuloAcceso({ $, app, sb, S, esc, traducir, toast, waNum, shell });
 function avatarPerfil(){
  const nombre=String(S.perfil.nombre||'Usuario').trim(),iniciales=nombre.split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'U';

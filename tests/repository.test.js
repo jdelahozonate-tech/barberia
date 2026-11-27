@@ -147,7 +147,7 @@ test('Reportes ofrece informes gerenciales y exportación PDF y Excel', () => {
   assert.match(index, /\['reportes','Reportes',1\]/);
   assert.match(index, /crearModuloReportes/);
   assert.match(sw, /src\/modules\/reportes\.js/);
-  assert.match(sw, /barberia-v28/);
+  assert.match(sw, /barberia-v29/);
 });
 
 test('Las comisiones históricas de ventas no pagadas se limpian', () => {
@@ -565,50 +565,39 @@ test('las tarjetas del dashboard actualizan la gráfica seleccionada sin recarga
 });
 
 
-test('el módulo de productos integra proveedores, compras, pagos e historial de inventario', () => {
+test('el módulo de productos es un control de inventario simple, sin proveedores', () => {
   const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261119000000_compras_proveedores_inventario.sql'), 'utf8');
+  const simple = readFileSync(resolve(root, 'supabase/migrations/20261126000000_entrada_inventario_simple.sql'), 'utf8');
   const index = readFileSync(resolve(root, 'index.html'), 'utf8');
   const sw = readFileSync(resolve(root, 'sw.js'), 'utf8');
   const finanzas = readFileSync(resolve(root, 'src/modules/finanzas.js'), 'utf8');
-  for (const table of ['proveedores_inventario', 'compras_inventario', 'detalle_compras_inventario', 'pagos_compras_inventario']) {
-    assert.ok(sql.includes('public.' + table), 'Falta tabla ' + table);
-  }
-  for (const rpc of ['registrar_compra_inventario', 'registrar_pago_compra_inventario', 'anular_compra_inventario', 'ajustar_inventario_producto']) {
-    assert.ok(sql.includes('FUNCTION public.' + rpc), 'Falta RPC ' + rpc);
+  assert.ok(sql.includes('FUNCTION public.ajustar_inventario_producto'));
+  for (const rpc of ['registrar_entrada_inventario', 'ajustar_inventario_producto', 'registrar_obsequio']) {
     assert.ok(productos.includes("rpc('" + rpc + "'"), 'La interfaz no llama ' + rpc);
   }
-  assert.match(sql, /SECURITY DEFINER/);
-  assert.match(sql, /mi_negocio\(\)/);
-  assert.match(sql, /mi_rol\(\)/);
-  assert.match(sql, /FOR UPDATE/);
-  assert.match(sql, /compra_id/);
-  assert.match(sql, /stock_actual/);
-  assert.match(sql, /No hay existencias suficientes para revertir esta compra/);
-  assert.match(sql, /promedio ponderado/);
-  assert.match(sql, /fecha_vencimiento/);
-  assert.match(sql, /numero_factura/);
+  assert.match(simple, /SECURITY DEFINER|security definer/i);
+  assert.match(simple, /mi_negocio\(\)/);
+  assert.match(simple, /for update/);
+  assert.match(simple, /costo promedio ponderado/);
+  assert.match(simple, /revoke all on function public\.registrar_entrada_inventario\(jsonb,text\) from public, anon/);
+  assert.match(productos, /Entrada de mercancía/);
   assert.match(productos, /Ajuste de inventario/);
-  assert.match(sql, /caja_id/);
-  assert.equal((sql.match(/La caja indicada no existe/g) || []).length, 2);
-  assert.match(sql, /COALESCE\(st\.existencias,0\) \* COALESCE\(p\.costo_unitario,0\) > r\.costo_total/);
   assert.match(finanzas, /pagos_compras_inventario/);
-  assert.match(finanzas, /Compras pagadas en efectivo/);
   assert.match(productos, /eq\('negocio_id',nid\(\)\)/);
   assert.match(productos, /data-tab="movimientos"/);
-  assert.match(productos, /data-tab="proveedores"/);
+  assert.doesNotMatch(productos, /proveedor/i);
+  assert.doesNotMatch(productos, /data-tab="proveedores"|data-tab="compras"/);
   assert.match(index, /crearModuloProductos/);
   assert.match(index, /const \{ productos \} = crearModuloProductos/);
-  assert.match(index, /pedidos: pedidosProductos/);
+  assert.doesNotMatch(index, /\['pedidos','Pedidos'\]/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v28/);
+  assert.match(sw, /barberia-v29/);
   assert.match(sw, /src\/modules\/pedidos\.js/);
 });
 
-test('los pagos de compras requieren caja abierta en interfaz y base de datos', () => {
-  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
+test('los pagos de compras requieren caja abierta en base de datos', () => {
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261119020000_exigir_caja_abierta_operaciones.sql'), 'utf8');
-  assert.match(productos, /Para registrar un abono al proveedor, primero abre la caja/);
   assert.match(sql, /NEW\.caja_id IS NULL OR NOT EXISTS/);
   assert.match(sql, /BEFORE INSERT OR UPDATE OF metodo_pago, caja_id, negocio_id/);
 });
@@ -621,8 +610,6 @@ test('ventas, compras, gastos y pagos requieren caja abierta en interfaz y Supab
   const sql = readFileSync(resolve(root, 'supabase/migrations/20261119020000_exigir_caja_abierta_operaciones.sql'), 'utf8');
   assert.match(ventas, /Para registrar una venta, primero abre la caja/);
   assert.match(ventas, /La caja se cerró\. Abre una caja para registrar la venta/);
-  assert.match(productos, /Para registrar una compra, primero abre la caja/);
-  assert.match(productos, /Para registrar un abono al proveedor, primero abre la caja/);
   assert.match(finanzas, /Para registrar un gasto, primero abre la caja/);
   assert.match(finanzas, /Abre Caja para registrar el pago/);
   assert.match(finanzas, /registrar_abono_liquidacion_barbero/);
@@ -669,14 +656,6 @@ test('los pedidos a proveedores se administran desde Pedidos y no descuentan sto
   assert.match(sql, /estado IN \('BORRADOR','ENVIADO','RECIBIDO','CANCELADO'\)/);
   assert.match(recepcion, /registrar_compra_inventario/);
   assert.match(recepcion, /compra_id=v_compra/);
-});
-
-test('proveedores solo solicitan nombre y teléfono desde el formulario', () => {
-  const productos = readFileSync(resolve(root, 'src/modules/productos.js'), 'utf8');
-  const form = productos.slice(productos.indexOf('async function proveedorForm'), productos.indexOf('async function compraForm'));
-  assert.match(form, /name="nombre"/);
-  assert.match(form, /name="telefono"/);
-  assert.doesNotMatch(form, /name="correo"|name="documento"|name="direccion"/);
 });
 
 test('preferencias y centro de notificaciones están integrados y cacheados', () => {
@@ -730,7 +709,7 @@ test('los perfiles de barberos permiten fotografía privada de administración y
   assert.match(index, /miperfil:miPerfil/);
   assert.match(sql, /CREATE POLICY barberos_perfil_propio/);
   assert.match(sql, /barberos_fotos_insertar/);
-  assert.match(sw, /barberia-v28/);
+  assert.match(sw, /barberia-v29/);
 });
 
 
@@ -866,8 +845,8 @@ test('el inventario clasifica artículos, calcula utilidad y convierte compras p
   assert.match(productos, /INSUMO/);
   assert.match(productos, /EQUIPO/);
   assert.match(productos, /const utilidad=p=>Number\(p\.precio_venta\|\|0\)-Number\(p\.costo_unitario\|\|0\)/);
-  assert.match(productos, /costoUnitario=unidades>0\?costoPaquete\/unidades:0/);
-  assert.match(productos, /cantidad:d\.cantidad/);
+  assert.match(productos, /costo_unitario:unidades>0\?costoPaquete\/unidades:0/);
+  assert.match(productos, /cantidad:paquetes\*unidades/);
   assert.match(productos, /name="imagen"/);
   assert.match(ventas, /q=q\.eq\('vendible',true\)/);
   assert.match(sql, /ADD COLUMN IF NOT EXISTS tipo_inventario/);
