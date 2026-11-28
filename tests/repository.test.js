@@ -82,13 +82,15 @@ test('Ventas genera y comparte el comprobante como imagen JPG, no como PDF', () 
   assert.match(ventas, /async function generarImagenComprobante/);
   assert.match(ventas, /async function cargarLogoComprobante/);
   assert.match(ventas, /function imagenComprobante\(datosVenta,logo\)/);
-  assert.match(ventas, /COMPROBANTE DE VENTA/);
+  assert.match(ventas, /RECIBO DE PAGO/);
   assert.match(ventas, /SALDO PENDIENTE/);
   assert.match(ventas, /canvas\.toBlob/);
   assert.match(ventas, /type:'image\/jpeg'/);
   assert.match(ventas, /new File\(\[blob\],nombreArchivo,\{type:'image\/jpeg'\}\)/);
   assert.match(ventas, /navigator\.canShare/);
-  assert.match(ventas, /ESTADO DE CUENTA/);
+  assert.match(ventas, /MONEDA/);
+  assert.match(ventas, /INFORMACIÓN DEL CLIENTE/);
+  assert.match(ventas, /COP /);
   assert.match(ventas, /Saldo pendiente/);
   assert.match(ventas, /No sustituye una factura electrónica/);
   assert.match(ventas, /id="shareimage"/);
