@@ -147,7 +147,7 @@ test('Reportes ofrece informes gerenciales y exportación PDF y Excel', () => {
   assert.match(index, /\['reportes','Reportes',1\]/);
   assert.match(index, /crearModuloReportes/);
   assert.match(sw, /src\/modules\/reportes\.js/);
-  assert.match(sw, /barberia-v29/);
+  assert.match(sw, /barberia-v30/);
 });
 
 test('Las comisiones históricas de ventas no pagadas se limpian', () => {
@@ -592,7 +592,7 @@ test('el módulo de productos es un control de inventario simple, sin proveedore
   assert.match(index, /const \{ productos \} = crearModuloProductos/);
   assert.doesNotMatch(index, /\['pedidos','Pedidos'\]/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v29/);
+  assert.match(sw, /barberia-v30/);
   assert.match(sw, /src\/modules\/pedidos\.js/);
 });
 
@@ -709,7 +709,7 @@ test('los perfiles de barberos permiten fotografía privada de administración y
   assert.match(index, /miperfil:miPerfil/);
   assert.match(sql, /CREATE POLICY barberos_perfil_propio/);
   assert.match(sql, /barberos_fotos_insertar/);
-  assert.match(sw, /barberia-v29/);
+  assert.match(sw, /barberia-v30/);
 });
 
 
@@ -875,4 +875,17 @@ test('el perfil BARBERO tiene menú propio, agenda y cobros de servicios pendien
   assert.ok(sqlVentas.includes('ventas_barbero_insert'));
   assert.ok(sqlDetalles.includes("tipo_item = 'SERVICIO'"));
   assert.ok(sqlPagos.includes('pagos_admin_insert'));
+});
+
+test('la agenda maneja solo confirmada, atendida y cancelada; las citas nacen confirmadas y avisa cumpleaños', () => {
+  const agenda = readFileSync(resolve(root, 'src/modules/agenda.js'), 'utf8');
+  const notif = readFileSync(resolve(root, 'src/modules/notificaciones.js'), 'utf8');
+  const sql = readFileSync(resolve(root, 'supabase/migrations/20261127000000_citas_confirmadas_por_defecto.sql'), 'utf8');
+  assert.match(agenda, /const E=\['CONFIRMADA','ATENDIDA','CANCELADA'\]/);
+  assert.match(agenda, /origen:'APP',estado:'CONFIRMADA'/);
+  assert.match(sql, /alter column estado set default 'CONFIRMADA'/);
+  assert.doesNotMatch(sql, /delete\s+from/i);
+  assert.match(notif, /eq\('origen','PUBLICA'\)/);
+  assert.match(notif, /Mañana cumple años/);
+  assert.match(notif, /fecha_nacimiento/);
 });

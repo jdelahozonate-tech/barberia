@@ -1,7 +1,7 @@
 // Centro de notificaciones en tiempo real mientras la aplicación está abierta.
 export function crearModuloNotificaciones({ $, sb, S, esc, toast }) {
- const BASE={citas_nuevas:true,citas_30m:true,citas_15m:false,stock_bajo:true,stock_agotado:true,pedidos_clientes:true,cuentas_vencer:true};
- let preferencias={...BASE},avisos=[],timer=null,consultando=false;
+ const BASE={citas_nuevas:true,cumpleanos:true,citas_30m:true,citas_15m:false,stock_bajo:true,stock_agotado:true,pedidos_clientes:true,cuentas_vencer:true};
+ let preferencias={...BASE},avisos=[],timer=null,consultando=false,cumpleRevisado='';
  const clave=()=> 'barberia_notif_'+S.perfil.negocio_id;
  const leidas=()=>{try{return JSON.parse(localStorage.getItem(clave())||'{}')}catch{return {}}};
  const registrar=(id,titulo,detalle,tipo='info')=>{
@@ -43,8 +43,17 @@ export function crearModuloNotificaciones({ $, sb, S, esc, toast }) {
     });
    }
    if(preferencias.citas_nuevas){
-    const{data:nuevas,error:errorNuevas}=await sb.from('citas').select('id,inicio,clientes(nombre),servicios(nombre),barberos(nombre)').eq('negocio_id',S.perfil.negocio_id).eq('estado','PENDIENTE').gte('inicio',ahora.toISOString()).order('inicio').limit(50);
-    if(!errorNuevas)(nuevas||[]).forEach(c=>registrar('nueva_'+c.id,'Cita nueva por confirmar',(c.clientes?.nombre||'Cliente')+' · '+new Date(c.inicio).toLocaleString('es-CO',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+' · '+(c.servicios?.nombre||'Servicio')+(c.barberos?.nombre?' con '+c.barberos.nombre:''),'cita-nueva'));
+    const{data:nuevas,error:errorNuevas}=await sb.from('citas').select('id,inicio,clientes(nombre),servicios(nombre),barberos(nombre)').eq('negocio_id',S.perfil.negocio_id).eq('estado','CONFIRMADA').eq('origen','PUBLICA').gte('creado_en',new Date(ahora.getTime()-12*3600*1000).toISOString()).gte('inicio',ahora.toISOString()).order('inicio').limit(50);
+    if(!errorNuevas)(nuevas||[]).forEach(c=>registrar('nueva_'+c.id,'Cita nueva reservada',(c.clientes?.nombre||'Cliente')+' · '+new Date(c.inicio).toLocaleString('es-CO',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+' · '+(c.servicios?.nombre||'Servicio')+(c.barberos?.nombre?' con '+c.barberos.nombre:''),'cita-nueva'));
+   }
+   if(preferencias.cumpleanos){
+    const zona=S.negocio?.zona_horaria||'America/Bogota',manana=new Intl.DateTimeFormat('en-CA',{timeZone:zona}).format(new Date(ahora.getTime()+24*3600*1000));
+    if(cumpleRevisado!==manana){
+     const{data:cs,error:ec}=await sb.from('clientes').select('id,nombre,telefono,fecha_nacimiento').eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').not('fecha_nacimiento','is',null).limit(5000);
+     if(!ec){cumpleRevisado=manana;const md=manana.slice(5),anio=Number(manana.slice(0,4)),bisiesto=anio%4===0&&(anio%100!==0||anio%400===0);
+      (cs||[]).filter(c=>{const x=String(c.fecha_nacimiento).slice(5,10);return x===md||(md==='02-28'&&!bisiesto&&x==='02-29')}).forEach(c=>registrar('cumple_'+c.id+'_'+manana,'Mañana cumple años '+(c.nombre||'un cliente'),'Cumpleaños de cliente'+(c.telefono?' · '+c.telefono:'')+'. Es buen momento para saludarlo.','info'));
+     }
+    }
    }
    if(preferencias.stock_bajo||preferencias.stock_agotado){
     const{data:ps,error:ep}=await sb.from('productos').select('id,nombre,stock_minimo,control_stock,estado').eq('negocio_id',S.perfil.negocio_id).eq('estado','ACTIVO').eq('control_stock',true);
