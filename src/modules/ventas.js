@@ -261,63 +261,61 @@ async function cargarLogoComprobante(url){
   canvas.height=Math.max(1,Math.round(imagen.height*escala));
   const contexto=canvas.getContext('2d');
   if(!contexto)return null;
-  contexto.fillStyle='#ffffff';contexto.fillRect(0,0,canvas.width,canvas.height);
   contexto.drawImage(imagen,0,0,canvas.width,canvas.height);
-  const base64=canvas.toDataURL('image/jpeg',0.9).split(',')[1];
+  const base64=canvas.toDataURL('image/png').split(',')[1];
   const binario=atob(base64);
   return {width:canvas.width,height:canvas.height,data:binario};
  }catch(error){return null}
 }
 async function imagenComprobante(datosVenta,logo){
- const W=720,pad=40,azul='#132541',dorado='#c79c48',gris='#f2f4f6',texto='#212e40',suave='#66717f',verde='#21704a',rojo='#a62e29';
+ const W=720,M=44,negro='#111',gris='#d9d9d9',tinta='#1a1a1a',suave='#6b6b6b',rojo='#a62e29',verde='#21704a';
  const detalles=datosVenta.detalles||[],pagos=datosVenta.pagos||[],resumen=datosVenta.resumen||{};
- const moneda=n=>dinero(Number(n)||0);
- const envolver=(valor,max=43)=>{const palabras=String(valor??'').split(/\s+/),lineas=[];let actual='';palabras.forEach(p=>{if(!p)return;if(actual&&actual.length+p.length>max){lineas.push(actual);actual=p}else actual+=(actual?' ':'')+p});if(actual)lineas.push(actual);return lineas.length?lineas:['']};
- const filas=detalles.map(item=>({item,lineas:envolver(item.descripcion||'Servicio o producto',43).slice(0,2)}));
- const altoFilas=filas.reduce((s,f)=>s+68+(f.lineas.length>1?18:0),0);
- const H=Math.max(1120,900+altoFilas+pagos.length*58);
+ const num=n=>Math.round(Number(n)||0).toLocaleString('es-CO'),cop=n=>'COP '+num(n);
+ const envolver=(valor,max=30)=>{const palabras=String(valor??'').split(/\s+/),lineas=[];let actual='';palabras.forEach(p=>{if(!p)return;if(actual&&(actual+' '+p).length>max){lineas.push(actual);actual=p}else actual+=(actual?' ':'')+p});if(actual)lineas.push(actual);return lineas.length?lineas:['']};
+ const filas=detalles.map(item=>{const cant=Number(item.cantidad)||0;return{item,lineas:envolver((cant>1?cant.toLocaleString('es-CO')+' × ':'')+(item.descripcion||'Servicio o producto'),30).slice(0,2)}});
+ const H=760+filas.length*64+pagos.length*40;
  const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
  const c=canvas.getContext('2d');if(!c)throw new Error('No fue posible preparar la imagen del comprobante.');
  c.fillStyle='#fff';c.fillRect(0,0,W,H);
- const txt=(s,x,y,size=20,color=texto,bold=false,align='left')=>{c.fillStyle=color;c.font=(bold?'700 ':'500 ')+size+'px Arial, sans-serif';c.textAlign=align;c.fillText(String(s??''),x,y)};
- const rect=(x,y,w,h,color,r=12)=>{c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill()};
- const line=(y,color='#e0e4e8')=>{c.strokeStyle=color;c.lineWidth=2;c.beginPath();c.moveTo(pad,y);c.lineTo(W-pad,y);c.stroke()};
- c.fillStyle=dorado;c.fillRect(0,0,W,14);
- let logoY=42;
- if(logo?.data){try{const img=new Image();img.src='data:image/jpeg;base64,'+btoa(logo.data);await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject});if(img.naturalWidth){const sc=Math.min(112/img.width,100/img.height);c.drawImage(img,42,38,img.width*sc,img.height*sc);logoY=160}}catch{}}
- txt(S.negocio?.nombre||'DH BARBER',logoY===160?176:42,88,34,azul,true);
- txt('BARBERÍA · ESTILO · CUIDADO PERSONAL',logoY===160?176:42,120,14,suave);
- line(174,dorado);
- txt('COMPROBANTE DE VENTA',pad,224,25,azul,true);
- const estado=String(datosVenta.estado||'PENDIENTE').toUpperCase(),estadoColor=estado==='PAGADO'?verde:estado==='ANULADA'?rojo:dorado;
- rect(490,188,190,48,gris,20);txt(estado,585,219,17,estadoColor,true,'center');
- txt('No. '+(datosVenta.numero||'—'),pad,266,18,texto,true);
- txt(datosVenta.fecha||'',pad,298,16,suave);
- let y=338;
- rect(pad,y,W-pad*2,132,gris,14);
- txt('CLIENTE',62,y+35,14,suave,true);txt(String(datosVenta.cliente?.nombre||'Cliente de paso').slice(0,46),62,y+70,22,texto,true);
- txt('TELÉFONO',62,y+108,13,suave,true);txt(String(datosVenta.cliente?.telefono||'No registrado').slice(0,22),180,y+108,16,texto);
- txt('ATENDIDO POR',430,y+108,13,suave,true);txt(String(datosVenta.barbero?.nombre||'No asignado').slice(0,20),658,y+108,16,texto,true,'right');
- y+=184;txt('DETALLE',pad,y,20,azul,true);y+=26;
- rect(pad,y,W-pad*2,44,azul,8);txt('PRODUCTO / SERVICIO',58,y+29,15,'#fff',true);txt('VALOR',662,y+29,15,'#fff',true,'right');y+=44;
- if(!filas.length){txt('No hay productos ni servicios registrados.',58,y+36,16,suave);y+=60}
- filas.forEach((f,i)=>{const item=f.item,h=68+(f.lineas.length>1?18:0);if(i%2===0)rect(pad,y,W-pad*2,h,'#f7f8fa',6);
-  f.lineas.forEach((s,j)=>txt(s,58,y+25+j*21,16,texto,j===0));
-  txt((Number(item.cantidad)||0).toLocaleString('es-CO')+' × '+moneda(item.precio_unitario),58,y+h-10,13,suave);
-  txt(moneda(item.subtotal??(Number(item.cantidad)*Number(item.precio_unitario))),662,y+31,17,texto,true,'right');y+=h;line(y);});
- y+=34;txt('RESUMEN DE PAGO',pad,y,20,azul,true);y+=32;
- const resumenLineas=[['Subtotal',moneda(resumen.subtotal)],...(Number(resumen.descuento)>0?[['Descuento','- '+moneda(resumen.descuento)]]:[]),['Total de la venta',moneda(resumen.total)],['Total pagado',moneda(resumen.pagado)]];
- resumenLineas.forEach((r,i)=>{if(i===2)line(y-12,dorado);txt(r[0],58,y,17,i===2?azul:texto,i===2);txt(r[1],662,y,17,i===2?azul:texto,true,'right');y+=39});
- rect(pad,y-8,W-pad*2,76,resumen.saldo>0?gris:'#edf5ef',12);
- txt(resumen.saldo>0?'SALDO PENDIENTE':'ESTADO DE CUENTA',60,y+23,15,resumen.saldo>0?dorado:verde,true);
- txt(resumen.saldo>0?moneda(resumen.saldo):'PAGADO',660,y+49,25,resumen.saldo>0?dorado:verde,true,'right');y+=104;
- txt('PAGOS REGISTRADOS',pad,y,20,azul,true);y+=28;
- if(!pagos.length){txt('No se registran pagos asociados.',58,y+20,15,suave);y+=46}
- else pagos.forEach((p,i)=>{if(i%2===0)rect(pad,y,W-pad*2,48,gris,6);const fecha=new Date(p.fecha_hora).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});txt(fecha+' · '+bonito(p.metodo_pago||'No registrado'),58,y+30,15,texto);txt(moneda(p.valor_pago),662,y+30,16,texto,true,'right');y+=54});
- y+=24;line(y,dorado);y+=48;txt('¡GRACIAS POR PREFERIRNOS!',pad,y,23,azul,true);y+=34;
- txt('Agradecemos tu confianza. Te esperamos pronto.',pad,y,16,suave);y+=34;
- txt('Comprobante comercial. No sustituye una factura electrónica',pad,y,13,suave);y+=20;txt('de venta autorizada por la DIAN.',pad,y,13,suave);y+=36;txt('DH BARBER',pad,y,15,dorado,true);
- const final= document.createElement('canvas');final.width=W;final.height=y+36;final.getContext('2d').drawImage(canvas,0,0);return final;
+ const F='Montserrat, "Segoe UI", Arial, sans-serif';
+ const txt=(s,x,y,size=16,color=tinta,bold=false,align='left',italic=false)=>{c.fillStyle=color;c.font=(italic?'italic ':'')+(bold?'800 ':'500 ')+size+'px '+F;c.textAlign=align;c.fillText(String(s??''),x,y)};
+ // Encabezado gris con título y pestaña oscura para el logo
+ c.fillStyle=gris;c.fillRect(0,0,W,76);
+ txt('RECIBO DE PAGO',W-M,56,40,negro,true,'right');
+ c.fillStyle='#202020';c.beginPath();c.roundRect(M,0,176,128,[0,0,24,24]);c.fill();
+ if(logo?.data){try{const img=new Image();img.src='data:image/png;base64,'+btoa(logo.data);await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject});if(img.naturalWidth){const sc=Math.min(150/img.width,100/img.height),w=img.width*sc,h=img.height*sc;c.drawImage(img,M+(176-w)/2,(128-h)/2+2,w,h)}}catch{}}
+ else txt(S.negocio?.nombre||'DH BARBER',M+88,70,22,'#fff',true,'center');
+ // Fecha y número
+ txt('Fecha:',440,110,16,tinta,false,'right');txt(datosVenta.fecha||'',460,110,16,negro,true);
+ txt('Número:',440,138,16,tinta,false,'right');txt(datosVenta.numero||'—',460,138,16,negro,true);
+ // Cliente
+ let y=222;txt('INFORMACIÓN DEL CLIENTE',M,y,25,negro,true);y+=40;
+ [['Nombre:',String(datosVenta.cliente?.nombre||'Cliente de paso').slice(0,40)],['Teléfono:',String(datosVenta.cliente?.telefono||'No registrado').slice(0,24)],['Atendido por:',String(datosVenta.barbero?.nombre||'No asignado').slice(0,30)]].forEach(([k,v])=>{txt(k,M,y,17,negro,true);txt(v,M+142,y,16,tinta);y+=30});
+ // Tabla
+ y+=34;c.fillStyle=negro;c.fillRect(M,y,W-M*2,44);
+ txt('DESCRIPCIÓN',M+6,y+29,16,'#fff',true);txt('MONEDA',470,y+29,16,'#fff',true,'center');txt('TOTAL',W-M-12,y+29,16,'#fff',true,'right');y+=44;
+ if(!filas.length){txt('No hay productos ni servicios registrados.',M+6,y+38,15,suave);y+=64}
+ filas.forEach(f=>{const item=f.item,h=f.lineas.length>1?72:56;
+  f.lineas.forEach((s,j)=>txt(s,M+6,y+32+j*20-(f.lineas.length>1?8:0),16,tinta));
+  txt('cop',470,y+h/2+6,16,tinta,false,'center');
+  txt(num(item.subtotal??(Number(item.cantidad)*Number(item.precio_unitario))),W-M-12,y+h/2+6,16,tinta,false,'right');
+  y+=h;c.strokeStyle='#bdbdbd';c.lineWidth=1;c.beginPath();c.moveTo(M+2,y);c.lineTo(W-M-2,y);c.stroke()});
+ c.strokeStyle=negro;c.lineWidth=2;c.beginPath();c.moveTo(M+2,y);c.lineTo(W-M-2,y);c.stroke();
+ // Subtotal, descuento y total
+ y+=38;txt('Sub-total',470,y,16,tinta,false,'center');txt(cop(resumen.subtotal),W-M-12,y,16,tinta,false,'right');
+ if(Number(resumen.descuento)>0){y+=32;txt('Descuento',470,y,16,tinta,false,'center');txt('- '+cop(resumen.descuento),W-M-12,y,16,tinta,false,'right')}
+ y+=36;c.fillStyle=gris;c.fillRect(430,y,W-M-430,48);
+ txt('TOTAL',446,y+32,20,negro,true);txt(cop(resumen.total),W-M-14,y+32,22,negro,true,'right',true);y+=48;
+ // Pagos y saldo
+ y+=40;const estado=String(datosVenta.estado||'').toUpperCase();
+ if(pagos.length){txt('PAGOS REGISTRADOS',M,y,17,negro,true);y+=14;
+  pagos.forEach(p=>{y+=30;const f=new Date(p.fecha_hora).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});txt(f+' · '+bonito(p.metodo_pago||'No registrado'),M+6,y,15,tinta);txt(cop(p.valor_pago),W-M-12,y,15,tinta,true,'right')});y+=24}
+ if(estado==='ANULADA'){y+=24;txt('VENTA ANULADA',M,y,22,rojo,true)}
+ else if(Number(resumen.saldo)>0){y+=30;c.fillStyle='#f6e3e1';c.fillRect(M,y-26,W-M*2,48);txt('SALDO PENDIENTE',M+14,y+5,16,rojo,true);txt(cop(resumen.saldo),W-M-14,y+5,20,rojo,true,'right')}
+ else{y+=30;txt('PAGADO',M,y,22,verde,true)}
+ y+=64;txt('¡Gracias por preferirnos!',W/2,y,20,negro,true,'center');y+=30;
+ txt('Comprobante comercial. No sustituye una factura electrónica',W/2,y,12,suave,false,'center');y+=18;txt('de venta autorizada por la DIAN.',W/2,y,12,suave,false,'center');y+=24;
+ const final=document.createElement('canvas');final.width=W;final.height=y+10;final.getContext('2d').drawImage(canvas,0,0);return final;
 }
 async function generarImagenComprobante(v,detalles,pagos,accion='compartir'){
  const negocio=S.negocio||{},cliente=v.clientes||{},barbero=v.barberos||{};
@@ -326,12 +324,12 @@ async function generarImagenComprobante(v,detalles,pagos,accion='compartir'){
  const numero='V-'+String(v.id||'').replace(/-/g,'').slice(0,12).toUpperCase();
  const subtotal=Number(v.total_bruto??(detalles||[]).reduce((s,x)=>s+(Number(x.subtotal??(Number(x.cantidad)*Number(x.precio_unitario)))||0),0));
  const descuento=Math.max(0,Number(v.descuento)||0),logo=await cargarLogoComprobante(negocio.logo_url||'./logo-dhbarber.png');
- const datos={fecha:new Intl.DateTimeFormat('es-CO',{dateStyle:'medium',timeStyle:'short',timeZone:negocio.zona_horaria||'America/Bogota'}).format(new Date(v.fecha_hora)),numero,estado,cliente,barbero,detalles:detalles||[],pagos:pagos||[],resumen:{subtotal,descuento,total,pagado,saldo}};
+ const datos={fecha:new Intl.DateTimeFormat('es-CO',{dateStyle:'long',timeZone:negocio.zona_horaria||'America/Bogota'}).format(new Date(v.fecha_hora)),numero,estado,cliente,barbero,detalles:detalles||[],pagos:pagos||[],resumen:{subtotal,descuento,total,pagado,saldo}};
  const canvas=await imagenComprobante(datos,logo),blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('El navegador no pudo crear la imagen.')),'image/jpeg',0.94));
  const nombreArchivo='Comprobante-'+String(v.id).slice(0,8).toUpperCase()+'.jpg',archivo=new File([blob],nombreArchivo,{type:'image/jpeg'});
  const telefono=String(cliente.telefono||'').replace(/\D/g,''),numeroTelefono=telefono.length===10?'57'+telefono:telefono;
  const mensaje='Hola '+String(cliente.nombre||'')+', te compartimos el comprobante de tu compra en '+String(negocio.nombre||'DH BARBER')+'. ¡Gracias por preferirnos!';
- if(accion==='compartir'&&navigator.share&&navigator.canShare?.({files:[archivo]})){try{await navigator.share({files:[archivo],title:'Comprobante de venta',text:mensaje});return}catch(error){if(error?.name==='AbortError')return}}
+ if(accion==='compartir'&&navigator.share&&navigator.canShare?.({files:[archivo]})){try{await navigator.share({files:[archivo],title:'Recibo de pago',text:mensaje});return}catch(error){if(error?.name==='AbortError')return}}
  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=nombreArchivo;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
  if(accion==='compartir'&&numeroTelefono.length>=7){window.open('https://wa.me/'+numeroTelefono+'?text='+encodeURIComponent(mensaje),'_blank','noopener');toast('Imagen descargada. Adjunta el comprobante en WhatsApp para enviarlo al cliente.',false)}
  else toast('Imagen del comprobante descargada correctamente.',false);
