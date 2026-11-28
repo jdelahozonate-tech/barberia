@@ -149,7 +149,7 @@ test('Reportes ofrece informes gerenciales y exportación PDF y Excel', () => {
   assert.match(index, /\['reportes','Reportes',1\]/);
   assert.match(index, /crearModuloReportes/);
   assert.match(sw, /src\/modules\/reportes\.js/);
-  assert.match(sw, /barberia-v31/);
+  assert.match(sw, /barberia-v32/);
 });
 
 test('Las comisiones históricas de ventas no pagadas se limpian', () => {
@@ -594,7 +594,7 @@ test('el módulo de productos es un control de inventario simple, sin proveedore
   assert.match(index, /const \{ productos \} = crearModuloProductos/);
   assert.doesNotMatch(index, /\['pedidos','Pedidos'\]/);
   assert.match(sw, /src\/modules\/productos\.js/);
-  assert.match(sw, /barberia-v31/);
+  assert.match(sw, /barberia-v32/);
   assert.match(sw, /src\/modules\/pedidos\.js/);
 });
 
@@ -711,7 +711,7 @@ test('los perfiles de barberos permiten fotografía privada de administración y
   assert.match(index, /miperfil:miPerfil/);
   assert.match(sql, /CREATE POLICY barberos_perfil_propio/);
   assert.match(sql, /barberos_fotos_insertar/);
-  assert.match(sw, /barberia-v31/);
+  assert.match(sw, /barberia-v32/);
 });
 
 
